@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ChevronRight,
@@ -27,7 +26,6 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [expandedMacros, setExpandedMacros] = useState<Set<string>>(new Set());
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [addingProjectTo, setAddingProjectTo] = useState<string | null>(null);
-  const [newProjectName, setNewProjectName] = useState('');
   const [addingDeptTo, setAddingDeptTo] = useState<string | null>(null);
 
   const { data: macroProjects = [] } = useQuery({
@@ -78,19 +76,14 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     },
   });
 
-  const addProject = useMutation({
-    mutationFn: async ({ name, macroProjectId }: { name: string; macroProjectId: string }) => {
-      const { error } = await supabase.from('projects').insert({
-        name,
-        macro_project_id: macroProjectId,
-        position: projects.length,
-      });
+  const assignProjectToMacro = useMutation({
+    mutationFn: async ({ projectId, macroProjectId }: { projectId: string; macroProjectId: string }) => {
+      const { error } = await supabase.from('projects').update({ macro_project_id: macroProjectId }).eq('id', projectId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       setAddingProjectTo(null);
-      setNewProjectName('');
     },
   });
 
@@ -194,24 +187,31 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 {/* Expanded: show projects under this macro */}
                 {macroExpanded && (
                   <div className="ml-3 space-y-0.5">
-                    {/* Add project form */}
+                    {/* Assign project dropdown */}
                     {addingProjectTo === macro.id && (
-                      <form
-                        className="px-2 py-1"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          if (newProjectName.trim()) addProject.mutate({ name: newProjectName.trim(), macroProjectId: macro.id });
-                        }}
-                      >
-                        <Input
-                          value={newProjectName}
-                          onChange={(e) => setNewProjectName(e.target.value)}
-                          placeholder="New project name"
-                          className="h-7 text-xs"
-                          autoFocus
-                          onBlur={() => { if (!newProjectName.trim()) setAddingProjectTo(null); }}
-                        />
-                      </form>
+                      <div className="px-2 py-1 space-y-1">
+                        <Select
+                          onValueChange={(val) => {
+                            assignProjectToMacro.mutate({ projectId: val, macroProjectId: macro.id });
+                          }}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue placeholder="Select project..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(() => {
+                              const available = projects.filter((p) => p.is_live && !(p as any).macro_project_id);
+                              if (available.length === 0) return <SelectItem value="__none__" disabled>No unassigned live projects</SelectItem>;
+                              return available.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.name}
+                                </SelectItem>
+                              ));
+                            })()}
+                          </SelectContent>
+                        </Select>
+                        <Button variant="ghost" size="sm" className="h-5 text-[10px] w-full" onClick={() => setAddingProjectTo(null)}>Cancel</Button>
+                      </div>
                     )}
 
                     {/* Projects */}
