@@ -125,8 +125,8 @@ function MasterSection({
       name: formData.name.trim(),
       position: items.length + 1,
     };
-    // Auto-assign color for departments and members
-    if (table === 'master_departments' || table === 'master_members') {
+    // Auto-assign color for departments, members, task types, categories, and projects
+    if (table === 'master_departments' || table === 'master_members' || table === 'master_task_types' || table === 'master_task_categories' || table === 'projects') {
       newItem.color = AUTO_COLORS[items.length % AUTO_COLORS.length];
     }
     if (fields.includes('color')) newItem.color = formData.color || '#6b7280';
