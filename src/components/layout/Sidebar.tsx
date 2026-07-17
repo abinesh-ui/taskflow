@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import type { Project, Department } from '@/types/database';
 
-export default function Sidebar() {
+export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const navigate = useNavigate();
   const { projectId, departmentId } = useParams();
   const { profile } = useAuth();
@@ -108,7 +108,7 @@ export default function Sidebar() {
         <Button
           variant="ghost"
           className="w-full justify-start text-sm h-8"
-          onClick={() => navigate('/')}
+          onClick={() => { navigate('/'); onNavigate?.(); }}
         >
           <Home className="h-4 w-4 mr-2" />
           Home
@@ -117,7 +117,7 @@ export default function Sidebar() {
           <Button
             variant="ghost"
             className="w-full justify-start text-sm h-8"
-            onClick={() => navigate('/settings')}
+            onClick={() => { navigate('/settings'); onNavigate?.(); }}
           >
             <Settings className="h-4 w-4 mr-2" />
             Settings / Masters
@@ -222,7 +222,7 @@ export default function Sidebar() {
                         className={`flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer hover:bg-accent ${
                           departmentId === dept.id ? 'bg-accent font-medium' : ''
                         }`}
-                        onClick={() => navigate(`/project/${project.id}/department/${dept.id}`)}
+                        onClick={() => { navigate(`/project/${project.id}/department/${dept.id}`); onNavigate?.(); }}
                       >
                         <Layers className="h-3 w-3 text-muted-foreground" />
                         <span className="truncate">{dept.name}</span>

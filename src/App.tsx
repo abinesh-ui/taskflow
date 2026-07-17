@@ -8,6 +8,9 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import DashboardPage from '@/pages/DashboardPage';
 import MastersPage from '@/pages/MastersPage';
 import DepartmentPage from '@/pages/DepartmentPage';
+import MyTasksPage from '@/pages/MyTasksPage';
+import NotificationsPage from '@/pages/NotificationsPage';
+import MobileProjectsPage from '@/pages/MobileProjectsPage';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -59,6 +62,9 @@ function App() {
         <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
           <Route index element={<DashboardPage />} />
           <Route path="settings" element={<AdminRoute><MastersPage /></AdminRoute>} />
+          <Route path="my-tasks" element={<MyTasksPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="projects-mobile" element={<MobileProjectsPage />} />
           <Route path="project/:projectId/department/:departmentId" element={<DepartmentPage />} />
         </Route>
       </Routes>
