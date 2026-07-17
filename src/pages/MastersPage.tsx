@@ -80,12 +80,25 @@ function MasterSection({
 
   const toggleActive = useMutation({
     mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
-      const field = table === 'projects' ? 'is_active' : 'is_active';
-      const { error } = await supabase.from(table).update({ [field]: active }).eq('id', id);
+      const { error } = await supabase.from(table).update({ is_active: active }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [table] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from(table).delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [table] });
+      toast({ title: 'Deleted successfully' });
+    },
+    onError: (err: Error) => {
+      toast({ variant: 'destructive', title: 'Cannot delete', description: err.message });
     },
   });
 
@@ -298,10 +311,27 @@ function MasterSection({
                     variant="ghost"
                     className="h-7 w-7"
                     onClick={() => toggleActive.mutate({ id: item.id, active: !item.is_active })}
+                    title={item.is_active ? 'Deactivate' : 'Activate'}
                     aria-label={item.is_active ? 'Deactivate' : 'Activate'}
                   >
-                    <Trash2 className="h-3 w-3 text-muted-foreground" />
+                    {item.is_active ? (
+                      <X className="h-3 w-3 text-muted-foreground" />
+                    ) : (
+                      <Check className="h-3 w-3 text-green-600" />
+                    )}
                   </Button>
+                  {!item.is_active && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      onClick={() => deleteMutation.mutate(item.id)}
+                      title="Delete permanently"
+                      aria-label="Delete"
+                    >
+                      <Trash2 className="h-3 w-3 text-destructive" />
+                    </Button>
+                  )}
                 </>
               )}
             </div>
