@@ -43,6 +43,14 @@ export default function DashboardPage() {
   const [filterDateTo, setFilterDateTo] = useState('');
   const [overdueOnly, setOverdueOnly] = useState(false);
 
+  const { data: macroProjects = [] } = useQuery({
+    queryKey: ['master_macro_projects'],
+    queryFn: async () => {
+      const { data } = await supabase.from('master_macro_projects').select('*').eq('is_active', true).order('position');
+      return (data || []) as Array<{ id: string; name: string; color: string }>;
+    },
+  });
+
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
     queryFn: async () => {
@@ -269,6 +277,7 @@ export default function DashboardPage() {
         <HierarchicalListView
           filteredTasks={filteredTasks}
           allTasks={allTasks}
+          macroProjects={macroProjects}
           projects={projects}
           departments={departments}
           statuses={statuses}
@@ -313,11 +322,13 @@ export default function DashboardPage() {
 // HIERARCHICAL LIST VIEW
 // ============================================================
 function HierarchicalListView({
-  filteredTasks, allTasks, projects, departments, statuses, priorities, members,
+  filteredTasks, allTasks, macroProjects, projects, departments, statuses, priorities, members,
   expandedProjects, setExpandedProjects, expandedDepts, setExpandedDepts,
   expandedStatuses, setExpandedStatuses, expandedTasks, setExpandedTasks, onEditTask,
 }: {
-  filteredTasks: Task[]; allTasks: Task[]; projects: Project[]; departments: Department[];
+  filteredTasks: Task[]; allTasks: Task[];
+  macroProjects: Array<{ id: string; name: string; color: string }>;
+  projects: Project[]; departments: Department[];
   statuses: MasterStatus[]; priorities: MasterPriority[]; members: Array<{ id: string; name: string; color: string }>;
   expandedProjects: Set<string>; setExpandedProjects: (s: Set<string>) => void;
   expandedDepts: Set<string>; setExpandedDepts: (s: Set<string>) => void;
@@ -325,6 +336,8 @@ function HierarchicalListView({
   expandedTasks: Set<string>; setExpandedTasks: (s: Set<string>) => void;
   onEditTask: (t: Task) => void;
 }) {
+  const [expandedMacros, setExpandedMacros] = useState<Set<string>>(new Set(macroProjects.map((m) => m.id)));
+
   function toggleSet(set: Set<string>, setFn: (s: Set<string>) => void, id: string) {
     const next = new Set(set);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -340,6 +353,110 @@ function HierarchicalListView({
     return allTasks.filter((t) => t.parent_id === taskId);
   }
 
+  // Group projects by macro_project_id
+  function getProjectsForMacro(macroId: string) {
+    return projects.filter((p) => (p as any).macro_project_id === macroId);
+  }
+
+  const unassignedProjects = projects.filter((p) => !(p as any).macro_project_id);
+
+  function renderTaskRow(task: Task, status: MasterStatus) {
+    const priority = priorities.find((p) => p.id === task.priority_id);
+    const overdue = getOverdueDays(task.planned_end_date, status.is_closed);
+    const monthWeek = getPlannedMonthWeek(task.planned_start_date);
+    const subtasks = getSubtasks(task.id);
+
+    return (
+      <React.Fragment key={task.id}>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr_90px_90px_90px_85px_60px_65px] gap-1 md:gap-0 px-3 md:px-16 py-2 border-b hover:bg-accent/30 cursor-pointer text-sm items-center" onClick={() => onEditTask(task)}>
+          <div className="flex items-center gap-1">
+            {subtasks.length > 0 && (
+              <button onClick={(e) => { e.stopPropagation(); toggleSet(expandedTasks, setExpandedTasks, task.id); }} className="p-0.5 hover:bg-accent rounded">
+                {expandedTasks.has(task.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              </button>
+            )}
+            <span className="font-mono text-[10px] text-muted-foreground">{task.task_no}</span>
+          </div>
+          <span className="font-medium text-sm truncate">{task.title}</span>
+          <Badge className="text-[9px] w-fit" style={{ backgroundColor: status.color, color: '#fff' }}>{status.name}</Badge>
+          <div>{priority && <span className="flex items-center gap-1 text-xs"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: priority.color }} />{priority.name}</span>}</div>
+          <span className="text-xs">{getMemberName(task.assignee_id)}</span>
+          <span className={`text-xs ${overdue > 0 ? 'text-red-600' : ''}`}>{task.planned_end_date || '-'}</span>
+          <span className={`text-xs ${overdue > 0 ? 'text-red-600 font-bold' : ''}`}>{overdue > 0 ? `${overdue}d` : '-'}</span>
+          <span className="text-xs text-muted-foreground">{monthWeek || '-'}</span>
+        </div>
+        {expandedTasks.has(task.id) && subtasks.map((sub) => {
+          const subStatus = statuses.find((s) => s.id === sub.status_id);
+          const subPri = priorities.find((p) => p.id === sub.priority_id);
+          const subOver = getOverdueDays(sub.planned_end_date, subStatus?.is_closed ?? false);
+          return (
+            <div key={sub.id} className="grid grid-cols-1 md:grid-cols-[1fr_2fr_90px_90px_90px_85px_60px_65px] gap-1 md:gap-0 px-3 md:px-22 py-1.5 border-b hover:bg-accent/20 cursor-pointer text-xs items-center bg-muted/10" onClick={() => onEditTask(sub)}>
+              <span className="font-mono text-[10px] text-muted-foreground ml-4">{sub.task_no}</span>
+              <span className="text-xs truncate">{sub.title}</span>
+              <div>{subStatus && <Badge className="text-[8px] w-fit" style={{ backgroundColor: subStatus.color, color: '#fff' }}>{subStatus.name}</Badge>}</div>
+              <div>{subPri && <span className="flex items-center gap-1 text-[10px]"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: subPri.color }} />{subPri.name}</span>}</div>
+              <span className="text-[10px]">{getMemberName(sub.assignee_id)}</span>
+              <span className={`text-[10px] ${subOver > 0 ? 'text-red-600' : ''}`}>{sub.planned_end_date || '-'}</span>
+              <span className={`text-[10px] ${subOver > 0 ? 'text-red-600 font-bold' : ''}`}>{subOver > 0 ? `${subOver}d` : '-'}</span>
+              <span className="text-[10px] text-muted-foreground">{getPlannedMonthWeek(sub.planned_start_date) || '-'}</span>
+            </div>
+          );
+        })}
+      </React.Fragment>
+    );
+  }
+
+  function renderProjectBlock(project: Project, indent: number) {
+    const projectDepts = departments.filter((d) => d.project_id === project.id);
+    const projectTasks = filteredTasks.filter((t) => t.project_id === project.id);
+    if (projectTasks.length === 0) return null;
+
+    return (
+      <div key={project.id}>
+        <div className={`flex items-center gap-2 py-1.5 border-b cursor-pointer hover:bg-muted/30`} style={{ paddingLeft: `${indent}px` }} onClick={() => toggleSet(expandedProjects, setExpandedProjects, project.id)}>
+          {expandedProjects.has(project.id) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          <FolderOpen className="h-3.5 w-3.5 text-primary/70" />
+          <span className="font-medium text-sm">{project.name}</span>
+          <Badge variant="secondary" className="text-[10px]">{projectTasks.length}</Badge>
+        </div>
+
+        {expandedProjects.has(project.id) && projectDepts.map((dept) => {
+          const deptTasks = projectTasks.filter((t) => t.department_id === dept.id);
+          if (deptTasks.length === 0) return null;
+
+          return (
+            <div key={dept.id}>
+              <div className="flex items-center gap-2 py-1 border-b cursor-pointer hover:bg-muted/20" style={{ paddingLeft: `${indent + 20}px` }} onClick={() => toggleSet(expandedDepts, setExpandedDepts, dept.id)}>
+                {expandedDepts.has(dept.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (dept as any).color || '#6b7280' }} />
+                <span className="text-sm">{dept.name}</span>
+                <Badge variant="secondary" className="text-[9px]">{deptTasks.length}</Badge>
+              </div>
+
+              {expandedDepts.has(dept.id) && statuses.map((status) => {
+                const statusTasks = deptTasks.filter((t) => t.status_id === status.id);
+                if (statusTasks.length === 0) return null;
+                const key = `${dept.id}-${status.id}`;
+
+                return (
+                  <div key={key}>
+                    <div className="flex items-center gap-2 py-0.5 border-b cursor-pointer hover:bg-muted/10" style={{ paddingLeft: `${indent + 40}px` }} onClick={() => toggleSet(expandedStatuses, setExpandedStatuses, key)}>
+                      {expandedStatuses.has(key) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                      <div className="h-2 w-2 rounded-full" style={{ backgroundColor: status.color }} />
+                      <span className="text-xs font-medium">{status.name}</span>
+                      <Badge variant="secondary" className="text-[9px]">{statusTasks.length}</Badge>
+                    </div>
+                    {expandedStatuses.has(key) && statusTasks.map((task) => renderTaskRow(task, status))}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="border rounded-lg overflow-hidden">
       {/* Headers */}
@@ -347,104 +464,27 @@ function HierarchicalListView({
         <span>Task #</span><span>Title</span><span>Status</span><span>Priority</span><span>Assignee</span><span>Due Date</span><span>Overdue</span><span>Mon/Wk</span>
       </div>
 
-      {projects.map((project) => {
-        const projectDepts = departments.filter((d) => d.project_id === project.id);
-        const projectTasks = filteredTasks.filter((t) => t.project_id === project.id);
-        if (projectTasks.length === 0) return null;
+      {/* Macro Projects */}
+      {macroProjects.map((macro) => {
+        const macroProjectsList = getProjectsForMacro(macro.id);
+        const macroTasks = filteredTasks.filter((t) => macroProjectsList.some((p) => p.id === t.project_id));
+        if (macroTasks.length === 0) return null;
 
         return (
-          <div key={project.id}>
-            <div className="flex items-center gap-2 px-3 py-2 bg-muted/20 border-b cursor-pointer hover:bg-muted/40" onClick={() => toggleSet(expandedProjects, setExpandedProjects, project.id)}>
-              {expandedProjects.has(project.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              <FolderOpen className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-sm">{project.name}</span>
-              <Badge variant="secondary" className="text-[10px] ml-1">{projectTasks.length}</Badge>
+          <div key={macro.id}>
+            <div className="flex items-center gap-2 px-3 py-2 bg-primary/5 border-b cursor-pointer hover:bg-primary/10" onClick={() => toggleSet(expandedMacros, setExpandedMacros, macro.id)}>
+              {expandedMacros.has(macro.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <div className="h-3 w-3 rounded" style={{ backgroundColor: macro.color }} />
+              <span className="font-bold text-sm">{macro.name}</span>
+              <Badge variant="secondary" className="text-[10px]">{macroTasks.length}</Badge>
             </div>
-
-            {expandedProjects.has(project.id) && projectDepts.map((dept) => {
-              const deptTasks = projectTasks.filter((t) => t.department_id === dept.id);
-              if (deptTasks.length === 0) return null;
-
-              return (
-                <div key={dept.id}>
-                  <div className="flex items-center gap-2 px-6 py-1.5 border-b cursor-pointer hover:bg-muted/30" onClick={() => toggleSet(expandedDepts, setExpandedDepts, dept.id)}>
-                    {expandedDepts.has(dept.id) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                    <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (dept as any).color || '#6b7280' }} />
-                    <span className="font-medium text-sm">{dept.name}</span>
-                    <Badge variant="secondary" className="text-[10px]">{deptTasks.length}</Badge>
-                  </div>
-
-                  {expandedDepts.has(dept.id) && statuses.map((status) => {
-                    const statusTasks = deptTasks.filter((t) => t.status_id === status.id);
-                    if (statusTasks.length === 0) return null;
-                    const key = `${dept.id}-${status.id}`;
-
-                    return (
-                      <div key={key}>
-                        <div className="flex items-center gap-2 px-10 py-1 border-b cursor-pointer hover:bg-muted/20" onClick={() => toggleSet(expandedStatuses, setExpandedStatuses, key)}>
-                          {expandedStatuses.has(key) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                          <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: status.color }} />
-                          <span className="text-xs font-medium">{status.name}</span>
-                          <Badge variant="secondary" className="text-[9px]">{statusTasks.length}</Badge>
-                        </div>
-
-                        {expandedStatuses.has(key) && statusTasks.map((task) => {
-                          const priority = priorities.find((p) => p.id === task.priority_id);
-                          const overdue = getOverdueDays(task.planned_end_date, status.is_closed);
-                          const monthWeek = getPlannedMonthWeek(task.planned_start_date);
-                          const subtasks = getSubtasks(task.id);
-
-                          return (
-                            <React.Fragment key={task.id}>
-                              <div
-                                className="grid grid-cols-1 md:grid-cols-[1fr_2fr_90px_90px_90px_85px_60px_65px] gap-1 md:gap-0 px-3 md:px-14 py-2 border-b hover:bg-accent/30 cursor-pointer text-sm items-center"
-                                onClick={() => onEditTask(task)}
-                              >
-                                <div className="flex items-center gap-1">
-                                  {subtasks.length > 0 && (
-                                    <button onClick={(e) => { e.stopPropagation(); toggleSet(expandedTasks, setExpandedTasks, task.id); }} className="p-0.5 hover:bg-accent rounded">
-                                      {expandedTasks.has(task.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                                    </button>
-                                  )}
-                                  <span className="font-mono text-[10px] text-muted-foreground">{task.task_no}</span>
-                                </div>
-                                <span className="font-medium text-sm truncate">{task.title}</span>
-                                <Badge className="text-[9px] w-fit" style={{ backgroundColor: status.color, color: '#fff' }}>{status.name}</Badge>
-                                <div>{priority && <span className="flex items-center gap-1 text-xs"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: priority.color }} />{priority.name}</span>}</div>
-                                <span className="text-xs">{getMemberName(task.assignee_id)}</span>
-                                <span className={`text-xs ${overdue > 0 ? 'text-red-600' : ''}`}>{task.planned_end_date || '-'}</span>
-                                <span className={`text-xs ${overdue > 0 ? 'text-red-600 font-bold' : ''}`}>{overdue > 0 ? `${overdue}d` : '-'}</span>
-                                <span className="text-xs text-muted-foreground">{monthWeek || '-'}</span>
-                              </div>
-                              {expandedTasks.has(task.id) && subtasks.map((sub) => {
-                                const subStatus = statuses.find((s) => s.id === sub.status_id);
-                                const subPri = priorities.find((p) => p.id === sub.priority_id);
-                                const subOver = getOverdueDays(sub.planned_end_date, subStatus?.is_closed ?? false);
-                                return (
-                                  <div key={sub.id} className="grid grid-cols-1 md:grid-cols-[1fr_2fr_90px_90px_90px_85px_60px_65px] gap-1 md:gap-0 px-3 md:px-20 py-1.5 border-b hover:bg-accent/20 cursor-pointer text-xs items-center bg-muted/10" onClick={() => onEditTask(sub)}>
-                                    <span className="font-mono text-[10px] text-muted-foreground">{sub.task_no}</span>
-                                    <span className="text-xs truncate">{sub.title}</span>
-                                    <div>{subStatus && <Badge className="text-[8px] w-fit" style={{ backgroundColor: subStatus.color, color: '#fff' }}>{subStatus.name}</Badge>}</div>
-                                    <div>{subPri && <span className="flex items-center gap-1 text-[10px]"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: subPri.color }} />{subPri.name}</span>}</div>
-                                    <span className="text-[10px]">{getMemberName(sub.assignee_id)}</span>
-                                    <span className={`text-[10px] ${subOver > 0 ? 'text-red-600' : ''}`}>{sub.planned_end_date || '-'}</span>
-                                    <span className={`text-[10px] ${subOver > 0 ? 'text-red-600 font-bold' : ''}`}>{subOver > 0 ? `${subOver}d` : '-'}</span>
-                                    <span className="text-[10px] text-muted-foreground">{getPlannedMonthWeek(sub.planned_start_date) || '-'}</span>
-                                  </div>
-                                );
-                              })}
-                            </React.Fragment>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
+            {expandedMacros.has(macro.id) && macroProjectsList.map((project) => renderProjectBlock(project, 24))}
           </div>
         );
       })}
+
+      {/* Unassigned projects */}
+      {unassignedProjects.length > 0 && unassignedProjects.map((project) => renderProjectBlock(project, 12))}
 
       {filteredTasks.length === 0 && (
         <div className="text-center py-12 text-muted-foreground text-sm">No tasks found.</div>

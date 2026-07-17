@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import AlertRulesSection from '@/components/notifications/AlertRulesPage';
 
-type MasterTable = 'master_task_types' | 'master_task_categories' | 'master_priorities' | 'master_statuses' | 'projects' | 'master_departments' | 'master_members';
+type MasterTable = 'master_task_types' | 'master_task_categories' | 'master_priorities' | 'master_statuses' | 'projects' | 'master_departments' | 'master_members' | 'master_macro_projects';
 
 interface MasterItem {
   id: string;
@@ -125,8 +125,8 @@ function MasterSection({
       name: formData.name.trim(),
       position: items.length + 1,
     };
-    // Auto-assign color for departments, members, task types, categories, and projects
-    if (table === 'master_departments' || table === 'master_members' || table === 'master_task_types' || table === 'master_task_categories' || table === 'projects') {
+    // Auto-assign color for departments, members, task types, categories, projects, and macro projects
+    if (table === 'master_departments' || table === 'master_members' || table === 'master_task_types' || table === 'master_task_categories' || table === 'projects' || table === 'master_macro_projects') {
       newItem.color = AUTO_COLORS[items.length % AUTO_COLORS.length];
     }
     if (fields.includes('color')) newItem.color = formData.color || '#6b7280';
@@ -354,6 +354,7 @@ export default function MastersPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <MasterSection title="Macro Projects" table="master_macro_projects" fields={[]} />
         <MasterSection title="Projects" table="projects" fields={['is_live']} />
         <MasterSection title="Departments" table="master_departments" fields={[]} />
         <MasterSection title="Members" table="master_members" fields={[]} />
