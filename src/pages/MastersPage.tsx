@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import AlertRulesSection from '@/components/notifications/AlertRulesPage';
 
-type MasterTable = 'master_task_types' | 'master_task_categories' | 'master_priorities' | 'master_statuses' | 'projects' | 'departments';
+type MasterTable = 'master_task_types' | 'master_task_categories' | 'master_priorities' | 'master_statuses' | 'projects' | 'master_departments';
 
 interface MasterItem {
   id: string;
@@ -100,12 +100,22 @@ function MasterSection({
     setFormData(data);
   }
 
+  const AUTO_COLORS = [
+    '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+    '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1',
+    '#14b8a6', '#e11d48', '#0ea5e9', '#a855f7', '#22c55e',
+  ];
+
   function handleSaveNew() {
     if (!formData.name?.trim()) return;
     const newItem: Record<string, unknown> = {
       name: formData.name.trim(),
       position: items.length + 1,
     };
+    // Auto-assign color for departments
+    if (table === 'master_departments') {
+      newItem.color = AUTO_COLORS[items.length % AUTO_COLORS.length];
+    }
     if (fields.includes('color')) newItem.color = formData.color || '#6b7280';
     if (fields.includes('sort_weight')) newItem.sort_weight = Number(formData.sort_weight) || 0;
     if (fields.includes('is_closed')) newItem.is_closed = formData.is_closed === 'true';
@@ -315,7 +325,7 @@ export default function MastersPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <MasterSection title="Projects" table="projects" fields={['is_live']} />
-        <MasterSection title="Departments" table="departments" fields={['color']} />
+        <MasterSection title="Departments" table="master_departments" fields={[]} />
         <MasterSection title="Task Types" table="master_task_types" />
         <MasterSection title="Task Categories" table="master_task_categories" />
         <MasterSection title="Priorities" table="master_priorities" fields={['color', 'sort_weight']} />

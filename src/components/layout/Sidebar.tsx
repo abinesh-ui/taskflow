@@ -53,6 +53,18 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     },
   });
 
+  const { data: masterDepartments = [] } = useQuery({
+    queryKey: ['master_departments'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('master_departments')
+        .select('*')
+        .eq('is_active', true)
+        .order('position');
+      return (data || []) as Array<{ id: string; name: string; color: string; position: number }>;
+    },
+  });
+
   const addProject = useMutation({
     mutationFn: async (name: string) => {
       const { error } = await supabase.from('projects').insert({ name, position: projects.length });
@@ -201,8 +213,8 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                       <div className="px-2 py-1 space-y-1">
                         <Select
                           onValueChange={(val) => {
-                            const sourceDept = departments.find((d) => d.name === val);
-                            const color = (sourceDept as any)?.color || '#6b7280';
+                            const masterDept = masterDepartments.find((d) => d.name === val);
+                            const color = masterDept?.color || '#6b7280';
                             addDepartment.mutate({ name: val, color, projectId: project.id });
                           }}
                         >
@@ -212,22 +224,18 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                           <SelectContent>
                             {(() => {
                               const assignedNames = depts.map((d) => d.name.toLowerCase());
-                              const allNames = [...new Set(departments.map((d) => d.name))];
-                              const available = allNames.filter((n) => !assignedNames.includes(n.toLowerCase()));
+                              const available = masterDepartments.filter((md) => !assignedNames.includes(md.name.toLowerCase()));
                               if (available.length === 0) {
                                 return <SelectItem value="__none__" disabled>No departments available. Add in Settings.</SelectItem>;
                               }
-                              return available.map((name) => {
-                                const dept = departments.find((d) => d.name === name);
-                                return (
-                                  <SelectItem key={name} value={name}>
-                                    <div className="flex items-center gap-2">
-                                      <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (dept as any)?.color || '#6b7280' }} />
-                                      {name}
-                                    </div>
-                                  </SelectItem>
-                                );
-                              });
+                              return available.map((md) => (
+                                <SelectItem key={md.id} value={md.name}>
+                                  <div className="flex items-center gap-2">
+                                    <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: md.color }} />
+                                    {md.name}
+                                  </div>
+                                </SelectItem>
+                              ));
                             })()}
                           </SelectContent>
                         </Select>
