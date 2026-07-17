@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   ChevronRight,
   ChevronDown,
@@ -27,7 +28,6 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [addingProject, setAddingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [addingDeptTo, setAddingDeptTo] = useState<string | null>(null);
-  const [newDeptName, setNewDeptName] = useState('');
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
@@ -66,15 +66,14 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   });
 
   const addDepartment = useMutation({
-    mutationFn: async ({ name, projectId }: { name: string; projectId: string }) => {
+    mutationFn: async ({ name, color, projectId }: { name: string; color: string; projectId: string }) => {
       const depts = departments.filter((d) => d.project_id === projectId);
-      const { error } = await supabase.from('departments').insert({ name, project_id: projectId, position: depts.length });
+      const { error } = await supabase.from('departments').insert({ name, color, project_id: projectId, position: depts.length });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departments'] });
       setAddingDeptTo(null);
-      setNewDeptName('');
     },
   });
 
@@ -199,22 +198,48 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 {expanded && (
                   <div className="ml-4 space-y-0.5">
                     {addingDeptTo === project.id && (
-                      <form
-                        className="px-2 py-0.5"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                          if (newDeptName.trim()) addDepartment.mutate({ name: newDeptName.trim(), projectId: project.id });
-                        }}
-                      >
-                        <Input
-                          value={newDeptName}
-                          onChange={(e) => setNewDeptName(e.target.value)}
-                          placeholder="Department name"
-                          className="h-6 text-xs"
-                          autoFocus
-                          onBlur={() => { if (!newDeptName.trim()) setAddingDeptTo(null); }}
-                        />
-                      </form>
+                      <div className="px-2 py-1 space-y-1">
+                        <Select
+                          onValueChange={(val) => {
+                            const sourceDept = departments.find((d) => d.name === val);
+                            const color = (sourceDept as any)?.color || '#6b7280';
+                            addDepartment.mutate({ name: val, color, projectId: project.id });
+                          }}
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue placeholder="Select department..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(() => {
+                              const assignedNames = depts.map((d) => d.name.toLowerCase());
+                              const allNames = [...new Set(departments.map((d) => d.name))];
+                              const available = allNames.filter((n) => !assignedNames.includes(n.toLowerCase()));
+                              if (available.length === 0) {
+                                return <SelectItem value="__none__" disabled>No departments available. Add in Settings.</SelectItem>;
+                              }
+                              return available.map((name) => {
+                                const dept = departments.find((d) => d.name === name);
+                                return (
+                                  <SelectItem key={name} value={name}>
+                                    <div className="flex items-center gap-2">
+                                      <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (dept as any)?.color || '#6b7280' }} />
+                                      {name}
+                                    </div>
+                                  </SelectItem>
+                                );
+                              });
+                            })()}
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-5 text-[10px] w-full"
+                          onClick={() => setAddingDeptTo(null)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
                     )}
                     {depts.map((dept) => (
                       <div
@@ -224,7 +249,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                         }`}
                         onClick={() => { navigate(`/project/${project.id}/department/${dept.id}`); onNavigate?.(); }}
                       >
-                        <Layers className="h-3 w-3 text-muted-foreground" />
+                        <div className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: (dept as any)?.color || '#6b7280' }} />
                         <span className="truncate">{dept.name}</span>
                       </div>
                     ))}

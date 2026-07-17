@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import AlertRulesSection from '@/components/notifications/AlertRulesPage';
 
-type MasterTable = 'master_task_types' | 'master_task_categories' | 'master_priorities' | 'master_statuses' | 'projects';
+type MasterTable = 'master_task_types' | 'master_task_categories' | 'master_priorities' | 'master_statuses' | 'projects' | 'departments';
 
 interface MasterItem {
   id: string;
@@ -315,6 +315,7 @@ export default function MastersPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <MasterSection title="Projects" table="projects" fields={['is_live']} />
+        <MasterSection title="Departments" table="departments" fields={['color']} />
         <MasterSection title="Task Types" table="master_task_types" />
         <MasterSection title="Task Categories" table="master_task_categories" />
         <MasterSection title="Priorities" table="master_priorities" fields={['color', 'sort_weight']} />
