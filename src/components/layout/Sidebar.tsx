@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +20,9 @@ import type { Project, Department } from '@/types/database';
 export default function Sidebar() {
   const navigate = useNavigate();
   const { projectId, departmentId } = useParams();
+  const { profile } = useAuth();
   const queryClient = useQueryClient();
+  const isAdmin = profile?.role === 'admin';
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [addingProject, setAddingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -110,14 +113,16 @@ export default function Sidebar() {
           <Home className="h-4 w-4 mr-2" />
           Home
         </Button>
-        <Button
-          variant="ghost"
-          className="w-full justify-start text-sm h-8"
-          onClick={() => navigate('/settings')}
-        >
-          <Settings className="h-4 w-4 mr-2" />
-          Settings / Masters
-        </Button>
+        {isAdmin && (
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-sm h-8"
+            onClick={() => navigate('/settings')}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Settings / Masters
+          </Button>
+        )}
       </div>
 
       {/* Project tree */}

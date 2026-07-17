@@ -36,6 +36,19 @@ function PublicRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+function AdminRoute({ children }: { children: ReactNode }) {
+  const { profile, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  if (profile?.role !== 'admin') return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -45,7 +58,7 @@ function App() {
         <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
         <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
           <Route index element={<DashboardPage />} />
-          <Route path="settings" element={<MastersPage />} />
+          <Route path="settings" element={<AdminRoute><MastersPage /></AdminRoute>} />
           <Route path="project/:projectId/department/:departmentId" element={<DepartmentPage />} />
         </Route>
       </Routes>
