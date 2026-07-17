@@ -56,7 +56,7 @@ function TaskCard({ task, priorities, users, onEdit, isDragging }: {
       <p className="text-sm font-medium leading-tight mb-2">{task.title}</p>
       <div className="flex items-center justify-between">
         {assignee && (
-          <span className="text-[10px] text-muted-foreground">{assignee.full_name}</span>
+          <span className="text-[10px] text-muted-foreground">{(assignee as any).name || (assignee as any).full_name}</span>
         )}
         {task.planned_end_date && (
           <span className={`text-[10px] ${isOverdue ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>

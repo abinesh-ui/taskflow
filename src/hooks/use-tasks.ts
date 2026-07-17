@@ -77,9 +77,9 @@ export function useMasterData() {
   const statuses = useStatuses();
 
   const users = useQuery({
-    queryKey: ['profiles'],
+    queryKey: ['master_members'],
     queryFn: async () => {
-      const { data } = await supabase.from('profiles').select('*');
+      const { data } = await supabase.from('master_members').select('*').eq('is_active', true).order('position');
       return data || [];
     },
   });

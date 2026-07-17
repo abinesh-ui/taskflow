@@ -239,8 +239,13 @@ export default function TaskDialog({ open, onOpenChange, task, departmentId, pro
               <Select value={formData.assignee_id} onValueChange={(val) => setFormData({ ...formData, assignee_id: val })}>
                 <SelectTrigger><SelectValue placeholder="Select assignee" /></SelectTrigger>
                 <SelectContent>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+                  {users.map((u: any) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      <div className="flex items-center gap-2">
+                        <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: u.color || '#6b7280' }} />
+                        {u.name || u.full_name}
+                      </div>
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -55,7 +55,7 @@ function SubtaskRow({ task, statuses, priorities, users, onEdit }: {
           </span>
         )}
       </td>
-      <td className="py-2 px-3 text-xs">{assignee?.full_name || '-'}</td>
+      <td className="py-2 px-3 text-xs">{(assignee as any)?.name || (assignee as any)?.full_name || '-'}</td>
       <td className="py-2 px-3 text-xs">{task.planned_end_date || '-'}</td>
       <td className={`py-2 px-3 text-xs ${overdue > 0 ? 'text-red-600 font-semibold' : ''}`}>
         {overdue > 0 ? `${overdue}d` : '-'}
@@ -116,7 +116,7 @@ function TaskRow({ task, statuses, priorities, users, onEdit, onViewTimeline, de
             </span>
           )}
         </td>
-        <td className="py-2 px-3 text-xs">{assignee?.full_name || '-'}</td>
+        <td className="py-2 px-3 text-xs">{(assignee as any)?.name || (assignee as any)?.full_name || '-'}</td>
         <td className="py-2 px-3 text-xs">{task.planned_end_date || '-'}</td>
         <td className={`py-2 px-3 text-xs ${overdue > 0 ? 'text-red-600 font-semibold' : ''}`}>
           {overdue > 0 ? `${overdue}d` : '-'}

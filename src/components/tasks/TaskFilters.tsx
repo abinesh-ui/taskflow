@@ -83,8 +83,8 @@ export default function TaskFilters({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Assignees</SelectItem>
-          {users.map((u) => (
-            <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>
+          {users.map((u: any) => (
+            <SelectItem key={u.id} value={u.id}>{u.name || u.full_name}</SelectItem>
           ))}
         </SelectContent>
       </Select>
