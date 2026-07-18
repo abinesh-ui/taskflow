@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { supabase } from '@/lib/supabase';
 import { useMasterData, useCreateTask, useUpdateTask } from '@/hooks/use-tasks';
 import { useToast } from '@/hooks/use-toast';
@@ -203,109 +203,74 @@ export default function TaskDialog({ open, onOpenChange, task, departmentId, pro
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Project</Label>
-              <Select
+              <SearchableSelect
+                options={liveProjects.map((p: any) => ({ value: p.id, label: p.name, color: p.color }))}
                 value={formData.project_id}
-                onValueChange={(val) => setFormData({ ...formData, project_id: val, department_id: '' })}
-              >
-                <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
-                <SelectContent>
-                  {liveProjects.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(val) => setFormData({ ...formData, project_id: val, department_id: '' })}
+                placeholder="Select project"
+              />
             </div>
             <div className="space-y-2">
               <Label>Department</Label>
-              <Select
+              <SearchableSelect
+                options={deptOptions.map((d: any) => ({ value: d.id, label: d.name, color: d.color }))}
                 value={formData.department_id}
-                onValueChange={(val) => setFormData({ ...formData, department_id: val })}
-              >
-                <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
-                <SelectContent>
-                  {deptOptions.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(val) => setFormData({ ...formData, department_id: val })}
+                placeholder="Select department"
+              />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Task Type</Label>
-              <Select value={formData.task_type_id} onValueChange={(val) => setFormData({ ...formData, task_type_id: val })}>
-                <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                <SelectContent>
-                  {taskTypes.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={taskTypes.map((t: any) => ({ value: t.id, label: t.name, color: t.color }))}
+                value={formData.task_type_id}
+                onChange={(val) => setFormData({ ...formData, task_type_id: val })}
+                placeholder="Select type"
+              />
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
-              <Select value={formData.category_id} onValueChange={(val) => setFormData({ ...formData, category_id: val })}>
-                <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={categories.map((c: any) => ({ value: c.id, label: c.name, color: c.color }))}
+                value={formData.category_id}
+                onChange={(val) => setFormData({ ...formData, category_id: val })}
+                placeholder="Select category"
+              />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Priority</Label>
-              <Select value={formData.priority_id} onValueChange={(val) => setFormData({ ...formData, priority_id: val })}>
-                <SelectTrigger><SelectValue placeholder="Select priority" /></SelectTrigger>
-                <SelectContent>
-                  {priorities.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: p.color }} />
-                        {p.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={priorities.map((p: any) => ({ value: p.id, label: p.name, color: p.color }))}
+                value={formData.priority_id}
+                onChange={(val) => setFormData({ ...formData, priority_id: val })}
+                placeholder="Select priority"
+              />
             </div>
             <div className="space-y-2">
               <Label>Assigned To</Label>
-              <Select value={formData.assignee_id} onValueChange={(val) => setFormData({ ...formData, assignee_id: val })}>
-                <SelectTrigger><SelectValue placeholder="Select assignee" /></SelectTrigger>
-                <SelectContent>
-                  {users.map((u: any) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      <div className="flex items-center gap-2">
-                        <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: u.color || '#6b7280' }} />
-                        {u.name || u.full_name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                options={users.map((u: any) => ({ value: u.id, label: u.name || u.full_name, color: u.color }))}
+                value={formData.assignee_id}
+                onChange={(val) => setFormData({ ...formData, assignee_id: val })}
+                placeholder="Select assignee"
+              />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label>Status *</Label>
-            <Select value={formData.status_id} onValueChange={(val) => setFormData({ ...formData, status_id: val })}>
-              <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
-              <SelectContent>
-                {statuses.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    <div className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-full" style={{ backgroundColor: s.color }} />
-                      {s.name}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <SearchableSelect
+              options={statuses.map((s: any) => ({ value: s.id, label: s.name, color: s.color }))}
+              value={formData.status_id}
+              onChange={(val) => setFormData({ ...formData, status_id: val })}
+              placeholder="Select status"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

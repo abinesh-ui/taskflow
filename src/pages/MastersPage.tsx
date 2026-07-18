@@ -360,7 +360,7 @@ export default function MastersPage() {
         <MasterSection title="Macro Projects" table="master_macro_projects" fields={[]} />
         <MasterSection title="Projects" table="projects" fields={['is_live']} />
         <MasterSection title="Departments" table="master_departments" fields={[]} />
-        <MasterSection title="Members" table="master_members" fields={[]} />
+        <MasterSection title="Members" table="master_members" fields={['is_live']} />
         <MasterSection title="Task Types" table="master_task_types" />
         <MasterSection title="Task Categories" table="master_task_categories" />
         <MasterSection title="Priorities" table="master_priorities" fields={['color', 'sort_weight']} />
