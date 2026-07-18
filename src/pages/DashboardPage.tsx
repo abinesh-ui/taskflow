@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [subtaskParent, setSubtaskParent] = useState<Task | null>(null);
 
   // Multi-select filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -292,6 +293,7 @@ export default function DashboardPage() {
           expandedTasks={expandedTasks}
           setExpandedTasks={setExpandedTasks}
           onEditTask={setEditingTask}
+          onAddSubtask={(task) => { setSubtaskParent(task); }}
         />
       )}
       {view === 'board' && (
@@ -314,6 +316,18 @@ export default function DashboardPage() {
           projectId={editingTask?.project_id || projects[0]?.id || ''}
         />
       )}
+
+      {/* Subtask Dialog */}
+      {subtaskParent && (
+        <TaskDialog
+          open={!!subtaskParent}
+          onOpenChange={(open) => { if (!open) setSubtaskParent(null); }}
+          task={null}
+          departmentId={subtaskParent.department_id}
+          projectId={subtaskParent.project_id}
+          parentId={subtaskParent.id}
+        />
+      )}
     </div>
   );
 }
@@ -324,7 +338,7 @@ export default function DashboardPage() {
 function HierarchicalListView({
   filteredTasks, allTasks, macroProjects, projects, departments, statuses, priorities, members,
   expandedProjects, setExpandedProjects, expandedDepts, setExpandedDepts,
-  expandedStatuses, setExpandedStatuses, expandedTasks, setExpandedTasks, onEditTask,
+  expandedStatuses, setExpandedStatuses, expandedTasks, setExpandedTasks, onEditTask, onAddSubtask,
 }: {
   filteredTasks: Task[]; allTasks: Task[];
   macroProjects: Array<{ id: string; name: string; color: string }>;
@@ -335,6 +349,7 @@ function HierarchicalListView({
   expandedStatuses: Set<string>; setExpandedStatuses: (s: Set<string>) => void;
   expandedTasks: Set<string>; setExpandedTasks: (s: Set<string>) => void;
   onEditTask: (t: Task) => void;
+  onAddSubtask: (t: Task) => void;
 }) {
   const [expandedMacros, setExpandedMacros] = useState<Set<string>>(new Set(macroProjects.map((m) => m.id)));
 
@@ -368,7 +383,7 @@ function HierarchicalListView({
 
     return (
       <React.Fragment key={task.id}>
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr_90px_90px_90px_85px_60px_65px] gap-1 md:gap-0 px-3 md:px-16 py-2 border-b hover:bg-accent/30 cursor-pointer text-sm items-center" onClick={() => onEditTask(task)}>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr_90px_90px_90px_85px_60px_65px_30px] gap-1 md:gap-0 px-3 md:px-16 py-2 border-b hover:bg-accent/30 cursor-pointer text-sm items-center" onClick={() => onEditTask(task)}>
           <div className="flex items-center gap-1">
             {subtasks.length > 0 && (
               <button onClick={(e) => { e.stopPropagation(); toggleSet(expandedTasks, setExpandedTasks, task.id); }} className="p-0.5 hover:bg-accent rounded">
@@ -384,6 +399,13 @@ function HierarchicalListView({
           <span className={`text-xs ${overdue > 0 ? 'text-red-600' : ''}`}>{formatDate(task.planned_end_date)}</span>
           <span className={`text-xs ${overdue > 0 ? 'text-red-600 font-bold' : ''}`}>{overdue > 0 ? `${overdue}d` : '-'}</span>
           <span className="text-xs text-muted-foreground">{monthWeek || '-'}</span>
+          <button
+            onClick={(e) => { e.stopPropagation(); onAddSubtask(task); }}
+            className="h-5 w-5 flex items-center justify-center rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+            title="Add subtask"
+          >
+            <Plus className="h-3 w-3" />
+          </button>
         </div>
         {expandedTasks.has(task.id) && subtasks.map((sub) => {
           const subStatus = statuses.find((s) => s.id === sub.status_id);
@@ -460,8 +482,8 @@ function HierarchicalListView({
   return (
     <div className="border rounded-lg overflow-hidden">
       {/* Headers */}
-      <div className="hidden md:grid grid-cols-[1fr_2fr_90px_90px_90px_85px_60px_65px] gap-0 bg-muted/50 border-b px-3 py-2 text-xs font-medium text-muted-foreground">
-        <span>Task #</span><span>Title</span><span>Status</span><span>Priority</span><span>Assignee</span><span>Due Date</span><span>Overdue</span><span>Mon/Wk</span>
+      <div className="hidden md:grid grid-cols-[1fr_2fr_90px_90px_90px_85px_60px_65px_30px] gap-0 bg-muted/50 border-b px-3 py-2 text-xs font-medium text-muted-foreground">
+        <span>Task #</span><span>Title</span><span>Status</span><span>Priority</span><span>Assignee</span><span>Due Date</span><span>Overdue</span><span>Mon/Wk</span><span></span>
       </div>
 
       {/* Macro Projects */}
