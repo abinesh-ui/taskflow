@@ -18,9 +18,10 @@ interface TaskDialogProps {
   departmentId: string;
   projectId: string;
   parentId?: string | null;
+  defaultStatusId?: string;
 }
 
-export default function TaskDialog({ open, onOpenChange, task, departmentId, projectId, parentId }: TaskDialogProps) {
+export default function TaskDialog({ open, onOpenChange, task, departmentId, projectId, parentId, defaultStatusId }: TaskDialogProps) {
   const { taskTypes, categories, priorities, statuses, users, liveProjects, departments } = useMasterData();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
@@ -64,7 +65,7 @@ export default function TaskDialog({ open, onOpenChange, task, departmentId, pro
         actual_mins: task.actual_mins?.toString() || '',
       });
     } else {
-      const defaultStatus = statuses.find((s) => s.position === 1) || statuses[0];
+      const defaultStatus = statuses.find((s) => s.id === defaultStatusId) || statuses.find((s) => s.position === 1) || statuses[0];
       setFormData({
         title: '',
         description: '',

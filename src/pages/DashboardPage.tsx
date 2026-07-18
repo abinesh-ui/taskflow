@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const [showAddTask, setShowAddTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [subtaskParent, setSubtaskParent] = useState<Task | null>(null);
+  const [addTaskContext, setAddTaskContext] = useState<{ projectId: string; departmentId?: string; statusId?: string } | null>(null);
 
   // Multi-select filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -294,6 +295,7 @@ export default function DashboardPage() {
           setExpandedTasks={setExpandedTasks}
           onEditTask={setEditingTask}
           onAddSubtask={(task) => { setSubtaskParent(task); }}
+          onAddTask={(ctx) => { setAddTaskContext(ctx); setShowAddTask(true); }}
         />
       )}
       {view === 'board' && (
@@ -310,10 +312,11 @@ export default function DashboardPage() {
       {(showAddTask || editingTask) && (
         <TaskDialog
           open={showAddTask || !!editingTask}
-          onOpenChange={(open) => { if (!open) { setShowAddTask(false); setEditingTask(null); } }}
+          onOpenChange={(open) => { if (!open) { setShowAddTask(false); setEditingTask(null); setAddTaskContext(null); } }}
           task={editingTask}
-          departmentId={editingTask?.department_id || departments[0]?.id || ''}
-          projectId={editingTask?.project_id || projects[0]?.id || ''}
+          departmentId={addTaskContext?.departmentId || editingTask?.department_id || departments[0]?.id || ''}
+          projectId={addTaskContext?.projectId || editingTask?.project_id || projects[0]?.id || ''}
+          defaultStatusId={addTaskContext?.statusId}
         />
       )}
 
@@ -338,7 +341,7 @@ export default function DashboardPage() {
 function HierarchicalListView({
   filteredTasks, allTasks, macroProjects, projects, departments, statuses, priorities, members,
   expandedProjects, setExpandedProjects, expandedDepts, setExpandedDepts,
-  expandedStatuses, setExpandedStatuses, expandedTasks, setExpandedTasks, onEditTask, onAddSubtask,
+  expandedStatuses, setExpandedStatuses, expandedTasks, setExpandedTasks, onEditTask, onAddSubtask, onAddTask,
 }: {
   filteredTasks: Task[]; allTasks: Task[];
   macroProjects: Array<{ id: string; name: string; color: string }>;
@@ -350,6 +353,7 @@ function HierarchicalListView({
   expandedTasks: Set<string>; setExpandedTasks: (s: Set<string>) => void;
   onEditTask: (t: Task) => void;
   onAddSubtask: (t: Task) => void;
+  onAddTask: (context: { projectId: string; departmentId?: string; statusId?: string }) => void;
 }) {
   const [expandedMacros, setExpandedMacros] = useState<Set<string>>(new Set(macroProjects.map((m) => m.id)));
 
@@ -435,11 +439,18 @@ function HierarchicalListView({
 
     return (
       <div key={project.id}>
-        <div className={`flex items-center gap-2 py-1.5 border-b cursor-pointer hover:bg-muted/30`} style={{ paddingLeft: `${indent}px` }} onClick={() => toggleSet(expandedProjects, setExpandedProjects, project.id)}>
+        <div className={`flex items-center gap-2 py-1.5 border-b cursor-pointer hover:bg-muted/30 group`} style={{ paddingLeft: `${indent}px` }} onClick={() => toggleSet(expandedProjects, setExpandedProjects, project.id)}>
           {expandedProjects.has(project.id) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
           <FolderOpen className="h-3.5 w-3.5 text-primary/70" />
           <span className="font-medium text-sm">{project.name}</span>
           <Badge variant="secondary" className="text-[10px]">{projectTasks.length}</Badge>
+          <button
+            onClick={(e) => { e.stopPropagation(); onAddTask({ projectId: project.id }); }}
+            className="ml-auto mr-2 h-5 px-1.5 rounded text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5"
+            title="Add task to this project"
+          >
+            <Plus className="h-3 w-3" /> Task
+          </button>
         </div>
 
         {expandedProjects.has(project.id) && projectDepts.map((dept) => {
@@ -448,11 +459,18 @@ function HierarchicalListView({
 
           return (
             <div key={dept.id}>
-              <div className="flex items-center gap-2 py-1 border-b cursor-pointer hover:bg-muted/20" style={{ paddingLeft: `${indent + 20}px` }} onClick={() => toggleSet(expandedDepts, setExpandedDepts, dept.id)}>
+              <div className="flex items-center gap-2 py-1 border-b cursor-pointer hover:bg-muted/20 group" style={{ paddingLeft: `${indent + 20}px` }} onClick={() => toggleSet(expandedDepts, setExpandedDepts, dept.id)}>
                 {expandedDepts.has(dept.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                 <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (dept as any).color || '#6b7280' }} />
                 <span className="text-sm">{dept.name}</span>
                 <Badge variant="secondary" className="text-[9px]">{deptTasks.length}</Badge>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onAddTask({ projectId: project.id, departmentId: dept.id }); }}
+                  className="ml-auto mr-2 h-5 px-1.5 rounded text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5"
+                  title="Add task to this department"
+                >
+                  <Plus className="h-3 w-3" /> Task
+                </button>
               </div>
 
               {expandedDepts.has(dept.id) && statuses.map((status) => {
@@ -462,11 +480,18 @@ function HierarchicalListView({
 
                 return (
                   <div key={key}>
-                    <div className="flex items-center gap-2 py-0.5 border-b cursor-pointer hover:bg-muted/10" style={{ paddingLeft: `${indent + 40}px` }} onClick={() => toggleSet(expandedStatuses, setExpandedStatuses, key)}>
+                    <div className="flex items-center gap-2 py-0.5 border-b cursor-pointer hover:bg-muted/10 group" style={{ paddingLeft: `${indent + 40}px` }} onClick={() => toggleSet(expandedStatuses, setExpandedStatuses, key)}>
                       {expandedStatuses.has(key) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                       <div className="h-2 w-2 rounded-full" style={{ backgroundColor: status.color }} />
                       <span className="text-xs font-medium">{status.name}</span>
                       <Badge variant="secondary" className="text-[9px]">{statusTasks.length}</Badge>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onAddTask({ projectId: project.id, departmentId: dept.id, statusId: status.id }); }}
+                        className="ml-auto mr-2 h-4 px-1 rounded text-[9px] font-medium bg-primary/10 text-primary hover:bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5"
+                        title="Add task with this status"
+                      >
+                        <Plus className="h-2.5 w-2.5" />
+                      </button>
                     </div>
                     {expandedStatuses.has(key) && statusTasks.map((task) => renderTaskRow(task, status))}
                   </div>
