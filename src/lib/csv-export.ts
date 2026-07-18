@@ -1,5 +1,5 @@
 import type { Task, MasterStatus, MasterPriority, MasterTaskType, MasterTaskCategory, Profile } from '@/types/database';
-import { getPlannedMonthWeek, getOverdueDays } from './utils';
+import { getPlannedMonthWeek, getOverdueDays, formatDate } from './utils';
 
 interface ExportContext {
   statuses: MasterStatus[];
@@ -43,18 +43,18 @@ export function exportTasksToCSV(tasks: Task[], context: ExportContext): void {
       t.title,
       status?.name || '',
       priority?.name || '',
-      assignee?.full_name || '',
+      assignee?.full_name || (assignee as any)?.name || '',
       taskType?.name || '',
       category?.name || '',
-      t.planned_start_date || '',
-      t.planned_end_date || '',
+      formatDate(t.planned_start_date),
+      formatDate(t.planned_end_date),
       monthWeek,
       t.planned_mins?.toString() || '',
-      t.actual_start_date || '',
-      t.actual_end_date || '',
+      formatDate(t.actual_start_date),
+      formatDate(t.actual_end_date),
       t.actual_mins?.toString() || '',
       overdue > 0 ? overdue.toString() : '',
-      t.created_at ? new Date(t.created_at).toLocaleDateString() : '',
+      formatDate(t.created_at),
     ];
   });
 

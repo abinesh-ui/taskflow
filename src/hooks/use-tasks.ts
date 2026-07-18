@@ -118,9 +118,34 @@ export function useCreateTask() {
 
   return useMutation({
     mutationFn: async (task: Omit<Task, 'id' | 'task_no' | 'created_at' | 'updated_at' | 'created_by'> & { created_by?: string }) => {
+      let taskNo: string | undefined;
+
+      // If it's a subtask, generate task_no as parent_task_no-SU01, SU02, etc.
+      if (task.parent_id) {
+        // Get parent task_no
+        const { data: parentTask } = await supabase
+          .from('tasks')
+          .select('task_no')
+          .eq('id', task.parent_id)
+          .single();
+
+        // Count existing subtasks under this parent
+        const { count } = await supabase
+          .from('tasks')
+          .select('*', { count: 'exact', head: true })
+          .eq('parent_id', task.parent_id);
+
+        const subNum = (count || 0) + 1;
+        taskNo = `${parentTask?.task_no}-SU${String(subNum).padStart(2, '0')}`;
+      }
+
+      const insertData = taskNo
+        ? { ...task, task_no: taskNo, created_by: user!.id }
+        : { ...task, created_by: user!.id };
+
       const { data, error } = await supabase
         .from('tasks')
-        .insert({ ...task, created_by: user!.id })
+        .insert(insertData)
         .select()
         .single();
       if (error) throw error;

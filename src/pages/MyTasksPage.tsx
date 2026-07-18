@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
-import { getPlannedMonthWeek, getOverdueDays } from '@/lib/utils';
+import { getPlannedMonthWeek, getOverdueDays, formatDate } from '@/lib/utils';
 import type { Task, MasterStatus, MasterPriority } from '@/types/database';
 
 export default function MyTasksPage() {
@@ -78,7 +78,7 @@ export default function MyTasksPage() {
                 )}
                 {task.planned_end_date && (
                   <span className={`text-[10px] ${overdue > 0 ? 'text-red-600 font-bold' : 'text-muted-foreground'}`}>
-                    Due: {task.planned_end_date} {overdue > 0 && `(${overdue}d overdue)`}
+                    Due: {formatDate(task.planned_end_date)} {overdue > 0 && `(${overdue}d overdue)`}
                   </span>
                 )}
               </div>

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { MultiSelect } from '@/components/ui/multi-select';
 import TaskDialog from '@/components/tasks/TaskDialog';
-import { getPlannedMonthWeek, getOverdueDays } from '@/lib/utils';
+import { getPlannedMonthWeek, getOverdueDays, formatDate } from '@/lib/utils';
 import { exportTasksToCSV } from '@/lib/csv-export';
 import {
   ChevronDown,
@@ -381,7 +381,7 @@ function HierarchicalListView({
           <Badge className="text-[9px] w-fit" style={{ backgroundColor: status.color, color: '#fff' }}>{status.name}</Badge>
           <div>{priority && <span className="flex items-center gap-1 text-xs"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: priority.color }} />{priority.name}</span>}</div>
           <span className="text-xs">{getMemberName(task.assignee_id)}</span>
-          <span className={`text-xs ${overdue > 0 ? 'text-red-600' : ''}`}>{task.planned_end_date || '-'}</span>
+          <span className={`text-xs ${overdue > 0 ? 'text-red-600' : ''}`}>{formatDate(task.planned_end_date)}</span>
           <span className={`text-xs ${overdue > 0 ? 'text-red-600 font-bold' : ''}`}>{overdue > 0 ? `${overdue}d` : '-'}</span>
           <span className="text-xs text-muted-foreground">{monthWeek || '-'}</span>
         </div>
@@ -396,7 +396,7 @@ function HierarchicalListView({
               <div>{subStatus && <Badge className="text-[8px] w-fit" style={{ backgroundColor: subStatus.color, color: '#fff' }}>{subStatus.name}</Badge>}</div>
               <div>{subPri && <span className="flex items-center gap-1 text-[10px]"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: subPri.color }} />{subPri.name}</span>}</div>
               <span className="text-[10px]">{getMemberName(sub.assignee_id)}</span>
-              <span className={`text-[10px] ${subOver > 0 ? 'text-red-600' : ''}`}>{sub.planned_end_date || '-'}</span>
+              <span className={`text-[10px] ${subOver > 0 ? 'text-red-600' : ''}`}>{formatDate(sub.planned_end_date)}</span>
               <span className={`text-[10px] ${subOver > 0 ? 'text-red-600 font-bold' : ''}`}>{subOver > 0 ? `${subOver}d` : '-'}</span>
               <span className="text-[10px] text-muted-foreground">{getPlannedMonthWeek(sub.planned_start_date) || '-'}</span>
             </div>
@@ -538,7 +538,7 @@ function BoardView({
                       <span className="text-muted-foreground">{getMemberName(task.assignee_id)}</span>
                       {task.planned_end_date && (
                         <span className={isOverdue ? 'text-red-600 font-semibold' : 'text-muted-foreground'}>
-                          {task.planned_end_date}
+                          {formatDate(task.planned_end_date)}
                         </span>
                       )}
                     </div>

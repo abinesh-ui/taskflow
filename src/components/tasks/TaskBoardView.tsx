@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { useUpdateTask, useSubtasks } from '@/hooks/use-tasks';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
+import { formatDate } from '@/lib/utils';
 import type { Task, MasterStatus, MasterPriority, Profile } from '@/types/database';
 
 interface TaskBoardViewProps {
@@ -60,7 +61,7 @@ function TaskCard({ task, priorities, users, onEdit, isDragging }: {
         )}
         {task.planned_end_date && (
           <span className={`text-[10px] ${isOverdue ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
-            {task.planned_end_date}
+            {formatDate(task.planned_end_date)}
           </span>
         )}
       </div>

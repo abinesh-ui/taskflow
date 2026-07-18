@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, ArrowUpDown, Plus, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { getPlannedMonthWeek, getOverdueDays } from '@/lib/utils';
+import { getPlannedMonthWeek, getOverdueDays, formatDate } from '@/lib/utils';
 import { useSubtasks } from '@/hooks/use-tasks';
 import TaskDialog from './TaskDialog';
 import type { Task, MasterStatus, MasterPriority, Profile } from '@/types/database';
@@ -56,7 +56,7 @@ function SubtaskRow({ task, statuses, priorities, users, onEdit }: {
         )}
       </td>
       <td className="py-2 px-3 text-xs">{(assignee as any)?.name || (assignee as any)?.full_name || '-'}</td>
-      <td className="py-2 px-3 text-xs">{task.planned_end_date || '-'}</td>
+      <td className="py-2 px-3 text-xs">{formatDate(task.planned_end_date)}</td>
       <td className={`py-2 px-3 text-xs ${overdue > 0 ? 'text-red-600 font-semibold' : ''}`}>
         {overdue > 0 ? `${overdue}d` : '-'}
       </td>
