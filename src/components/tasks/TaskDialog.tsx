@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from '@/lib/supabase';
 import { useMasterData, useCreateTask, useUpdateTask } from '@/hooks/use-tasks';
 import { useToast } from '@/hooks/use-toast';
 import CommentsSection from './CommentsSection';
@@ -84,7 +85,7 @@ export default function TaskDialog({ open, onOpenChange, task, departmentId, pro
     }
   }, [task, statuses, projectId, departmentId]);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!formData.title.trim()) {
       toast({ variant: 'destructive', title: 'Error', description: 'Title is required' });
@@ -102,6 +103,28 @@ export default function TaskDialog({ open, onOpenChange, task, departmentId, pro
     }
     if (formData.actual_start_date && formData.actual_end_date && formData.actual_end_date < formData.actual_start_date) {
       toast({ variant: 'destructive', title: 'Error', description: 'Actual End Date cannot be before Start Date' });
+      return;
+    }
+
+    // Check if status is changing to closed/done
+    const targetStatus = statuses.find((s) => s.id === formData.status_id);
+    const isClosing = targetStatus?.is_closed || targetStatus?.is_done;
+    const statusChanged = task && task.status_id !== formData.status_id;
+
+    if (isClosing && task && statusChanged) {
+      // BR-2: Actual Mins required when closing
+      if (!formData.actual_mins) {
+        toast({ variant: 'destructive', title: 'Actual Mins required', description: 'You must enter Actual Mins before closing/completing a task.' });
+        return;
+      }
+
+      // BR-1: Check open subtasks (async check already done before form renders, but we double check)
+      // We'll do the async subtask check in the mutation itself
+    }
+
+    // BR-2: Also enforce for new tasks being created directly in closed status
+    if (isClosing && !task && !formData.actual_mins) {
+      toast({ variant: 'destructive', title: 'Actual Mins required', description: 'You must enter Actual Mins when setting a closed/done status.' });
       return;
     }
 
@@ -126,6 +149,22 @@ export default function TaskDialog({ open, onOpenChange, task, departmentId, pro
     };
 
     if (task) {
+      // BR-1: If closing, check subtasks
+      const targetStatus2 = statuses.find((s) => s.id === formData.status_id);
+      if ((targetStatus2?.is_closed || targetStatus2?.is_done) && task.status_id !== formData.status_id) {
+        const { data: subtasks } = await supabase
+          .from('tasks')
+          .select('id, status_id')
+          .eq('parent_id', task.id);
+        if (subtasks && subtasks.length > 0) {
+          const closedStatusIds = statuses.filter((s) => s.is_closed).map((s) => s.id);
+          const openSubs = subtasks.filter((st: any) => !closedStatusIds.includes(st.status_id));
+          if (openSubs.length > 0) {
+            toast({ variant: 'destructive', title: 'Cannot close task', description: `${openSubs.length} subtask(s) are still open. Close all subtasks first.` });
+            return;
+          }
+        }
+      }
       updateTask.mutate({ id: task.id, data: payload }, { onSuccess: () => onOpenChange(false) });
     } else {
       createTask.mutate(payload as any, { onSuccess: () => onOpenChange(false) });

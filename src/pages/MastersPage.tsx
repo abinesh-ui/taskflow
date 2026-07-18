@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import AlertRulesSection from '@/components/notifications/AlertRulesPage';
@@ -21,6 +22,7 @@ interface MasterItem {
   is_closed?: boolean;
   is_done?: boolean;
   is_live?: boolean;
+  macro_project_id?: string;
 }
 
 function MasterSection({
@@ -46,6 +48,16 @@ function MasterSection({
     },
   });
 
+  // Fetch macro projects for the projects section
+  const { data: macroProjects = [] } = useQuery({
+    queryKey: ['master_macro_projects'],
+    queryFn: async () => {
+      const { data } = await supabase.from('master_macro_projects').select('*').eq('is_active', true).order('position');
+      return (data || []) as Array<{ id: string; name: string; color: string }>;
+    },
+    enabled: table === 'projects',
+  });
+
   const addMutation = useMutation({
     mutationFn: async (newItem: Record<string, unknown>) => {
       const { error } = await supabase.from(table).insert(newItem);
@@ -69,6 +81,7 @@ function MasterSection({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [table] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
       setEditingId(null);
       setFormData({});
       toast({ title: 'Updated successfully' });
@@ -110,6 +123,7 @@ function MasterSection({
     if (item.is_closed !== undefined) data.is_closed = String(item.is_closed);
     if (item.is_done !== undefined) data.is_done = String(item.is_done);
     if (item.is_live !== undefined) data.is_live = String(item.is_live);
+    if (item.macro_project_id) data.macro_project_id = item.macro_project_id;
     setFormData(data);
   }
 
@@ -121,13 +135,20 @@ function MasterSection({
 
   function handleSaveNew() {
     if (!formData.name?.trim()) return;
+    // For projects, macro_project_id is required
+    if (table === 'projects' && !formData.macro_project_id) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Please select a Macro Project' });
+      return;
+    }
     const newItem: Record<string, unknown> = {
       name: formData.name.trim(),
       position: items.length + 1,
     };
-    // Auto-assign color for departments, members, task types, categories, projects, and macro projects
     if (table === 'master_departments' || table === 'master_members' || table === 'master_task_types' || table === 'master_task_categories' || table === 'projects' || table === 'master_macro_projects') {
       newItem.color = AUTO_COLORS[items.length % AUTO_COLORS.length];
+    }
+    if (table === 'projects') {
+      newItem.macro_project_id = formData.macro_project_id;
     }
     if (fields.includes('color')) newItem.color = formData.color || '#6b7280';
     if (fields.includes('sort_weight')) newItem.sort_weight = Number(formData.sort_weight) || 0;
@@ -140,12 +161,20 @@ function MasterSection({
   function handleSaveEdit() {
     if (!editingId || !formData.name?.trim()) return;
     const data: Record<string, unknown> = { name: formData.name.trim() };
+    if (table === 'projects' && formData.macro_project_id) {
+      data.macro_project_id = formData.macro_project_id;
+    }
     if (fields.includes('color')) data.color = formData.color || '#6b7280';
     if (fields.includes('sort_weight')) data.sort_weight = Number(formData.sort_weight) || 0;
     if (fields.includes('is_closed')) data.is_closed = formData.is_closed === 'true';
     if (fields.includes('is_done')) data.is_done = formData.is_done === 'true';
     if (fields.includes('is_live')) data.is_live = formData.is_live !== 'false';
     updateMutation.mutate({ id: editingId, data });
+  }
+
+  function getMacroName(id?: string) {
+    if (!id) return '';
+    return macroProjects.find((m) => m.id === id)?.name || '';
   }
 
   return (
@@ -159,58 +188,53 @@ function MasterSection({
       <CardContent>
         <div className="space-y-2">
           {adding && (
-            <div className="flex items-center gap-2 p-2 border rounded bg-muted/50">
+            <div className="flex flex-wrap items-center gap-2 p-2 border rounded bg-muted/50">
               <Input
                 value={formData.name || ''}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Name"
-                className="h-8 text-sm"
+                className="h-8 text-sm flex-1 min-w-[120px]"
                 autoFocus
               />
+              {/* Macro Project dropdown for Projects */}
+              {table === 'projects' && (
+                <Select value={formData.macro_project_id || ''} onValueChange={(val) => setFormData({ ...formData, macro_project_id: val })}>
+                  <SelectTrigger className="h-8 text-xs w-40">
+                    <SelectValue placeholder="Macro Project *" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {macroProjects.map((mp) => (
+                      <SelectItem key={mp.id} value={mp.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: mp.color }} />
+                          {mp.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               {fields.includes('color') && (
-                <input
-                  type="color"
-                  value={formData.color || '#6b7280'}
-                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  className="h-8 w-8 rounded border cursor-pointer"
-                />
+                <input type="color" value={formData.color || '#6b7280'} onChange={(e) => setFormData({ ...formData, color: e.target.value })} className="h-8 w-8 rounded border cursor-pointer" />
               )}
               {fields.includes('sort_weight') && (
-                <Input
-                  type="number"
-                  value={formData.sort_weight || ''}
-                  onChange={(e) => setFormData({ ...formData, sort_weight: e.target.value })}
-                  placeholder="Weight"
-                  className="h-8 text-sm w-20"
-                />
+                <Input type="number" value={formData.sort_weight || ''} onChange={(e) => setFormData({ ...formData, sort_weight: e.target.value })} placeholder="Weight" className="h-8 text-sm w-20" />
               )}
               {fields.includes('is_live') && (
                 <label className="text-xs flex items-center gap-1">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_live !== 'false'}
-                    onChange={(e) => setFormData({ ...formData, is_live: String(e.target.checked) })}
-                  />
+                  <input type="checkbox" checked={formData.is_live !== 'false'} onChange={(e) => setFormData({ ...formData, is_live: String(e.target.checked) })} />
                   Live
                 </label>
               )}
               {fields.includes('is_closed') && (
                 <label className="text-xs flex items-center gap-1">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_closed === 'true'}
-                    onChange={(e) => setFormData({ ...formData, is_closed: String(e.target.checked) })}
-                  />
+                  <input type="checkbox" checked={formData.is_closed === 'true'} onChange={(e) => setFormData({ ...formData, is_closed: String(e.target.checked) })} />
                   Closed
                 </label>
               )}
               {fields.includes('is_done') && (
                 <label className="text-xs flex items-center gap-1">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_done === 'true'}
-                    onChange={(e) => setFormData({ ...formData, is_done: String(e.target.checked) })}
-                  />
+                  <input type="checkbox" checked={formData.is_done === 'true'} onChange={(e) => setFormData({ ...formData, is_done: String(e.target.checked) })} />
                   Done
                 </label>
               )}
@@ -223,59 +247,48 @@ function MasterSection({
             </div>
           )}
           {items.map((item) => (
-            <div key={item.id} className="flex items-center gap-2 p-2 border rounded">
+            <div key={item.id} className="flex flex-wrap items-center gap-2 p-2 border rounded">
               {editingId === item.id ? (
                 <>
-                  <Input
-                    value={formData.name || ''}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="h-8 text-sm"
-                    autoFocus
-                  />
+                  <Input value={formData.name || ''} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="h-8 text-sm flex-1 min-w-[120px]" autoFocus />
+                  {table === 'projects' && (
+                    <Select value={formData.macro_project_id || ''} onValueChange={(val) => setFormData({ ...formData, macro_project_id: val })}>
+                      <SelectTrigger className="h-8 text-xs w-40">
+                        <SelectValue placeholder="Macro Project" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {macroProjects.map((mp) => (
+                          <SelectItem key={mp.id} value={mp.id}>
+                            <div className="flex items-center gap-2">
+                              <div className="h-2 w-2 rounded-full" style={{ backgroundColor: mp.color }} />
+                              {mp.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   {fields.includes('color') && (
-                    <input
-                      type="color"
-                      value={formData.color || '#6b7280'}
-                      onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                      className="h-8 w-8 rounded border cursor-pointer"
-                    />
+                    <input type="color" value={formData.color || '#6b7280'} onChange={(e) => setFormData({ ...formData, color: e.target.value })} className="h-8 w-8 rounded border cursor-pointer" />
                   )}
                   {fields.includes('sort_weight') && (
-                    <Input
-                      type="number"
-                      value={formData.sort_weight || ''}
-                      onChange={(e) => setFormData({ ...formData, sort_weight: e.target.value })}
-                      placeholder="Weight"
-                      className="h-8 text-sm w-20"
-                    />
+                    <Input type="number" value={formData.sort_weight || ''} onChange={(e) => setFormData({ ...formData, sort_weight: e.target.value })} placeholder="Weight" className="h-8 text-sm w-20" />
                   )}
                   {fields.includes('is_live') && (
                     <label className="text-xs flex items-center gap-1">
-                      <input
-                        type="checkbox"
-                        checked={formData.is_live !== 'false'}
-                        onChange={(e) => setFormData({ ...formData, is_live: String(e.target.checked) })}
-                      />
+                      <input type="checkbox" checked={formData.is_live !== 'false'} onChange={(e) => setFormData({ ...formData, is_live: String(e.target.checked) })} />
                       Live
                     </label>
                   )}
                   {fields.includes('is_closed') && (
                     <label className="text-xs flex items-center gap-1">
-                      <input
-                        type="checkbox"
-                        checked={formData.is_closed === 'true'}
-                        onChange={(e) => setFormData({ ...formData, is_closed: String(e.target.checked) })}
-                      />
+                      <input type="checkbox" checked={formData.is_closed === 'true'} onChange={(e) => setFormData({ ...formData, is_closed: String(e.target.checked) })} />
                       Closed
                     </label>
                   )}
                   {fields.includes('is_done') && (
                     <label className="text-xs flex items-center gap-1">
-                      <input
-                        type="checkbox"
-                        checked={formData.is_done === 'true'}
-                        onChange={(e) => setFormData({ ...formData, is_done: String(e.target.checked) })}
-                      />
+                      <input type="checkbox" checked={formData.is_done === 'true'} onChange={(e) => setFormData({ ...formData, is_done: String(e.target.checked) })} />
                       Done
                     </label>
                   )}
@@ -292,6 +305,10 @@ function MasterSection({
                     <div className="h-4 w-4 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                   )}
                   <span className="text-sm flex-1">{item.name}</span>
+                  {/* Show mapped macro project for projects */}
+                  {table === 'projects' && item.macro_project_id && (
+                    <Badge variant="outline" className="text-[9px]">{getMacroName(item.macro_project_id)}</Badge>
+                  )}
                   {item.sort_weight !== undefined && (
                     <span className="text-xs text-muted-foreground">wt: {item.sort_weight}</span>
                   )}
@@ -307,28 +324,14 @@ function MasterSection({
                     <Pencil className="h-3 w-3" />
                   </Button>
                   <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7"
+                    size="icon" variant="ghost" className="h-7 w-7"
                     onClick={() => toggleActive.mutate({ id: item.id, active: !item.is_active })}
                     title={item.is_active ? 'Deactivate' : 'Activate'}
-                    aria-label={item.is_active ? 'Deactivate' : 'Activate'}
                   >
-                    {item.is_active ? (
-                      <X className="h-3 w-3 text-muted-foreground" />
-                    ) : (
-                      <Check className="h-3 w-3 text-green-600" />
-                    )}
+                    {item.is_active ? <X className="h-3 w-3 text-muted-foreground" /> : <Check className="h-3 w-3 text-green-600" />}
                   </Button>
                   {!item.is_active && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7"
-                      onClick={() => deleteMutation.mutate(item.id)}
-                      title="Delete permanently"
-                      aria-label="Delete"
-                    >
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteMutation.mutate(item.id)} title="Delete permanently">
                       <Trash2 className="h-3 w-3 text-destructive" />
                     </Button>
                   )}

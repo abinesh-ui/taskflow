@@ -179,31 +179,31 @@ export default function DashboardPage() {
   }, [projects, departments, statuses]);
 
   return (
-    <div className="space-y-4">
-      {/* Top actions */}
+    <div className="space-y-5">
+      {/* Top actions - professional header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-            <Button variant={view === 'list' ? 'secondary' : 'ghost'} size="sm" className="h-8" onClick={() => setView('list')}>
-              <List className="h-4 w-4 mr-1" /> List
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 bg-white dark:bg-card rounded-xl p-1 shadow-sm border">
+            <Button variant={view === 'list' ? 'default' : 'ghost'} size="sm" className="h-9 rounded-lg font-medium" onClick={() => setView('list')}>
+              <List className="h-4 w-4 mr-1.5" /> List
             </Button>
-            <Button variant={view === 'board' ? 'secondary' : 'ghost'} size="sm" className="h-8" onClick={() => setView('board')}>
-              <LayoutGrid className="h-4 w-4 mr-1" /> Board
+            <Button variant={view === 'board' ? 'default' : 'ghost'} size="sm" className="h-9 rounded-lg font-medium" onClick={() => setView('board')}>
+              <LayoutGrid className="h-4 w-4 mr-1.5" /> Board
             </Button>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => exportTasksToCSV(filteredTasks, { statuses, priorities, taskTypes: taskTypes as any, categories: categories as any, users: members as any })}>
-            <Download className="h-4 w-4 mr-1" /> CSV
+          <Button variant="outline" size="sm" className="h-9 rounded-lg shadow-sm" onClick={() => exportTasksToCSV(filteredTasks, { statuses, priorities, taskTypes: taskTypes as any, categories: categories as any, users: members as any })}>
+            <Download className="h-4 w-4 mr-1.5" /> Export CSV
           </Button>
-          <Button size="sm" onClick={() => setShowAddTask(true)}>
-            <Plus className="h-4 w-4 mr-1" /> Task
+          <Button size="sm" className="h-9 rounded-lg shadow-sm font-medium" onClick={() => setShowAddTask(true)}>
+            <Plus className="h-4 w-4 mr-1.5" /> New Task
           </Button>
         </div>
       </div>
 
-      {/* Multi-select filters */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Multi-select filters - clean card */}
+      <div className="flex flex-wrap items-center gap-2 p-3 bg-white dark:bg-card rounded-xl border shadow-sm">
         <Input
           placeholder="Search..."
           value={searchQuery}
