@@ -9,7 +9,7 @@ import { NestedFilterBuilder, applyFilters, type FilterCondition } from '@/compo
 import { SortBuilderInline, type SortLevel } from '@/components/tasks/SortBuilder';
 import { useCreateTask } from '@/hooks/use-tasks';
 import { useToast } from '@/hooks/use-toast';
-import { getOverdueDays, getPlannedMonthWeek } from '@/lib/utils';
+import { getOverdueDays, getPlannedMonthWeek, formatDate } from '@/lib/utils';
 import { exportTasksToCSV } from '@/lib/csv-export';
 import { ChevronDown, ChevronRight, Plus, Download, ChevronsDown, ChevronsUp, ChevronLeft } from 'lucide-react';
 import type { Task, MasterStatus, MasterPriority, Project, Department } from '@/types/database';
@@ -79,7 +79,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
     if (parentTask && nf.planned_end_date && parentTask.planned_end_date && nf.planned_end_date > parentTask.planned_end_date) {
       toast({ variant: 'destructive', title: 'Validation Error', description: "Subtask due date can't be greater than task due date" }); return;
     }
-    createTask.mutate({ title: nf.title.trim(), project_id: projId, department_id: deptId, status_id: nf.status_id || defStatus?.id || '', priority_id: nf.priority_id || null, assignee_id: nf.assignee_id || null, task_type_id: nf.task_type_id || null, category_id: nf.category_id || parentTask?.category_id || null, section_id: nf.section_id || null, planned_start_date: nf.planned_start_date || null, planned_end_date: nf.planned_end_date || null, planned_mins: nf.planned_mins ? Number(nf.planned_mins) : null, actual_start_date: nf.actual_start_date || null, actual_end_date: nf.actual_end_date || null, actual_mins: nf.actual_mins ? Number(nf.actual_mins) : null, description: nf.remarks || null, parent_id: parentTask?.id || null, position: 0 } as any, {
+    createTask.mutate({ title: nf.title.trim(), project_id: projId, department_id: deptId, status_id: nf.status_id || defStatus?.id || '', priority_id: nf.priority_id || null, assignee_id: nf.assignee_id || null, task_type_id: nf.task_type_id || null, category_id: nf.category_id || parentTask?.category_id || null, section_id: nf.section_id || null, planned_start_date: nf.planned_start_date || null, planned_end_date: nf.planned_end_date || null, planned_mins: nf.planned_mins ? Number(nf.planned_mins) : null, actual_mins: nf.actual_mins ? Number(nf.actual_mins) : null, description: nf.remarks || null, parent_id: parentTask?.id || null, position: 0 } as any, {
       onSuccess: () => { setNf({}); setAddingTask(false); setAddingSubtaskTo(null); if (parentTask) setExpandedTasks(new Set([...expandedTasks, parentTask.id])); queryClient.invalidateQueries({ queryKey: ['all-tasks'] }); },
     });
   }
@@ -215,8 +215,8 @@ function NewRow({ nf, setNf, projects, departments, statuses, priorities, member
       <td className="py-1 px-0.5"><input type="date" value={nf.planned_start_date||''} onChange={(e) => setNf({...nf, planned_start_date: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
       <td className="py-1 px-0.5"><input type="date" value={nf.planned_end_date||''} onChange={(e) => setNf({...nf, planned_end_date: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
       <td className="py-1 px-0.5"><input type="number" value={nf.planned_mins||''} onChange={(e) => setNf({...nf, planned_mins: e.target.value})} placeholder="mins" className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
-      <td className="py-1 px-0.5"><input type="date" value={nf.actual_start_date||''} onChange={(e) => setNf({...nf, actual_start_date: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
-      <td className="py-1 px-0.5"><input type="date" value={nf.actual_end_date||''} onChange={(e) => setNf({...nf, actual_end_date: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
+      <td className="py-1 px-0.5"><span className="text-[9px] text-muted-foreground italic px-0.5">Auto</span></td>
+      <td className="py-1 px-0.5"><span className="text-[9px] text-muted-foreground italic px-0.5">Auto</span></td>
       <td className="py-1 px-0.5"><input type="number" value={nf.actual_mins||''} onChange={(e) => setNf({...nf, actual_mins: e.target.value})} placeholder="mins" className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
       <td className="py-1 px-1">-</td>
       <td className="py-1 px-0.5"><input value={nf.remarks||''} onChange={(e) => setNf({...nf, remarks: e.target.value})} placeholder="Remarks" className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
@@ -249,8 +249,8 @@ function TaskRow({ task, statuses, priorities, members, taskTypes, categories, t
       <td className="py-1 px-0.5"><input type="date" defaultValue={task.planned_start_date||''} onBlur={(e) => { if (e.target.value!==(task.planned_start_date||'')) onUpdate(task.id,'planned_start_date',e.target.value); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" /></td>
       <td className="py-1 px-0.5"><input type="date" defaultValue={task.planned_end_date||''} onBlur={(e) => { if (e.target.value!==(task.planned_end_date||'')) onUpdate(task.id,'planned_end_date',e.target.value); }} className={`text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded ${overdue>0?'text-red-600 font-bold':''}`} /></td>
       <td className="py-1 px-0.5"><input type="number" defaultValue={task.planned_mins||''} onBlur={(e) => { const v=e.target.value?Number(e.target.value):null; if (v!==task.planned_mins) onUpdate(task.id,'planned_mins',v); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" /></td>
-      <td className="py-1 px-0.5"><input type="date" defaultValue={task.actual_start_date||''} onBlur={(e) => { if (e.target.value!==(task.actual_start_date||'')) onUpdate(task.id,'actual_start_date',e.target.value); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" /></td>
-      <td className="py-1 px-0.5"><input type="date" defaultValue={task.actual_end_date||''} onBlur={(e) => { if (e.target.value!==(task.actual_end_date||'')) onUpdate(task.id,'actual_end_date',e.target.value); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" /></td>
+      <td className="py-1 px-0.5"><span className="text-[9px] text-muted-foreground px-0.5">{task.actual_start_date ? formatDate(task.actual_start_date) : '-'}</span></td>
+      <td className="py-1 px-0.5"><span className="text-[9px] text-muted-foreground px-0.5">{task.actual_end_date ? formatDate(task.actual_end_date) : '-'}</span></td>
       <td className="py-1 px-0.5"><input type="number" defaultValue={task.actual_mins||''} onBlur={(e) => { const v=e.target.value?Number(e.target.value):null; if (v!==task.actual_mins) onUpdate(task.id,'actual_mins',v); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" /></td>
       <td className={`py-1 px-1 text-[9px] font-bold ${overdue>0?'text-red-600':'text-muted-foreground'}`}>{overdue>0?`${overdue}d`:'-'}</td>
       <td className="py-1 px-0.5"><input defaultValue={task.description||''} onBlur={(e) => { if (e.target.value!==(task.description||'')) onUpdate(task.id,'description',e.target.value); }} placeholder="" className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" /></td>
