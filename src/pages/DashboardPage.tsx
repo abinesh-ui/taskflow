@@ -1,57 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { MultiSelect } from '@/components/ui/multi-select';
-import TaskDialog from '@/components/tasks/TaskDialog';
-import { getPlannedMonthWeek, getOverdueDays, formatDate } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { SearchableSelect } from '@/components/ui/searchable-select';
+import { useCreateTask, useUpdateTask } from '@/hooks/use-tasks';
+import { formatDate, getOverdueDays, getPlannedMonthWeek } from '@/lib/utils';
 import { exportTasksToCSV } from '@/lib/csv-export';
-import {
-  ChevronDown,
-  ChevronRight,
-  Plus,
-  Download,
-  List,
-  LayoutGrid,
-  FolderOpen,
-  X,
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Download, ChevronsDown, ChevronsUp } from 'lucide-react';
 import type { Task, MasterStatus, MasterPriority, Project, Department } from '@/types/database';
 
-type ViewType = 'list' | 'board';
-
 export default function DashboardPage() {
-  const [view, setView] = useState<ViewType>('list');
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
-  const [expandedDepts, setExpandedDepts] = useState<Set<string>>(new Set());
-  const [expandedStatuses, setExpandedStatuses] = useState<Set<string>>(new Set());
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const createTask = useCreateTask();
+  const updateTask = useUpdateTask();
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
-  const [showAddTask, setShowAddTask] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [subtaskParent, setSubtaskParent] = useState<Task | null>(null);
-  const [addTaskContext, setAddTaskContext] = useState<{ projectId: string; departmentId?: string; statusId?: string } | null>(null);
-
-  // Multi-select filter states
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
-  const [filterPriorities, setFilterPriorities] = useState<string[]>([]);
-  const [filterAssignees, setFilterAssignees] = useState<string[]>([]);
-  const [filterTaskTypes, setFilterTaskTypes] = useState<string[]>([]);
-  const [filterCategories, setFilterCategories] = useState<string[]>([]);
-  const [filterProjects, setFilterProjects] = useState<string[]>([]);
-  const [filterDateFrom, setFilterDateFrom] = useState('');
-  const [filterDateTo, setFilterDateTo] = useState('');
-  const [overdueOnly, setOverdueOnly] = useState(false);
-
-  const { data: macroProjects = [] } = useQuery({
-    queryKey: ['master_macro_projects'],
-    queryFn: async () => {
-      const { data } = await supabase.from('master_macro_projects').select('*').eq('is_active', true).order('position');
-      return (data || []) as Array<{ id: string; name: string; color: string }>;
-    },
-  });
+  const [allExpanded, setAllExpanded] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskProject, setNewTaskProject] = useState('');
+  const [newTaskDept, setNewTaskDept] = useState('');
+  const [addingSubtaskTo, setAddingSubtaskTo] = useState<string | null>(null);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
@@ -69,10 +41,10 @@ export default function DashboardPage() {
     },
   });
 
-  const { data: allTasks = [] } = useQuery({
+  const { data: allTasks = [], refetch: refetchTasks } = useQuery({
     queryKey: ['all-tasks'],
     queryFn: async () => {
-      const { data } = await supabase.from('tasks').select('*').order('position');
+      const { data } = await supabase.from('tasks').select('*').order('planned_end_date', { ascending: true, nullsFirst: false });
       return (data || []) as Task[];
     },
   });
@@ -96,7 +68,7 @@ export default function DashboardPage() {
   const { data: members = [] } = useQuery({
     queryKey: ['master_members'],
     queryFn: async () => {
-      const { data } = await supabase.from('master_members').select('*').eq('is_active', true).order('position');
+      const { data } = await supabase.from('master_members').select('*').eq('is_active', true).eq('is_live', true).order('position');
       return (data || []) as Array<{ id: string; name: string; color: string }>;
     },
   });
@@ -117,488 +89,392 @@ export default function DashboardPage() {
     },
   });
 
-  // Filter logic
-  function getFilteredTasks(): Task[] {
-    let filtered = allTasks.filter((t) => !t.parent_id);
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      filtered = filtered.filter((t) => t.title.toLowerCase().includes(q) || t.task_no.toLowerCase().includes(q));
-    }
-    if (filterStatuses.length > 0) filtered = filtered.filter((t) => filterStatuses.includes(t.status_id));
-    if (filterPriorities.length > 0) filtered = filtered.filter((t) => t.priority_id && filterPriorities.includes(t.priority_id));
-    if (filterAssignees.length > 0) filtered = filtered.filter((t) => t.assignee_id && filterAssignees.includes(t.assignee_id));
-    if (filterTaskTypes.length > 0) filtered = filtered.filter((t) => t.task_type_id && filterTaskTypes.includes(t.task_type_id));
-    if (filterCategories.length > 0) filtered = filtered.filter((t) => t.category_id && filterCategories.includes(t.category_id));
-    if (filterProjects.length > 0) filtered = filtered.filter((t) => filterProjects.includes(t.project_id));
-    if (filterDateFrom) filtered = filtered.filter((t) => t.planned_end_date && t.planned_end_date >= filterDateFrom);
-    if (filterDateTo) filtered = filtered.filter((t) => t.planned_end_date && t.planned_end_date <= filterDateTo);
-    if (overdueOnly) {
-      const today = new Date().toISOString().split('T')[0];
-      const closedIds = statuses.filter((s) => s.is_closed).map((s) => s.id);
-      filtered = filtered.filter((t) => !closedIds.includes(t.status_id) && t.planned_end_date && t.planned_end_date < today);
-    }
-    return filtered;
-  }
-
-  const filteredTasks = getFilteredTasks();
-  const hasAnyFilter = searchQuery || filterStatuses.length || filterPriorities.length || filterAssignees.length || filterTaskTypes.length || filterCategories.length || filterProjects.length || filterDateFrom || filterDateTo || overdueOnly;
-
-  function clearAllFilters() {
-    setSearchQuery('');
-    setFilterStatuses([]);
-    setFilterPriorities([]);
-    setFilterAssignees([]);
-    setFilterTaskTypes([]);
-    setFilterCategories([]);
-    setFilterProjects([]);
-    setFilterDateFrom('');
-    setFilterDateTo('');
-    setOverdueOnly(false);
-  }
-
-  function getSubtasks(taskId: string): Task[] {
-    return allTasks.filter((t) => t.parent_id === taskId);
-  }
-
-  function toggleSet(set: Set<string>, setFn: (s: Set<string>) => void, id: string) {
-    const next = new Set(set);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setFn(next);
-  }
-
-  function getMemberName(id: string | null) {
-    if (!id) return '-';
-    return members.find((m) => m.id === id)?.name || '-';
-  }
-
-  // Auto-expand everything on first load
-  useEffect(() => {
-    if (projects.length > 0 && expandedProjects.size === 0) {
-      setExpandedProjects(new Set(projects.map((p) => p.id)));
-      setExpandedDepts(new Set(departments.map((d) => d.id)));
-      setExpandedStatuses(new Set(departments.flatMap((d) => statuses.map((s) => `${d.id}-${s.id}`))));
-    }
-  }, [projects, departments, statuses]);
-
-  return (
-    <div className="space-y-5">
-      {/* Top actions - professional header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 bg-white dark:bg-card rounded-xl p-1 shadow-sm border">
-            <Button variant={view === 'list' ? 'default' : 'ghost'} size="sm" className="h-9 rounded-lg font-medium" onClick={() => setView('list')}>
-              <List className="h-4 w-4 mr-1.5" /> List
-            </Button>
-            <Button variant={view === 'board' ? 'default' : 'ghost'} size="sm" className="h-9 rounded-lg font-medium" onClick={() => setView('board')}>
-              <LayoutGrid className="h-4 w-4 mr-1.5" /> Board
-            </Button>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="h-9 rounded-lg shadow-sm" onClick={() => exportTasksToCSV(filteredTasks, { statuses, priorities, taskTypes: taskTypes as any, categories: categories as any, users: members as any })}>
-            <Download className="h-4 w-4 mr-1.5" /> Export CSV
-          </Button>
-          <Button size="sm" className="h-9 rounded-lg shadow-sm font-medium" onClick={() => setShowAddTask(true)}>
-            <Plus className="h-4 w-4 mr-1.5" /> New Task
-          </Button>
-        </div>
-      </div>
-
-      {/* Multi-select filters - clean card */}
-      <div className="flex flex-wrap items-center gap-2 p-3 bg-white dark:bg-card rounded-xl border shadow-sm">
-        <Input
-          placeholder="Search..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="h-8 w-40 text-xs"
-        />
-        <MultiSelect
-          options={statuses.map((s) => ({ value: s.id, label: s.name, color: s.color }))}
-          selected={filterStatuses}
-          onChange={setFilterStatuses}
-          placeholder="Status"
-          className="w-32"
-        />
-        <MultiSelect
-          options={priorities.map((p) => ({ value: p.id, label: p.name, color: p.color }))}
-          selected={filterPriorities}
-          onChange={setFilterPriorities}
-          placeholder="Priority"
-          className="w-32"
-        />
-        <MultiSelect
-          options={members.map((m) => ({ value: m.id, label: m.name, color: m.color }))}
-          selected={filterAssignees}
-          onChange={setFilterAssignees}
-          placeholder="Assignee"
-          className="w-32"
-        />
-        <MultiSelect
-          options={taskTypes.map((t) => ({ value: t.id, label: t.name, color: t.color }))}
-          selected={filterTaskTypes}
-          onChange={setFilterTaskTypes}
-          placeholder="Task Type"
-          className="w-32"
-        />
-        <MultiSelect
-          options={categories.map((c) => ({ value: c.id, label: c.name, color: c.color }))}
-          selected={filterCategories}
-          onChange={setFilterCategories}
-          placeholder="Category"
-          className="w-32"
-        />
-        <MultiSelect
-          options={projects.map((p) => ({ value: p.id, label: p.name, color: (p as any).color }))}
-          selected={filterProjects}
-          onChange={setFilterProjects}
-          placeholder="Project"
-          className="w-32"
-        />
-        <div className="flex items-center gap-1">
-          <Input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="h-8 text-xs w-32" title="Due from" />
-          <span className="text-xs text-muted-foreground">to</span>
-          <Input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="h-8 text-xs w-32" title="Due to" />
-        </div>
-        <Button
-          variant={overdueOnly ? 'destructive' : 'outline'}
-          size="sm"
-          className="h-8 text-xs"
-          onClick={() => setOverdueOnly(!overdueOnly)}
-        >
-          Overdue
-        </Button>
-        {hasAnyFilter && (
-          <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={clearAllFilters}>
-            <X className="h-3 w-3 mr-1" /> Clear all
-          </Button>
-        )}
-      </div>
-
-      {/* Views */}
-      {view === 'list' && (
-        <HierarchicalListView
-          filteredTasks={filteredTasks}
-          allTasks={allTasks}
-          macroProjects={macroProjects}
-          projects={projects}
-          departments={departments}
-          statuses={statuses}
-          priorities={priorities}
-          members={members}
-          expandedProjects={expandedProjects}
-          setExpandedProjects={setExpandedProjects}
-          expandedDepts={expandedDepts}
-          setExpandedDepts={setExpandedDepts}
-          expandedStatuses={expandedStatuses}
-          setExpandedStatuses={setExpandedStatuses}
-          expandedTasks={expandedTasks}
-          setExpandedTasks={setExpandedTasks}
-          onEditTask={setEditingTask}
-          onAddSubtask={(task) => { setSubtaskParent(task); }}
-          onAddTask={(ctx) => { setAddTaskContext(ctx); setShowAddTask(true); }}
-        />
-      )}
-      {view === 'board' && (
-        <BoardView
-          filteredTasks={filteredTasks}
-          statuses={statuses}
-          priorities={priorities}
-          members={members}
-          onEditTask={setEditingTask}
-        />
-      )}
-
-      {/* Task Dialog */}
-      {(showAddTask || editingTask) && (
-        <TaskDialog
-          open={showAddTask || !!editingTask}
-          onOpenChange={(open) => { if (!open) { setShowAddTask(false); setEditingTask(null); setAddTaskContext(null); } }}
-          task={editingTask}
-          departmentId={addTaskContext?.departmentId || editingTask?.department_id || departments[0]?.id || ''}
-          projectId={addTaskContext?.projectId || editingTask?.project_id || projects[0]?.id || ''}
-          defaultStatusId={addTaskContext?.statusId}
-        />
-      )}
-
-      {/* Subtask Dialog */}
-      {subtaskParent && (
-        <TaskDialog
-          open={!!subtaskParent}
-          onOpenChange={(open) => { if (!open) setSubtaskParent(null); }}
-          task={null}
-          departmentId={subtaskParent.department_id}
-          projectId={subtaskParent.project_id}
-          parentId={subtaskParent.id}
-        />
-      )}
-    </div>
-  );
-}
-
-// ============================================================
-// HIERARCHICAL LIST VIEW
-// ============================================================
-function HierarchicalListView({
-  filteredTasks, allTasks, macroProjects, projects, departments, statuses, priorities, members,
-  expandedProjects, setExpandedProjects, expandedDepts, setExpandedDepts,
-  expandedStatuses, setExpandedStatuses, expandedTasks, setExpandedTasks, onEditTask, onAddSubtask, onAddTask,
-}: {
-  filteredTasks: Task[]; allTasks: Task[];
-  macroProjects: Array<{ id: string; name: string; color: string }>;
-  projects: Project[]; departments: Department[];
-  statuses: MasterStatus[]; priorities: MasterPriority[]; members: Array<{ id: string; name: string; color: string }>;
-  expandedProjects: Set<string>; setExpandedProjects: (s: Set<string>) => void;
-  expandedDepts: Set<string>; setExpandedDepts: (s: Set<string>) => void;
-  expandedStatuses: Set<string>; setExpandedStatuses: (s: Set<string>) => void;
-  expandedTasks: Set<string>; setExpandedTasks: (s: Set<string>) => void;
-  onEditTask: (t: Task) => void;
-  onAddSubtask: (t: Task) => void;
-  onAddTask: (context: { projectId: string; departmentId?: string; statusId?: string }) => void;
-}) {
-  const [expandedMacros, setExpandedMacros] = useState<Set<string>>(new Set(macroProjects.map((m) => m.id)));
-
-  function toggleSet(set: Set<string>, setFn: (s: Set<string>) => void, id: string) {
-    const next = new Set(set);
-    if (next.has(id)) next.delete(id); else next.add(id);
-    setFn(next);
-  }
-
-  function getMemberName(id: string | null) {
-    if (!id) return '-';
-    return members.find((m) => m.id === id)?.name || '-';
-  }
+  // Top-level tasks sorted by due date
+  const topTasks = allTasks.filter((t) => !t.parent_id).sort((a, b) => {
+    const aDate = a.planned_end_date || '9999-12-31';
+    const bDate = b.planned_end_date || '9999-12-31';
+    return aDate.localeCompare(bDate);
+  });
 
   function getSubtasks(taskId: string) {
     return allTasks.filter((t) => t.parent_id === taskId);
   }
 
-  // Group projects by macro_project_id
-  function getProjectsForMacro(macroId: string) {
-    return projects.filter((p) => (p as any).macro_project_id === macroId);
+  function toggleTask(id: string) {
+    const next = new Set(expandedTasks);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setExpandedTasks(next);
   }
 
-  const unassignedProjects = projects.filter((p) => !(p as any).macro_project_id);
-
-  function renderTaskRow(task: Task, status: MasterStatus) {
-    const priority = priorities.find((p) => p.id === task.priority_id);
-    const overdue = getOverdueDays(task.planned_end_date, status.is_closed);
-    const monthWeek = getPlannedMonthWeek(task.planned_start_date);
-    const subtasks = getSubtasks(task.id);
-
-    return (
-      <React.Fragment key={task.id}>
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_2fr_90px_90px_90px_85px_60px_65px_30px] gap-1 md:gap-0 px-3 md:px-16 py-2 border-b hover:bg-accent/30 cursor-pointer text-sm items-center" onClick={() => onEditTask(task)}>
-          <div className="flex items-center gap-1">
-            {subtasks.length > 0 && (
-              <button onClick={(e) => { e.stopPropagation(); toggleSet(expandedTasks, setExpandedTasks, task.id); }} className="p-0.5 hover:bg-accent rounded">
-                {expandedTasks.has(task.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-              </button>
-            )}
-            <span className="font-mono text-[10px] text-muted-foreground">{task.task_no}</span>
-          </div>
-          <span className="font-medium text-sm truncate">{task.title}</span>
-          <Badge className="text-[9px] w-fit" style={{ backgroundColor: status.color, color: '#fff' }}>{status.name}</Badge>
-          <div>{priority && <span className="flex items-center gap-1 text-xs"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: priority.color }} />{priority.name}</span>}</div>
-          <span className="text-xs">{getMemberName(task.assignee_id)}</span>
-          <span className={`text-xs ${overdue > 0 ? 'text-red-600' : ''}`}>{formatDate(task.planned_end_date)}</span>
-          <span className={`text-xs ${overdue > 0 ? 'text-red-600 font-bold' : ''}`}>{overdue > 0 ? `${overdue}d` : '-'}</span>
-          <span className="text-xs text-muted-foreground">{monthWeek || '-'}</span>
-          <button
-            onClick={(e) => { e.stopPropagation(); onAddSubtask(task); }}
-            className="h-5 w-5 flex items-center justify-center rounded hover:bg-accent text-muted-foreground hover:text-foreground"
-            title="Add subtask"
-          >
-            <Plus className="h-3 w-3" />
-          </button>
-        </div>
-        {expandedTasks.has(task.id) && subtasks.map((sub) => {
-          const subStatus = statuses.find((s) => s.id === sub.status_id);
-          const subPri = priorities.find((p) => p.id === sub.priority_id);
-          const subOver = getOverdueDays(sub.planned_end_date, subStatus?.is_closed ?? false);
-          return (
-            <div key={sub.id} className="grid grid-cols-1 md:grid-cols-[1fr_2fr_90px_90px_90px_85px_60px_65px] gap-1 md:gap-0 px-3 md:px-22 py-1.5 border-b hover:bg-accent/20 cursor-pointer text-xs items-center bg-muted/10" onClick={() => onEditTask(sub)}>
-              <span className="font-mono text-[10px] text-muted-foreground ml-4">{sub.task_no}</span>
-              <span className="text-xs truncate">{sub.title}</span>
-              <div>{subStatus && <Badge className="text-[8px] w-fit" style={{ backgroundColor: subStatus.color, color: '#fff' }}>{subStatus.name}</Badge>}</div>
-              <div>{subPri && <span className="flex items-center gap-1 text-[10px]"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: subPri.color }} />{subPri.name}</span>}</div>
-              <span className="text-[10px]">{getMemberName(sub.assignee_id)}</span>
-              <span className={`text-[10px] ${subOver > 0 ? 'text-red-600' : ''}`}>{formatDate(sub.planned_end_date)}</span>
-              <span className={`text-[10px] ${subOver > 0 ? 'text-red-600 font-bold' : ''}`}>{subOver > 0 ? `${subOver}d` : '-'}</span>
-              <span className="text-[10px] text-muted-foreground">{getPlannedMonthWeek(sub.planned_start_date) || '-'}</span>
-            </div>
-          );
-        })}
-      </React.Fragment>
-    );
+  function toggleAll() {
+    if (allExpanded) {
+      setExpandedTasks(new Set());
+      setAllExpanded(false);
+    } else {
+      setExpandedTasks(new Set(topTasks.map((t) => t.id)));
+      setAllExpanded(true);
+    }
   }
 
-  function renderProjectBlock(project: Project, indent: number) {
-    const projectDepts = departments.filter((d) => d.project_id === project.id);
-    const projectTasks = filteredTasks.filter((t) => t.project_id === project.id);
-    if (projectTasks.length === 0) return null;
-
-    return (
-      <div key={project.id}>
-        <div className={`flex items-center gap-2 py-1.5 border-b cursor-pointer hover:bg-muted/30 group`} style={{ paddingLeft: `${indent}px` }} onClick={() => toggleSet(expandedProjects, setExpandedProjects, project.id)}>
-          {expandedProjects.has(project.id) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-          <FolderOpen className="h-3.5 w-3.5 text-primary/70" />
-          <span className="font-medium text-sm">{project.name}</span>
-          <Badge variant="secondary" className="text-[10px]">{projectTasks.length}</Badge>
-          <button
-            onClick={(e) => { e.stopPropagation(); onAddTask({ projectId: project.id }); }}
-            className="ml-auto mr-2 h-5 px-1.5 rounded text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5"
-            title="Add task to this project"
-          >
-            <Plus className="h-3 w-3" /> Task
-          </button>
-        </div>
-
-        {expandedProjects.has(project.id) && projectDepts.map((dept) => {
-          const deptTasks = projectTasks.filter((t) => t.department_id === dept.id);
-          if (deptTasks.length === 0) return null;
-
-          return (
-            <div key={dept.id}>
-              <div className="flex items-center gap-2 py-1 border-b cursor-pointer hover:bg-muted/20 group" style={{ paddingLeft: `${indent + 20}px` }} onClick={() => toggleSet(expandedDepts, setExpandedDepts, dept.id)}>
-                {expandedDepts.has(dept.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: (dept as any).color || '#6b7280' }} />
-                <span className="text-sm">{dept.name}</span>
-                <Badge variant="secondary" className="text-[9px]">{deptTasks.length}</Badge>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onAddTask({ projectId: project.id, departmentId: dept.id }); }}
-                  className="ml-auto mr-2 h-5 px-1.5 rounded text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5"
-                  title="Add task to this department"
-                >
-                  <Plus className="h-3 w-3" /> Task
-                </button>
-              </div>
-
-              {expandedDepts.has(dept.id) && statuses.map((status) => {
-                const statusTasks = deptTasks.filter((t) => t.status_id === status.id);
-                if (statusTasks.length === 0) return null;
-                const key = `${dept.id}-${status.id}`;
-
-                return (
-                  <div key={key}>
-                    <div className="flex items-center gap-2 py-0.5 border-b cursor-pointer hover:bg-muted/10 group" style={{ paddingLeft: `${indent + 40}px` }} onClick={() => toggleSet(expandedStatuses, setExpandedStatuses, key)}>
-                      {expandedStatuses.has(key) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                      <div className="h-2 w-2 rounded-full" style={{ backgroundColor: status.color }} />
-                      <span className="text-xs font-medium">{status.name}</span>
-                      <Badge variant="secondary" className="text-[9px]">{statusTasks.length}</Badge>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onAddTask({ projectId: project.id, departmentId: dept.id, statusId: status.id }); }}
-                        className="ml-auto mr-2 h-4 px-1 rounded text-[9px] font-medium bg-primary/10 text-primary hover:bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5"
-                        title="Add task with this status"
-                      >
-                        <Plus className="h-2.5 w-2.5" />
-                      </button>
-                    </div>
-                    {expandedStatuses.has(key) && statusTasks.map((task) => renderTaskRow(task, status))}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
-      </div>
-    );
+  async function handleCreateTask() {
+    if (!newTaskTitle.trim() || !newTaskProject || !newTaskDept) return;
+    const defaultStatus = statuses.find((s) => s.position === 1) || statuses[0];
+    createTask.mutate({
+      title: newTaskTitle.trim(),
+      project_id: newTaskProject,
+      department_id: newTaskDept,
+      status_id: defaultStatus?.id || '',
+      position: 0,
+      parent_id: null,
+    } as any, {
+      onSuccess: () => {
+        setNewTaskTitle('');
+        queryClient.invalidateQueries({ queryKey: ['all-tasks'] });
+      },
+    });
   }
+
+  async function handleCreateSubtask(parentTask: Task) {
+    if (!newSubtaskTitle.trim()) return;
+    const defaultStatus = statuses.find((s) => s.position === 1) || statuses[0];
+    createTask.mutate({
+      title: newSubtaskTitle.trim(),
+      project_id: parentTask.project_id,
+      department_id: parentTask.department_id,
+      status_id: defaultStatus?.id || '',
+      parent_id: parentTask.id,
+      position: 0,
+    } as any, {
+      onSuccess: () => {
+        setNewSubtaskTitle('');
+        setAddingSubtaskTo(null);
+        setExpandedTasks(new Set([...expandedTasks, parentTask.id]));
+        queryClient.invalidateQueries({ queryKey: ['all-tasks'] });
+      },
+    });
+  }
+
+  async function updateField(taskId: string, field: string, value: any) {
+    const { error } = await supabase.from('tasks').update({ [field]: value || null }).eq('id', taskId);
+    if (!error) queryClient.invalidateQueries({ queryKey: ['all-tasks'] });
+  }
+
+  function getProjectName(id: string) { return projects.find((p) => p.id === id)?.name || ''; }
+  function getDeptName(id: string) { return departments.find((d) => d.id === id)?.name || ''; }
+  function getMemberName(id: string | null) { return id ? members.find((m) => m.id === id)?.name || '' : ''; }
+
+  const deptOptions = newTaskProject ? departments.filter((d) => d.project_id === newTaskProject) : departments;
 
   return (
-    <div className="border rounded-lg overflow-hidden">
-      {/* Headers */}
-      <div className="hidden md:grid grid-cols-[1fr_2fr_90px_90px_90px_85px_60px_65px_30px] gap-0 bg-muted/50 border-b px-3 py-2 text-xs font-medium text-muted-foreground">
-        <span>Task #</span><span>Title</span><span>Status</span><span>Priority</span><span>Assignee</span><span>Due Date</span><span>Overdue</span><span>Mon/Wk</span><span></span>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold">Tasks</h2>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-8" onClick={toggleAll}>
+            {allExpanded ? <ChevronsUp className="h-4 w-4 mr-1" /> : <ChevronsDown className="h-4 w-4 mr-1" />}
+            {allExpanded ? 'Collapse All' : 'Expand All'}
+          </Button>
+          <Button variant="outline" size="sm" className="h-8" onClick={() => exportTasksToCSV(topTasks, { statuses, priorities, taskTypes: taskTypes as any, categories: categories as any, users: members as any })}>
+            <Download className="h-4 w-4 mr-1" /> CSV
+          </Button>
+        </div>
       </div>
 
-      {/* Macro Projects */}
-      {macroProjects.map((macro) => {
-        const macroProjectsList = getProjectsForMacro(macro.id);
-        const macroTasks = filteredTasks.filter((t) => macroProjectsList.some((p) => p.id === t.project_id));
-        if (macroTasks.length === 0) return null;
+      {/* Spreadsheet */}
+      <div className="border rounded-lg overflow-x-auto bg-white dark:bg-card shadow-sm">
+        <table className="w-full text-sm min-w-[1200px]">
+          <thead>
+            <tr className="bg-muted/60 border-b text-xs font-semibold text-muted-foreground">
+              <th className="py-2.5 px-2 text-left w-8"></th>
+              <th className="py-2.5 px-2 text-left w-24">Task #</th>
+              <th className="py-2.5 px-2 text-left min-w-[200px]">Title</th>
+              <th className="py-2.5 px-2 text-left w-28">Project</th>
+              <th className="py-2.5 px-2 text-left w-28">Department</th>
+              <th className="py-2.5 px-2 text-left w-24">Status</th>
+              <th className="py-2.5 px-2 text-left w-24">Priority</th>
+              <th className="py-2.5 px-2 text-left w-24">Assignee</th>
+              <th className="py-2.5 px-2 text-left w-24">Type</th>
+              <th className="py-2.5 px-2 text-left w-24">Category</th>
+              <th className="py-2.5 px-2 text-left w-28">Due Date</th>
+              <th className="py-2.5 px-2 text-left w-16">Overdue</th>
+              <th className="py-2.5 px-2 text-left w-20">Mon/Wk</th>
+              <th className="py-2.5 px-2 text-left w-8"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {/* New task row - always first */}
+            <tr className="border-b bg-primary/5 hover:bg-primary/10">
+              <td className="py-1.5 px-2">
+                <Plus className="h-4 w-4 text-primary" />
+              </td>
+              <td className="py-1.5 px-2 text-xs text-muted-foreground italic">New</td>
+              <td className="py-1.5 px-1">
+                <Input
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleCreateTask(); }}
+                  placeholder="Type task title and press Enter..."
+                  className="h-7 text-sm border-0 bg-transparent shadow-none focus-visible:ring-1 px-1"
+                />
+              </td>
+              <td className="py-1.5 px-1">
+                <SearchableSelect
+                  options={projects.map((p) => ({ value: p.id, label: p.name }))}
+                  value={newTaskProject}
+                  onChange={(v) => { setNewTaskProject(v); setNewTaskDept(''); }}
+                  placeholder="Project"
+                  className="text-xs [&_button]:h-7 [&_button]:text-xs [&_button]:border-0 [&_button]:bg-transparent [&_button]:shadow-none"
+                />
+              </td>
+              <td className="py-1.5 px-1">
+                <SearchableSelect
+                  options={deptOptions.map((d: any) => ({ value: d.id, label: d.name }))}
+                  value={newTaskDept}
+                  onChange={setNewTaskDept}
+                  placeholder="Dept"
+                  className="text-xs [&_button]:h-7 [&_button]:text-xs [&_button]:border-0 [&_button]:bg-transparent [&_button]:shadow-none"
+                />
+              </td>
+              <td colSpan={9} className="py-1.5 px-2">
+                <Button size="sm" className="h-6 text-xs px-2" onClick={handleCreateTask} disabled={!newTaskTitle.trim() || !newTaskProject || !newTaskDept}>
+                  Add
+                </Button>
+              </td>
+            </tr>
 
-        return (
-          <div key={macro.id}>
-            <div className="flex items-center gap-2 px-3 py-2 bg-primary/5 border-b cursor-pointer hover:bg-primary/10" onClick={() => toggleSet(expandedMacros, setExpandedMacros, macro.id)}>
-              {expandedMacros.has(macro.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              <div className="h-3 w-3 rounded" style={{ backgroundColor: macro.color }} />
-              <span className="font-bold text-sm">{macro.name}</span>
-              <Badge variant="secondary" className="text-[10px]">{macroTasks.length}</Badge>
-            </div>
-            {expandedMacros.has(macro.id) && macroProjectsList.map((project) => renderProjectBlock(project, 24))}
-          </div>
-        );
-      })}
+            {/* Task rows */}
+            {topTasks.map((task) => (
+              <React.Fragment key={task.id}>
+                <TaskSpreadsheetRow
+                  task={task}
+                  isSubtask={false}
+                  statuses={statuses}
+                  priorities={priorities}
+                  members={members}
+                  taskTypes={taskTypes}
+                  categories={categories}
+                  projects={projects}
+                  departments={departments}
+                  expanded={expandedTasks.has(task.id)}
+                  subtaskCount={getSubtasks(task.id).length}
+                  onToggle={() => toggleTask(task.id)}
+                  onUpdateField={updateField}
+                  onAddSubtask={() => { setAddingSubtaskTo(task.id); setExpandedTasks(new Set([...expandedTasks, task.id])); }}
+                />
+                {/* Subtask creation row */}
+                {expandedTasks.has(task.id) && addingSubtaskTo === task.id && (
+                  <tr className="border-b bg-green-50/50 dark:bg-green-950/20">
+                    <td className="py-1 px-2"></td>
+                    <td className="py-1 px-2 pl-8 text-xs text-muted-foreground italic">New sub</td>
+                    <td className="py-1 px-1" colSpan={11}>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={newSubtaskTitle}
+                          onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleCreateSubtask(task); if (e.key === 'Escape') setAddingSubtaskTo(null); }}
+                          placeholder="Subtask title... (Enter to add, Esc to cancel)"
+                          className="h-6 text-xs border-0 bg-transparent shadow-none focus-visible:ring-1 flex-1"
+                          autoFocus
+                        />
+                        <Button size="sm" className="h-5 text-[10px] px-2" onClick={() => handleCreateSubtask(task)}>Add</Button>
+                        <Button size="sm" variant="ghost" className="h-5 text-[10px] px-1" onClick={() => setAddingSubtaskTo(null)}>Cancel</Button>
+                      </div>
+                    </td>
+                    <td></td>
+                  </tr>
+                )}
+                {/* Subtask rows */}
+                {expandedTasks.has(task.id) && getSubtasks(task.id).map((sub) => (
+                  <TaskSpreadsheetRow
+                    key={sub.id}
+                    task={sub}
+                    isSubtask={true}
+                    statuses={statuses}
+                    priorities={priorities}
+                    members={members}
+                    taskTypes={taskTypes}
+                    categories={categories}
+                    projects={projects}
+                    departments={departments}
+                    expanded={false}
+                    subtaskCount={0}
+                    onToggle={() => {}}
+                    onUpdateField={updateField}
+                    onAddSubtask={() => {}}
+                  />
+                ))}
+              </React.Fragment>
+            ))}
 
-      {/* Unassigned projects */}
-      {unassignedProjects.length > 0 && unassignedProjects.map((project) => renderProjectBlock(project, 12))}
-
-      {filteredTasks.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground text-sm">No tasks found.</div>
-      )}
+            {topTasks.length === 0 && (
+              <tr><td colSpan={14} className="text-center py-12 text-muted-foreground">No tasks yet. Add one above.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
 // ============================================================
-// BOARD / KANBAN VIEW
+// INLINE EDITABLE TASK ROW
 // ============================================================
-function BoardView({
-  filteredTasks, statuses, priorities, members, onEditTask,
+function TaskSpreadsheetRow({
+  task, isSubtask, statuses, priorities, members, taskTypes, categories, projects, departments,
+  expanded, subtaskCount, onToggle, onUpdateField, onAddSubtask,
 }: {
-  filteredTasks: Task[]; statuses: MasterStatus[]; priorities: MasterPriority[];
-  members: Array<{ id: string; name: string; color: string }>; onEditTask: (t: Task) => void;
+  task: Task;
+  isSubtask: boolean;
+  statuses: MasterStatus[];
+  priorities: MasterPriority[];
+  members: Array<{ id: string; name: string; color: string }>;
+  taskTypes: Array<{ id: string; name: string; color?: string }>;
+  categories: Array<{ id: string; name: string; color?: string }>;
+  projects: Project[];
+  departments: Department[];
+  expanded: boolean;
+  subtaskCount: number;
+  onToggle: () => void;
+  onUpdateField: (id: string, field: string, value: any) => void;
+  onAddSubtask: () => void;
 }) {
-  function getMemberName(id: string | null) {
-    if (!id) return '';
-    return members.find((m) => m.id === id)?.name || '';
-  }
+  const status = statuses.find((s) => s.id === task.status_id);
+  const overdue = getOverdueDays(task.planned_end_date, status?.is_closed ?? false);
+  const monthWeek = getPlannedMonthWeek(task.planned_start_date);
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
-      {statuses.map((status) => {
-        const statusTasks = filteredTasks.filter((t) => t.status_id === status.id);
-        return (
-          <div key={status.id} className="flex flex-col w-72 min-w-[280px] flex-shrink-0">
-            <div className="flex items-center gap-2 mb-3 px-2">
-              <div className="h-3 w-3 rounded-full" style={{ backgroundColor: status.color }} />
-              <span className="font-medium text-sm">{status.name}</span>
-              <Badge variant="secondary" className="text-[10px]">{statusTasks.length}</Badge>
-            </div>
-            <div className="flex-1 space-y-2 p-2 bg-muted/30 rounded-lg min-h-[200px]">
-              {statusTasks.map((task) => {
-                const priority = priorities.find((p) => p.id === task.priority_id);
-                const today = new Date().toISOString().split('T')[0];
-                const isOverdue = !status.is_closed && task.planned_end_date && task.planned_end_date < today;
-                return (
-                  <div
-                    key={task.id}
-                    className="p-3 rounded-md border bg-card shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => onEditTask(task)}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <span className="text-[10px] text-muted-foreground font-mono">{task.task_no}</span>
-                      {priority && <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: priority.color }} />}
-                    </div>
-                    <p className="text-sm font-medium leading-tight mb-2">{task.title}</p>
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-muted-foreground">{getMemberName(task.assignee_id)}</span>
-                      {task.planned_end_date && (
-                        <span className={isOverdue ? 'text-red-600 font-semibold' : 'text-muted-foreground'}>
-                          {formatDate(task.planned_end_date)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              {statusTasks.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-4">No tasks</p>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+    <tr className={`border-b hover:bg-accent/20 transition-colors ${isSubtask ? 'bg-muted/20' : ''} ${overdue > 0 ? 'bg-red-50/30 dark:bg-red-950/10' : ''}`}>
+      {/* Expand / Subtask indicator */}
+      <td className="py-1.5 px-2">
+        {!isSubtask && subtaskCount > 0 ? (
+          <button onClick={onToggle} className="p-0.5 hover:bg-accent rounded">
+            {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          </button>
+        ) : !isSubtask ? (
+          <span className="text-muted-foreground/30">·</span>
+        ) : (
+          <span className="ml-3 text-muted-foreground/40">↳</span>
+        )}
+      </td>
+
+      {/* Task No */}
+      <td className={`py-1.5 px-2 font-mono text-[10px] text-muted-foreground ${isSubtask ? 'pl-8' : ''}`}>
+        {task.task_no}
+        {!isSubtask && subtaskCount > 0 && (
+          <span className="ml-1 text-[9px] text-primary">({subtaskCount})</span>
+        )}
+      </td>
+
+      {/* Title - inline editable */}
+      <td className="py-1.5 px-1">
+        <input
+          defaultValue={task.title}
+          onBlur={(e) => { if (e.target.value !== task.title) onUpdateField(task.id, 'title', e.target.value); }}
+          className={`w-full bg-transparent text-sm outline-none border-0 px-1 py-0.5 rounded hover:bg-muted/50 focus:bg-white dark:focus:bg-card focus:ring-1 focus:ring-primary/30 ${isSubtask ? 'text-xs' : 'font-medium'}`}
+        />
+      </td>
+
+      {/* Project */}
+      <td className="py-1.5 px-1">
+        <span className="text-[10px] text-muted-foreground truncate block">{projects.find((p) => p.id === task.project_id)?.name || ''}</span>
+      </td>
+
+      {/* Department */}
+      <td className="py-1.5 px-1">
+        <span className="text-[10px] text-muted-foreground truncate block">{departments.find((d) => d.id === task.department_id)?.name || ''}</span>
+      </td>
+
+      {/* Status - inline select */}
+      <td className="py-1.5 px-1">
+        <select
+          value={task.status_id}
+          onChange={(e) => onUpdateField(task.id, 'status_id', e.target.value)}
+          className="text-[10px] bg-transparent border-0 outline-none cursor-pointer rounded px-0.5 py-0.5 hover:bg-muted/50 font-medium w-full"
+          style={{ color: status?.color }}
+        >
+          {statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </td>
+
+      {/* Priority - inline select */}
+      <td className="py-1.5 px-1">
+        <select
+          value={task.priority_id || ''}
+          onChange={(e) => onUpdateField(task.id, 'priority_id', e.target.value)}
+          className="text-[10px] bg-transparent border-0 outline-none cursor-pointer rounded px-0.5 py-0.5 hover:bg-muted/50 w-full"
+        >
+          <option value="">-</option>
+          {priorities.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </td>
+
+      {/* Assignee - inline select */}
+      <td className="py-1.5 px-1">
+        <select
+          value={task.assignee_id || ''}
+          onChange={(e) => onUpdateField(task.id, 'assignee_id', e.target.value)}
+          className="text-[10px] bg-transparent border-0 outline-none cursor-pointer rounded px-0.5 py-0.5 hover:bg-muted/50 w-full"
+        >
+          <option value="">-</option>
+          {members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+      </td>
+
+      {/* Task Type */}
+      <td className="py-1.5 px-1">
+        <select
+          value={task.task_type_id || ''}
+          onChange={(e) => onUpdateField(task.id, 'task_type_id', e.target.value)}
+          className="text-[10px] bg-transparent border-0 outline-none cursor-pointer rounded px-0.5 py-0.5 hover:bg-muted/50 w-full"
+        >
+          <option value="">-</option>
+          {taskTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </select>
+      </td>
+
+      {/* Category */}
+      <td className="py-1.5 px-1">
+        <select
+          value={task.category_id || ''}
+          onChange={(e) => onUpdateField(task.id, 'category_id', e.target.value)}
+          className="text-[10px] bg-transparent border-0 outline-none cursor-pointer rounded px-0.5 py-0.5 hover:bg-muted/50 w-full"
+        >
+          <option value="">-</option>
+          {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </td>
+
+      {/* Due Date - inline editable */}
+      <td className="py-1.5 px-1">
+        <input
+          type="date"
+          defaultValue={task.planned_end_date || ''}
+          onBlur={(e) => { if (e.target.value !== (task.planned_end_date || '')) onUpdateField(task.id, 'planned_end_date', e.target.value); }}
+          className={`text-[10px] bg-transparent border-0 outline-none cursor-pointer rounded px-0.5 py-0.5 hover:bg-muted/50 w-full ${overdue > 0 ? 'text-red-600 font-semibold' : ''}`}
+        />
+      </td>
+
+      {/* Overdue */}
+      <td className={`py-1.5 px-2 text-[10px] font-semibold ${overdue > 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+        {overdue > 0 ? `${overdue}d` : '-'}
+      </td>
+
+      {/* Month/Week */}
+      <td className="py-1.5 px-2 text-[10px] text-muted-foreground">{monthWeek || '-'}</td>
+
+      {/* Add subtask */}
+      <td className="py-1.5 px-1">
+        {!isSubtask && (
+          <button
+            onClick={onAddSubtask}
+            className="h-5 w-5 flex items-center justify-center rounded hover:bg-primary/10 text-muted-foreground hover:text-primary"
+            title="Add subtask"
+          >
+            <Plus className="h-3 w-3" />
+          </button>
+        )}
+      </td>
+    </tr>
   );
 }
