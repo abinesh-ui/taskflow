@@ -17,6 +17,11 @@ export default function POAPage() {
 
   const today = new Date().toISOString().split('T')[0];
 
+  // Check edit_poa permission
+  const { data: currentMember } = useQuery({ queryKey: ['current-member', user?.id], queryFn: async () => { const { data: profile } = await supabase.from('profiles').select('email').eq('id', user!.id).single(); if (!profile) return null; const { data } = await supabase.from('master_members').select('role').eq('email', profile.email).single(); return data as { role?: string } | null; }, enabled: !!user });
+  const { data: permissions = [] } = useQuery({ queryKey: ['role_permissions'], queryFn: async () => { const { data } = await supabase.from('role_permissions').select('*'); return (data || []) as Array<{ role: string; permission: string; allowed: boolean }>; } });
+  const canEditPoa = (() => { const role = currentMember?.role || 'team_member'; const perm = permissions.find((p) => p.role === role && p.permission === 'edit_poa'); return perm?.allowed ?? false; })();
+
   const { data: poaSubmissions = [] } = useQuery({
     queryKey: ['poa_submissions', user?.id],
     queryFn: async () => {
@@ -53,7 +58,10 @@ export default function POAPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold">Plan of Action (POA)</h2>
-        {todaySubmitted && <Badge className="bg-green-600 text-white text-[10px]"><CheckCircle className="h-3 w-3 mr-1" /> Today's POA submitted</Badge>}
+        <div className="flex items-center gap-2">
+          {todaySubmitted && <Badge className="bg-green-600 text-white text-[10px]"><CheckCircle className="h-3 w-3 mr-1" /> Today's POA submitted</Badge>}
+          {!canEditPoa && <span className="text-[9px] text-muted-foreground">(Edit requires permission)</span>}
+        </div>
       </div>
 
       {/* POA History */}

@@ -18,6 +18,7 @@ const PERMISSIONS = [
   { key: 'delete_task', label: 'Delete Tasks' },
   { key: 'cancel_task', label: 'Cancel Tasks' },
   { key: 'change_status', label: 'Change Status' },
+  { key: 'edit_poa', label: 'Edit Submitted POA' },
   { key: 'manage_masters', label: 'Manage Masters/Settings' },
   { key: 'manage_users', label: 'Manage Users' },
   { key: 'export_data', label: 'Export Data' },
