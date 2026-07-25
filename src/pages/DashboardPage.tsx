@@ -15,6 +15,7 @@ import { ChevronDown, ChevronRight, Plus, Download, ChevronsDown, ChevronsUp, Ch
 import { useResizableColumns, ResizeHandle } from '@/components/ui/resizable-table';
 import MobileTaskView from '@/components/mobile/MobileTaskView';
 import DailyPOADialog from '@/components/tasks/DailyPOADialog';
+import DailyWorkDoneDialog from '@/components/tasks/DailyWorkDoneDialog';
 import type { Task, MasterStatus, MasterPriority, Project, Department } from '@/types/database';
 
 interface DashboardProps { filterProjectId?: string; filterDepartmentId?: string; }
@@ -37,6 +38,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   const [bulkField, setBulkField] = useState('');
   const [bulkValue, setBulkValue] = useState('');
   const [showPOA, setShowPOA] = useState(false);
+  const [showWorkDone, setShowWorkDone] = useState(false);
   const PAGE_SIZE = 200;
 
   // New task/subtask form state
@@ -169,6 +171,9 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
         <Button variant="default" size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600" onClick={() => setShowPOA(true)}>
           Daily POA
         </Button>
+        <Button variant="default" size="sm" className="h-8 text-xs bg-green-600 hover:bg-green-700" onClick={() => setShowWorkDone(true)}>
+          Work Done
+        </Button>
         {selectedTasks.size > 0 && canBulk && (
           <>
             <Button variant="secondary" size="sm" className="h-8 text-xs" onClick={() => setShowBulkUpdate(true)}>
@@ -283,6 +288,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
     </div>
     {/* Daily POA Dialog */}
     <DailyPOADialog open={showPOA} onOpenChange={setShowPOA} />
+    <DailyWorkDoneDialog open={showWorkDone} onOpenChange={setShowWorkDone} />
     </>
   );
 }
