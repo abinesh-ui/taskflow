@@ -33,7 +33,7 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
   const { data: statuses = [] } = useQuery({ queryKey: ['master_statuses'], queryFn: async () => { const { data } = await supabase.from('master_statuses').select('*').eq('is_active', true).order('position'); return (data || []) as MasterStatus[]; } });
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Project[]; } });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
-  const { data: todayPoa } = useQuery({ queryKey: ['poa_today', user?.id], queryFn: async () => { const { data } = await supabase.from('poa_submissions').select('*').eq('user_id', user!.id).eq('submitted_date', today).single(); return data; }, enabled: !!user });
+  const { data: todayPoa } = useQuery({ queryKey: ['poa_today', user?.id], queryFn: async () => { const { data } = await supabase.from('poa_submissions').select('*').eq('user_id', user!.id).eq('submitted_date', today).maybeSingle(); return data; }, enabled: !!user });
 
   // Get pending tasks (not closed/done/dropped)
   const closedStatusIds = statuses.filter((s) => s.is_closed).map((s) => s.id);
