@@ -20,7 +20,18 @@ export default function POAPage() {
   // Check edit_poa permission
   const { data: currentMember } = useQuery({ queryKey: ['current-member', user?.id], queryFn: async () => { const { data: profile } = await supabase.from('profiles').select('email').eq('id', user!.id).single(); if (!profile) return null; const { data } = await supabase.from('master_members').select('role').eq('email', profile.email).single(); return data as { role?: string } | null; }, enabled: !!user });
   const { data: permissions = [] } = useQuery({ queryKey: ['role_permissions'], queryFn: async () => { const { data } = await supabase.from('role_permissions').select('*'); return (data || []) as Array<{ role: string; permission: string; allowed: boolean }>; } });
-  const canEditPoa = (() => { const role = currentMember?.role || 'team_member'; const perm = permissions.find((p) => p.role === role && p.permission === 'edit_poa'); return perm?.allowed ?? false; })();
+  const canEditPoa = (() => { const role = currentMember?.role || 'team_member'; if (role === 'admin') return true; const perm = permissions.find((p) => p.role === role && p.permission === 'edit_poa'); return perm?.allowed ?? false; })();
+  const canDeletePoa = (() => { const role = currentMember?.role || 'team_member'; if (role === 'admin') return true; const perm = permissions.find((p) => p.role === role && p.permission === 'delete_poa'); return perm?.allowed ?? false; })();
+
+  async function deletePoa(poaId: string) {
+    if (!confirm('Delete this POA submission permanently?')) return;
+    await supabase.from('poa_items').delete().eq('poa_id', poaId);
+    await supabase.from('poa_submissions').delete().eq('id', poaId);
+    queryClient.invalidateQueries({ queryKey: ['poa_submissions'] });
+    queryClient.invalidateQueries({ queryKey: ['poa_items'] });
+    queryClient.invalidateQueries({ queryKey: ['poa_today'] });
+    toast({ title: 'POA deleted' });
+  }
 
   const { data: poaSubmissions = [] } = useQuery({
     queryKey: ['poa_submissions', user?.id],
@@ -74,6 +85,7 @@ export default function POAPage() {
               <th className="py-2 px-3 text-left">Planned Mins</th>
               <th className="py-2 px-3 text-left">Actual Mins</th>
               <th className="py-2 px-3 text-left">Status</th>
+              <th className="py-2 px-3 text-left w-16"></th>
             </tr>
           </thead>
           <tbody>
@@ -86,6 +98,7 @@ export default function POAPage() {
                   <td className="py-2 px-3">{poa.total_planned_mins} mins</td>
                   <td className="py-2 px-3">{poa.total_actual_mins} mins</td>
                   <td className="py-2 px-3"><Badge className="bg-green-600 text-white text-[8px]">Submitted</Badge></td>
+                  <td className="py-2 px-2">{canDeletePoa && <button onClick={() => deletePoa(poa.id)} className="text-[9px] text-destructive hover:underline">Delete</button>}</td>
                 </tr>
               );
             })}
