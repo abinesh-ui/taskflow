@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import AlertRulesSection from '@/components/notifications/AlertRulesPage';
 
-type MasterTable = 'master_task_types' | 'master_task_categories' | 'master_priorities' | 'master_statuses' | 'projects' | 'master_departments' | 'master_members' | 'master_macro_projects';
+type MasterTable = 'master_task_types' | 'master_task_categories' | 'master_priorities' | 'master_statuses' | 'projects' | 'master_departments' | 'master_members' | 'master_macro_projects' | 'master_task_sections' | 'master_tags';
 
 interface MasterItem {
   id: string;
@@ -144,7 +144,7 @@ function MasterSection({
       name: formData.name.trim(),
       position: items.length + 1,
     };
-    if (table === 'master_departments' || table === 'master_members' || table === 'master_task_types' || table === 'master_task_categories' || table === 'projects' || table === 'master_macro_projects') {
+    if (table === 'master_departments' || table === 'master_members' || table === 'master_task_types' || table === 'master_task_categories' || table === 'projects' || table === 'master_macro_projects' || table === 'master_task_sections' || table === 'master_tags') {
       newItem.color = AUTO_COLORS[items.length % AUTO_COLORS.length];
     }
     if (table === 'projects') {
@@ -362,7 +362,8 @@ export default function MastersPage() {
         <MasterSection title="Departments" table="master_departments" fields={[]} />
         <MasterSection title="Members" table="master_members" fields={['is_live']} />
         <MasterSection title="Task Types" table="master_task_types" />
-        <MasterSection title="Task Categories" table="master_task_categories" />
+        <MasterSection title="Task Sections" table="master_task_sections" fields={[]} />
+        <MasterSection title="Tags" table="master_tags" fields={[]} />
         <MasterSection title="Priorities" table="master_priorities" fields={['color', 'sort_weight']} />
         <MasterSection title="Statuses" table="master_statuses" fields={['color', 'is_closed', 'is_done']} />
       </div>
