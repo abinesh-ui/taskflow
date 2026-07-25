@@ -136,27 +136,49 @@ export default function UserManagementPage() {
               </div>
             )}
 
-            {users.map((user) => (
-              <div key={user.id} className="flex flex-wrap items-center gap-2 p-3 border rounded">
-                <div className="h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: user.color }}>
-                  {user.name.charAt(0).toUpperCase()}
+            {users.map((user) => {
+              const status = !user.is_live ? 'inactive' : user.email && !user.accepted_at ? 'invite_pending' : user.email && user.accepted_at ? 'active' : 'no_email';
+              const statusLabel = { inactive: 'Inactive', invite_pending: 'Invite Sent', active: 'Active', no_email: 'No Email' }[status];
+              const statusColor = { inactive: '#ef4444', invite_pending: '#f59e0b', active: '#10b981', no_email: '#6b7280' }[status];
+              return (
+                <div key={user.id} className="flex flex-wrap items-center gap-2 p-3 border rounded">
+                  <div className="h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-xs" style={{ backgroundColor: user.color }}>
+                    {user.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-[120px]">
+                    <div className="font-medium text-sm">{user.name}</div>
+                  </div>
+                  {/* Editable email */}
+                  <input
+                    defaultValue={user.email || ''}
+                    onBlur={(e) => { const v = e.target.value.trim(); if (v !== (user.email || '')) { supabase.from('master_members').update({ email: v }).eq('id', user.id).then(() => queryClient.invalidateQueries({ queryKey: ['master_members'] })); } }}
+                    placeholder="email@example.com"
+                    className="h-7 text-xs border rounded px-2 bg-background w-44"
+                  />
+                  {/* Status badge */}
+                  <Badge style={{ backgroundColor: statusColor, color: '#fff' }} className="text-[9px]">{statusLabel}</Badge>
+                  {/* Role selector */}
+                  <select value={user.role || 'team_member'} onChange={(e) => updateRole.mutate({ id: user.id, role: e.target.value })} className="h-7 text-xs border rounded px-2 bg-background">
+                    {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                  </select>
+                  {/* Send invite button (only if has email and not yet accepted) */}
+                  {user.email && !user.accepted_at && (
+                    <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={async () => {
+                      await supabase.from('master_members').update({ invited_at: new Date().toISOString() }).eq('id', user.id);
+                      const { error } = await supabase.auth.admin.inviteUserByEmail(user.email!);
+                      if (error) toast({ title: 'Note', description: 'User can sign up manually with this email.' });
+                      else toast({ title: 'Invite sent!' });
+                      queryClient.invalidateQueries({ queryKey: ['master_members'] });
+                    }}>
+                      <Mail className="h-3 w-3 mr-1" /> {user.invited_at ? 'Resend' : 'Send'} Invite
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => toggleActive.mutate({ id: user.id, active: !user.is_live })}>
+                    {user.is_live ? 'Deactivate' : 'Activate'}
+                  </Button>
                 </div>
-                <div className="flex-1 min-w-[120px]">
-                  <div className="font-medium text-sm">{user.name}</div>
-                  <div className="text-[10px] text-muted-foreground">{user.email || 'No email'}</div>
-                </div>
-                <select value={user.role || 'team_member'} onChange={(e) => updateRole.mutate({ id: user.id, role: e.target.value })} className="h-7 text-xs border rounded px-2 bg-background">
-                  {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-                </select>
-                <Badge style={{ backgroundColor: ROLE_COLORS[user.role || 'team_member'], color: '#fff' }} className="text-[9px]">
-                  {ROLE_LABELS[user.role || 'team_member']}
-                </Badge>
-                {!user.is_live && <Badge variant="destructive" className="text-[9px]">Inactive</Badge>}
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => toggleActive.mutate({ id: user.id, active: !user.is_live })}>
-                  {user.is_live ? 'Deactivate' : 'Activate'}
-                </Button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>
