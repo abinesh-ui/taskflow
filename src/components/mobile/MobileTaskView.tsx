@@ -5,11 +5,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { MultiSelect } from '@/components/ui/multi-select';
+import { NestedFilterBuilder, applyFilters, type FilterCondition } from '@/components/tasks/NestedFilter';
 import { useCreateTask } from '@/hooks/use-tasks';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getOverdueDays } from '@/lib/utils';
-import { Plus, ChevronDown, ChevronRight, Filter, SlidersHorizontal, X, Search, ArrowUp, ArrowDown, Save } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Filter, SlidersHorizontal, X, Search, ArrowUp, ArrowDown, Save, ChevronsDown, ChevronsUp } from 'lucide-react';
 import type { Task, MasterStatus, MasterPriority, Project, Department } from '@/types/database';
 
 interface MobileProps { filterProjectId?: string; filterDepartmentId?: string; }
@@ -26,10 +26,8 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [showSort, setShowSort] = useState(false);
-  const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
-  const [filterPriorities, setFilterPriorities] = useState<string[]>([]);
-  const [filterAssignees, setFilterAssignees] = useState<string[]>([]);
-  const [filterProjects, setFilterProjects] = useState<string[]>([]);
+  const [filterConditions, setFilterConditions] = useState<FilterCondition[]>([]);
+  const [allExpanded, setAllExpanded] = useState(false);
   const [sortField, setSortField] = useState('planned_end_date');
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc');
   const [nf, setNf] = useState<Record<string, string>>({});
@@ -50,11 +48,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
   if (filterProjectId) topTasks = topTasks.filter((t) => t.project_id === filterProjectId);
   if (filterDepartmentId) topTasks = topTasks.filter((t) => t.department_id === filterDepartmentId);
   if (searchQuery) { const q = searchQuery.toLowerCase(); topTasks = topTasks.filter((t) => t.title.toLowerCase().includes(q) || t.task_no.toLowerCase().includes(q)); }
-  if (filterStatuses.length) topTasks = topTasks.filter((t) => filterStatuses.includes(t.status_id));
-  if (filterPriorities.length) topTasks = topTasks.filter((t) => t.priority_id && filterPriorities.includes(t.priority_id));
-  if (filterAssignees.length) topTasks = topTasks.filter((t) => t.assignee_id && filterAssignees.includes(t.assignee_id));
-  if (filterProjects.length) topTasks = topTasks.filter((t) => filterProjects.includes(t.project_id));
-
+  topTasks = applyFilters(topTasks, filterConditions, getOverdue);
   topTasks.sort((a, b) => { const av = (a as any)[sortField] || ''; const bv = (b as any)[sortField] || ''; return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av); });
 
   function getSubtasks(id: string) { return allTasks.filter((t) => t.parent_id === id); }
@@ -100,12 +94,11 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
   }
 
   const deptOpts = nf.project_id ? departments.filter((d) => d.project_id === nf.project_id) : departments;
-  const hasFilters = filterStatuses.length || filterPriorities.length || filterAssignees.length || filterProjects.length;
 
   function renderEditableCard(task: Task, isSubtask: boolean) {
     const status = getStatus(task.status_id);
     const overdue = getOverdue(task);
-    const isExp = isSubtask ? expandedSub === task.id : expandedTask === task.id;
+    const isExp = isSubtask ? expandedSub === task.id : (expandedTask === task.id || allExpanded);
 
     return (
       <div key={task.id} className={`border rounded-xl overflow-hidden ${overdue > 0 ? 'border-red-200' : ''} ${isSubtask ? 'ml-4' : ''}`}>
@@ -120,6 +113,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
                 <span className="text-[9px] text-muted-foreground">{projects.find((p) => p.id === task.project_id)?.name}</span>
                 {task.planned_end_date && <span className={`text-[9px] ${overdue > 0 ? 'text-red-600 font-bold' : 'text-muted-foreground'}`}>{formatDate(task.planned_end_date)}</span>}
                 {overdue > 0 && <Badge variant="destructive" className="text-[7px] h-3.5">{overdue}d</Badge>}
+                {!isSubtask && getSubtasks(task.id).length > 0 && <Badge variant="secondary" className="text-[7px] h-3.5">{getSubtasks(task.id).length} sub</Badge>}
               </div>
             </div>
             {isExp ? <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
@@ -206,15 +200,20 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
           </Button>
         </div>
 
-        {/* Nested multi-select filters */}
+        {/* Nested filter builder (same as web) */}
         {showFilters && (
-          <div className="space-y-2 p-2 border rounded-lg bg-muted/30">
-            <div className="flex items-center justify-between"><span className="text-[10px] font-semibold">Filters</span>{hasFilters && <button onClick={() => { setFilterStatuses([]); setFilterPriorities([]); setFilterAssignees([]); setFilterProjects([]); }} className="text-[9px] text-destructive">Clear</button>}</div>
-            <MultiSelect options={statuses.map((s) => ({ value: s.id, label: s.name, color: s.color }))} selected={filterStatuses} onChange={setFilterStatuses} placeholder="Status" />
-            <MultiSelect options={priorities.map((p) => ({ value: p.id, label: p.name, color: p.color }))} selected={filterPriorities} onChange={setFilterPriorities} placeholder="Priority" />
-            <MultiSelect options={members.map((m) => ({ value: m.id, label: m.name }))} selected={filterAssignees} onChange={setFilterAssignees} placeholder="Assignee" />
-            <MultiSelect options={projects.map((p) => ({ value: p.id, label: p.name }))} selected={filterProjects} onChange={setFilterProjects} placeholder="Project" />
-          </div>
+          <NestedFilterBuilder
+            fields={[
+              { key: 'status_id', label: 'Status', type: 'select' as const, options: statuses.map((s) => ({ value: s.id, label: s.name, color: s.color })) },
+              { key: 'priority_id', label: 'Priority', type: 'select' as const, options: priorities.map((p) => ({ value: p.id, label: p.name, color: p.color })) },
+              { key: 'assignee_id', label: 'Assignee', type: 'select' as const, options: members.map((m) => ({ value: m.id, label: m.name })) },
+              { key: 'project_id', label: 'Project', type: 'select' as const, options: projects.map((p) => ({ value: p.id, label: p.name })) },
+              { key: 'overdue_days', label: 'Overdue Days', type: 'number' as const },
+              { key: 'due_date', label: 'Due Date', type: 'date' as const },
+            ]}
+            conditions={filterConditions}
+            onChange={setFilterConditions}
+          />
         )}
 
         {/* Sort */}
@@ -235,7 +234,9 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
 
         <div className="flex items-center justify-between">
           <span className="text-[10px] text-muted-foreground">{topTasks.length} tasks</span>
-          {hasFilters && <Badge variant="secondary" className="text-[8px]">{Number(filterStatuses.length) + Number(filterPriorities.length) + Number(filterAssignees.length) + Number(filterProjects.length)} filters</Badge>}
+          <Button variant="outline" size="sm" className="h-6 text-[9px]" onClick={() => { if (allExpanded) { setExpandedTask(null); setExpandedSub(null); setAllExpanded(false); } else { setAllExpanded(true); } }}>
+            {allExpanded ? <><ChevronsUp className="h-3 w-3 mr-0.5" />Collapse</> : <><ChevronsDown className="h-3 w-3 mr-0.5" />Expand All</>}
+          </Button>
         </div>
       </div>
 
