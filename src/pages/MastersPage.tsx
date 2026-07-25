@@ -10,6 +10,7 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import AlertRulesSection from '@/components/notifications/AlertRulesPage';
+import UserManagementPage from '@/pages/UserManagementPage';
 
 type MasterTable = 'master_task_types' | 'master_task_categories' | 'master_priorities' | 'master_statuses' | 'projects' | 'master_departments' | 'master_members' | 'master_macro_projects' | 'master_task_sections' | 'master_tags';
 
@@ -446,28 +447,40 @@ function TagsMasterSection() {
 }
 
 export default function MastersPage() {
+  const [tab, setTab] = useState<'general' | 'users'>('general');
+
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h2 className="text-2xl font-bold">Settings & Masters</h2>
-        <p className="text-muted-foreground">Manage master data used in dropdowns and fields.</p>
+        <h2 className="text-2xl font-bold">Settings</h2>
+        <p className="text-muted-foreground">Manage masters, users, and permissions.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <MasterSection title="Macro Projects" table="master_macro_projects" fields={[]} />
-        <MasterSection title="Projects" table="projects" fields={['is_live']} />
-        <MasterSection title="Departments" table="master_departments" fields={[]} />
-        <MasterSection title="Members" table="master_members" fields={['is_live']} />
-        <MasterSection title="Task Types" table="master_task_types" />
-        <MasterSection title="Task Sections" table="master_task_sections" fields={[]} />
-        <TagsMasterSection />
-        <MasterSection title="Priorities" table="master_priorities" fields={['color', 'sort_weight']} />
-        <MasterSection title="Statuses" table="master_statuses" fields={['color', 'is_closed', 'is_done']} />
+      {/* Tab switcher */}
+      <div className="flex items-center gap-1 bg-muted rounded-lg p-1 w-fit">
+        <Button variant={tab === 'general' ? 'secondary' : 'ghost'} size="sm" className="h-8 font-medium" onClick={() => setTab('general')}>
+          General Settings
+        </Button>
+        <Button variant={tab === 'users' ? 'secondary' : 'ghost'} size="sm" className="h-8 font-medium" onClick={() => setTab('users')}>
+          User Management
+        </Button>
       </div>
 
-      <div className="pt-4">
-        <AlertRulesSection />
-      </div>
+      {tab === 'general' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <MasterSection title="Macro Projects" table="master_macro_projects" fields={[]} />
+          <MasterSection title="Projects" table="projects" fields={['is_live']} />
+          <MasterSection title="Departments" table="master_departments" fields={[]} />
+          <MasterSection title="Task Types" table="master_task_types" />
+          <MasterSection title="Task Sections" table="master_task_sections" fields={[]} />
+          <TagsMasterSection />
+          <MasterSection title="Priorities" table="master_priorities" fields={['color', 'sort_weight']} />
+          <MasterSection title="Statuses" table="master_statuses" fields={['color', 'is_closed', 'is_done']} />
+          <div className="lg:col-span-2"><AlertRulesSection /></div>
+        </div>
+      )}
+
+      {tab === 'users' && <UserManagementPage />}
     </div>
   );
 }
