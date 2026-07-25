@@ -19,6 +19,7 @@ const PERMISSIONS = [
   { key: 'cancel_task', label: 'Cancel Tasks' },
   { key: 'change_status', label: 'Change Status' },
   { key: 'edit_poa', label: 'Edit Submitted POA' },
+  { key: 'delete_poa', label: 'Delete Submitted POA' },
   { key: 'manage_masters', label: 'Manage Masters/Settings' },
   { key: 'manage_users', label: 'Manage Users' },
   { key: 'export_data', label: 'Export Data' },
@@ -105,6 +106,7 @@ export default function UserManagementPage() {
   });
 
   function getPermission(role: string, perm: string): boolean {
+    if (role === 'admin') return true; // Admin always has all permissions
     const p = permissions.find((x) => x.role === role && x.permission === perm);
     return p?.allowed ?? false;
   }
