@@ -61,34 +61,16 @@ export function NestedFilterBuilder({ fields, conditions, onChange }: NestedFilt
 
   if (!expanded && conditions.length === 0) {
     return (
-      <div className="space-y-2 p-3 border rounded-lg bg-white dark:bg-card shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-muted-foreground">Filters</span>
-          <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={addCondition}>
-            <Plus className="h-3 w-3 mr-0.5" /> Add condition
-          </Button>
-        </div>
-        <p className="text-[10px] text-muted-foreground">Click "Add condition" to create an AND/OR filter with multi-select values.</p>
+      <div className="p-3 border rounded-lg bg-white dark:bg-card shadow-sm">
+        <button onClick={addCondition} className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium">
+          <Plus className="h-3.5 w-3.5" /> Add filter condition
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2 p-3 border rounded-lg bg-white dark:bg-card shadow-sm">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-muted-foreground">Filters</span>
-        <div className="flex gap-1">
-          <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={addCondition}>
-            <Plus className="h-3 w-3 mr-0.5" /> Add
-          </Button>
-          {conditions.length > 0 && (
-            <Button variant="ghost" size="sm" className="h-6 text-[10px] text-destructive" onClick={clearAll}>
-              Clear all
-            </Button>
-          )}
-        </div>
-      </div>
-
+    <div className="p-3 border rounded-lg bg-white dark:bg-card shadow-sm space-y-1.5">
       {conditions.map((cond, idx) => {
         const fieldDef = fields.find((f) => f.key === cond.field);
         return (
@@ -180,6 +162,18 @@ export function NestedFilterBuilder({ fields, conditions, onChange }: NestedFilt
           </div>
         );
       })}
+
+      {/* + button right after conditions (left side) */}
+      <div className="flex items-center gap-2">
+        <button onClick={addCondition} className="flex items-center gap-0.5 text-[10px] text-primary hover:text-primary/80 font-medium h-6 px-1.5 rounded hover:bg-primary/10">
+          <Plus className="h-3 w-3" /> Add condition
+        </button>
+        {conditions.length > 0 && (
+          <button onClick={clearAll} className="text-[10px] text-destructive hover:text-destructive/80 h-6 px-1.5 rounded hover:bg-destructive/10">
+            Clear all
+          </button>
+        )}
+      </div>
     </div>
   );
 }
