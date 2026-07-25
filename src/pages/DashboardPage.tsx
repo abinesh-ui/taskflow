@@ -146,7 +146,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   return (
     <>
       {/* Mobile View */}
-      <MobileTaskView />
+      <MobileTaskView filterProjectId={filterProjectId} filterDepartmentId={filterDepartmentId} />
       {/* Desktop View */}
       <div className="space-y-2 hidden md:block">
       <div className="flex flex-wrap items-center gap-2">
