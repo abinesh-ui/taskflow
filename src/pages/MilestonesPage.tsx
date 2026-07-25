@@ -164,14 +164,13 @@ export default function MilestonesPage() {
     <div className="space-y-3">
       {/* Header + Filter + Add */}
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-lg font-bold">Milestones</h2>
-        <Badge variant="secondary" className="text-[10px]">{filteredMilestones.length}</Badge>
-        <Button variant={showFilters ? 'secondary' : 'outline'} size="sm" className="h-8 text-xs ml-2" onClick={() => setShowFilters(!showFilters)}>
-          <Filter className="h-3 w-3 mr-1" /> Filter {filterConditions.length > 0 && `(${filterConditions.length})`}
-        </Button>
-        <Button size="sm" className="h-8 text-xs ml-auto" onClick={() => setAdding(true)}>
+        <Button size="sm" className="h-8 text-xs font-medium" onClick={() => setAdding(true)}>
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Milestone
         </Button>
+        <Button variant={showFilters ? 'secondary' : 'outline'} size="sm" className="h-8 text-xs" onClick={() => setShowFilters(!showFilters)}>
+          <Filter className="h-3 w-3 mr-1" /> Filter {filterConditions.length > 0 && `(${filterConditions.length})`}
+        </Button>
+        <Badge variant="secondary" className="text-[10px] ml-auto">{filteredMilestones.length} milestones</Badge>
       </div>
 
       {/* Nested filters */}
