@@ -14,6 +14,7 @@ import { exportTasksToCSV } from '@/lib/csv-export';
 import { ChevronDown, ChevronRight, Plus, Download, ChevronsDown, ChevronsUp, ChevronLeft } from 'lucide-react';
 import { useResizableColumns, ResizeHandle } from '@/components/ui/resizable-table';
 import MobileTaskView from '@/components/mobile/MobileTaskView';
+import DailyPOADialog from '@/components/tasks/DailyPOADialog';
 import type { Task, MasterStatus, MasterPriority, Project, Department } from '@/types/database';
 
 interface DashboardProps { filterProjectId?: string; filterDepartmentId?: string; }
@@ -35,6 +36,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   const [showBulkUpdate, setShowBulkUpdate] = useState(false);
   const [bulkField, setBulkField] = useState('');
   const [bulkValue, setBulkValue] = useState('');
+  const [showPOA, setShowPOA] = useState(false);
   const PAGE_SIZE = 200;
 
   // New task/subtask form state
@@ -164,6 +166,9 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => exportTasksToCSV(sorted, { statuses, priorities, taskTypes: taskTypes as any, categories: categories as any, users: members as any })}>
           <Download className="h-3.5 w-3.5 mr-1" /> Export
         </Button>
+        <Button variant="default" size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600" onClick={() => setShowPOA(true)}>
+          Daily POA
+        </Button>
         {selectedTasks.size > 0 && canBulk && (
           <>
             <Button variant="secondary" size="sm" className="h-8 text-xs" onClick={() => setShowBulkUpdate(true)}>
@@ -276,6 +281,8 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
         )}
       </div>
     </div>
+    {/* Daily POA Dialog */}
+    <DailyPOADialog open={showPOA} onOpenChange={setShowPOA} />
     </>
   );
 }

@@ -1,0 +1,124 @@
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { formatDate } from '@/lib/utils';
+import { Calendar, CheckCircle } from 'lucide-react';
+import type { Task, MasterStatus, Project, Department } from '@/types/database';
+
+export default function POAPage() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const today = new Date().toISOString().split('T')[0];
+
+  const { data: poaSubmissions = [] } = useQuery({
+    queryKey: ['poa_submissions', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('poa_submissions').select('*').eq('user_id', user!.id).order('submitted_date', { ascending: false });
+      return (data || []) as Array<{ id: string; submitted_date: string; total_planned_mins: number; total_actual_mins: number; submitted_at: string }>;
+    },
+    enabled: !!user,
+  });
+
+  const { data: poaItems = [] } = useQuery({
+    queryKey: ['poa_items'],
+    queryFn: async () => {
+      const { data } = await supabase.from('poa_items').select('*');
+      return (data || []) as Array<{ id: string; poa_id: string; task_id: string; planned_mins: number; actual_mins: number }>;
+    },
+  });
+
+  const { data: allTasks = [] } = useQuery({ queryKey: ['all-tasks'], queryFn: async () => { const { data } = await supabase.from('tasks').select('*'); return (data || []) as Task[]; } });
+  const { data: statuses = [] } = useQuery({ queryKey: ['master_statuses'], queryFn: async () => { const { data } = await supabase.from('master_statuses').select('*').eq('is_active', true).order('position'); return (data || []) as MasterStatus[]; } });
+  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).order('position'); return (data || []) as Project[]; } });
+  const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
+
+  const todaySubmitted = poaSubmissions.find((p) => p.submitted_date === today);
+
+  function getTasksForPoa(poaId: string) {
+    const items = poaItems.filter((i) => i.poa_id === poaId);
+    return items.map((item) => {
+      const task = allTasks.find((t) => t.id === item.task_id);
+      return { ...item, task };
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold">Plan of Action (POA)</h2>
+        {todaySubmitted && <Badge className="bg-green-600 text-white text-[10px]"><CheckCircle className="h-3 w-3 mr-1" /> Today's POA submitted</Badge>}
+      </div>
+
+      {/* POA History */}
+      <div className="border rounded-lg overflow-hidden bg-white dark:bg-card shadow-sm">
+        <table className="w-full text-[10px]">
+          <thead>
+            <tr className="bg-muted/60 border-b font-semibold text-muted-foreground uppercase">
+              <th className="py-2 px-3 text-left">Date</th>
+              <th className="py-2 px-3 text-left">Tasks</th>
+              <th className="py-2 px-3 text-left">Planned Mins</th>
+              <th className="py-2 px-3 text-left">Actual Mins</th>
+              <th className="py-2 px-3 text-left">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {poaSubmissions.map((poa) => {
+              const items = poaItems.filter((i) => i.poa_id === poa.id);
+              return (
+                <tr key={poa.id} className="border-b hover:bg-accent/20">
+                  <td className="py-2 px-3 font-medium">{formatDate(poa.submitted_date)}</td>
+                  <td className="py-2 px-3">{items.length} tasks</td>
+                  <td className="py-2 px-3">{poa.total_planned_mins} mins</td>
+                  <td className="py-2 px-3">{poa.total_actual_mins} mins</td>
+                  <td className="py-2 px-3"><Badge className="bg-green-600 text-white text-[8px]">Submitted</Badge></td>
+                </tr>
+              );
+            })}
+            {poaSubmissions.length === 0 && (
+              <tr><td colSpan={5} className="text-center py-8 text-muted-foreground">No POA submissions yet. Use "Daily POA" button on the All Tasks page to create one.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Expandable details for each POA */}
+      {poaSubmissions.map((poa) => {
+        const tasks = getTasksForPoa(poa.id);
+        if (tasks.length === 0) return null;
+        return (
+          <details key={poa.id} className="border rounded-lg bg-white dark:bg-card shadow-sm">
+            <summary className="p-3 cursor-pointer text-xs font-medium flex items-center gap-2">
+              <Calendar className="h-3.5 w-3.5" /> {formatDate(poa.submitted_date)} — {tasks.length} tasks, {poa.total_planned_mins} mins planned
+            </summary>
+            <div className="border-t p-3">
+              <table className="w-full text-[10px]">
+                <thead><tr className="border-b text-muted-foreground"><th className="py-1 px-2 text-left">Task</th><th className="py-1 px-2 text-left">Project</th><th className="py-1 px-2 text-left">Status</th><th className="py-1 px-2 text-left">POA Planned</th><th className="py-1 px-2 text-left">POA Actual</th></tr></thead>
+                <tbody>
+                  {tasks.map((item) => {
+                    const status = statuses.find((s) => s.id === item.task?.status_id);
+                    return (
+                      <tr key={item.id} className="border-b">
+                        <td className="py-1.5 px-2"><span className="font-mono text-[9px] text-muted-foreground mr-1">{item.task?.task_no}</span>{item.task?.title}</td>
+                        <td className="py-1.5 px-2 text-muted-foreground">{projects.find((p) => p.id === item.task?.project_id)?.name}</td>
+                        <td className="py-1.5 px-2">{status && <Badge style={{ backgroundColor: status.color, color: '#fff' }} className="text-[8px]">{status.name}</Badge>}</td>
+                        <td className="py-1.5 px-2">{item.planned_mins} mins</td>
+                        <td className="py-1.5 px-2">{item.actual_mins} mins</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        );
+      })}
+    </div>
+  );
+}
