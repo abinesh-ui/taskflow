@@ -21,6 +21,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
   const { toast } = useToast();
   const [expandedTask, setExpandedTask] = useState<string | null>(null);
   const [expandedSub, setExpandedSub] = useState<string | null>(null);
+  const [showSubtasks, setShowSubtasks] = useState<Set<string>>(new Set());
   const [showCreate, setShowCreate] = useState(false);
   const [createParent, setCreateParent] = useState<Task | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -98,7 +99,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
   function renderEditableCard(task: Task, isSubtask: boolean) {
     const status = getStatus(task.status_id);
     const overdue = getOverdue(task);
-    const isExp = isSubtask ? expandedSub === task.id : (expandedTask === task.id || allExpanded);
+    const isExp = isSubtask ? expandedSub === task.id : expandedTask === task.id;
 
     return (
       <div key={task.id} className={`border rounded-xl overflow-hidden ${overdue > 0 ? 'border-red-200' : ''} ${isSubtask ? 'ml-4' : ''}`}>
@@ -113,7 +114,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
                 <span className="text-[9px] text-muted-foreground">{projects.find((p) => p.id === task.project_id)?.name}</span>
                 {task.planned_end_date && <span className={`text-[9px] ${overdue > 0 ? 'text-red-600 font-bold' : 'text-muted-foreground'}`}>{formatDate(task.planned_end_date)}</span>}
                 {overdue > 0 && <Badge variant="destructive" className="text-[7px] h-3.5">{overdue}d</Badge>}
-                {!isSubtask && getSubtasks(task.id).length > 0 && <Badge variant="secondary" className="text-[7px] h-3.5">{getSubtasks(task.id).length} sub</Badge>}
+                {!isSubtask && getSubtasks(task.id).length > 0 && <button onClick={(e) => { e.stopPropagation(); const n = new Set(showSubtasks); if (n.has(task.id)) n.delete(task.id); else n.add(task.id); setShowSubtasks(n); }}><Badge variant="secondary" className="text-[7px] h-3.5">{getSubtasks(task.id).length} sub</Badge></button>}
               </div>
             </div>
             {isExp ? <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
@@ -234,7 +235,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
 
         <div className="flex items-center justify-between">
           <span className="text-[10px] text-muted-foreground">{topTasks.length} tasks</span>
-          <Button variant="outline" size="sm" className="h-6 text-[9px]" onClick={() => { if (allExpanded) { setExpandedTask(null); setExpandedSub(null); setAllExpanded(false); } else { setAllExpanded(true); } }}>
+          <Button variant="outline" size="sm" className="h-6 text-[9px]" onClick={() => { if (allExpanded) { setShowSubtasks(new Set()); setAllExpanded(false); } else { setShowSubtasks(new Set(topTasks.map((t) => t.id))); setAllExpanded(true); } }}>
             {allExpanded ? <><ChevronsUp className="h-3 w-3 mr-0.5" />Collapse</> : <><ChevronsDown className="h-3 w-3 mr-0.5" />Expand All</>}
           </Button>
         </div>
@@ -242,7 +243,13 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
 
       {/* Task Cards */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2 pb-24">
-        {topTasks.map((task) => renderEditableCard(task, false))}
+        {topTasks.map((task) => (
+          <div key={task.id}>
+            {renderEditableCard(task, false)}
+            {/* Show subtask cards when expanded (via Expand All or tap on subtask count) */}
+            {showSubtasks.has(task.id) && !expandedTask && getSubtasks(task.id).map((sub) => renderEditableCard(sub, true))}
+          </div>
+        ))}
         {topTasks.length === 0 && <p className="text-center text-sm text-muted-foreground py-12">No tasks found</p>}
       </div>
 
