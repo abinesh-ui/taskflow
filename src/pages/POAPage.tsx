@@ -109,7 +109,7 @@ export default function POAPage() {
         </table>
       </div>
 
-      {/* Expandable details for each POA */}
+      {/* Expandable details for each POA — editable */}
       {poaSubmissions.map((poa) => {
         const tasks = getTasksForPoa(poa.id);
         if (tasks.length === 0) return null;
@@ -120,7 +120,7 @@ export default function POAPage() {
             </summary>
             <div className="border-t p-3">
               <table className="w-full text-[10px]">
-                <thead><tr className="border-b text-muted-foreground"><th className="py-1 px-2 text-left">Task</th><th className="py-1 px-2 text-left">Project</th><th className="py-1 px-2 text-left">Status</th><th className="py-1 px-2 text-left">POA Planned</th><th className="py-1 px-2 text-left">POA Actual</th></tr></thead>
+                <thead><tr className="border-b text-muted-foreground"><th className="py-1 px-2 text-left">Task</th><th className="py-1 px-2 text-left">Project</th><th className="py-1 px-2 text-left">Status</th><th className="py-1 px-2 text-left">POA Planned</th><th className="py-1 px-2 text-left">POA Actual</th>{canEditPoa && <th className="py-1 px-2 w-12"></th>}</tr></thead>
                 <tbody>
                   {tasks.map((item) => {
                     const status = statuses.find((s) => s.id === item.task?.status_id);
@@ -129,13 +129,15 @@ export default function POAPage() {
                         <td className="py-1.5 px-2"><span className="font-mono text-[9px] text-muted-foreground mr-1">{item.task?.task_no}</span>{item.task?.title}</td>
                         <td className="py-1.5 px-2 text-muted-foreground">{projects.find((p) => p.id === item.task?.project_id)?.name}</td>
                         <td className="py-1.5 px-2">{status && <Badge style={{ backgroundColor: status.color, color: '#fff' }} className="text-[8px]">{status.name}</Badge>}</td>
-                        <td className="py-1.5 px-2">{item.planned_mins} mins</td>
-                        <td className="py-1.5 px-2">{item.actual_mins} mins</td>
+                        <td className="py-1.5 px-2">{canEditPoa ? <input type="number" defaultValue={item.planned_mins} onBlur={async (e) => { const v = Number(e.target.value) || 0; await supabase.from('poa_items').update({ planned_mins: v }).eq('id', item.id); const totalP = tasks.reduce((s, t) => s + (t.id === item.id ? v : t.planned_mins), 0); await supabase.from('poa_submissions').update({ total_planned_mins: totalP }).eq('id', poa.id); queryClient.invalidateQueries({ queryKey: ['poa_submissions'] }); queryClient.invalidateQueries({ queryKey: ['poa_items'] }); }} className="h-6 w-16 text-[10px] border rounded px-1 bg-background" /> : <span>{item.planned_mins} mins</span>}</td>
+                        <td className="py-1.5 px-2">{canEditPoa ? <input type="number" defaultValue={item.actual_mins} onBlur={async (e) => { const v = Number(e.target.value) || 0; await supabase.from('poa_items').update({ actual_mins: v }).eq('id', item.id); await supabase.from('tasks').update({ poa_actual_mins: v }).eq('id', item.task_id); const totalA = tasks.reduce((s, t) => s + (t.id === item.id ? v : t.actual_mins), 0); await supabase.from('poa_submissions').update({ total_actual_mins: totalA }).eq('id', poa.id); queryClient.invalidateQueries({ queryKey: ['poa_submissions'] }); queryClient.invalidateQueries({ queryKey: ['poa_items'] }); queryClient.invalidateQueries({ queryKey: ['all-tasks'] }); }} className="h-6 w-16 text-[10px] border rounded px-1 bg-background" /> : <span>{item.actual_mins} mins</span>}</td>
+                        {canEditPoa && <td className="py-1.5 px-2"><button onClick={async () => { await supabase.from('poa_items').delete().eq('id', item.id); queryClient.invalidateQueries({ queryKey: ['poa_items'] }); }} className="text-[9px] text-destructive hover:underline">Remove</button></td>}
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
+              {canEditPoa && <p className="text-[9px] text-muted-foreground mt-2">Edit planned/actual mins inline. Changes save on blur.</p>}
             </div>
           </details>
         );
