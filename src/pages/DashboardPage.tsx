@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getOverdueDays, getPlannedMonthWeek, formatDate } from '@/lib/utils';
 import { exportTasksToCSV } from '@/lib/csv-export';
 import { ChevronDown, ChevronRight, Plus, Download, ChevronsDown, ChevronsUp, ChevronLeft } from 'lucide-react';
+import { useResizableColumns, ResizeHandle } from '@/components/ui/resizable-table';
 import type { Task, MasterStatus, MasterPriority, Project, Department } from '@/types/database';
 
 interface DashboardProps { filterProjectId?: string; filterDepartmentId?: string; }
@@ -37,6 +38,10 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
 
   // New task/subtask form state
   const [nf, setNf] = useState<Record<string, string>>({});
+
+  // Resizable columns
+  const COL_NAMES = ['☑','▾','Task #','Title','Project','Dept','Status','Priority','Assignee','Type','Section','Milestone','Macro','Start','Due','P.Mins','A.Start','A.End','A.Mins','Overdue','Remarks','Actions'];
+  const { widths, onMouseDown } = useResizableColumns({ initialWidths: [28,24,75,280,80,80,70,70,80,70,70,80,80,90,90,55,90,90,55,50,160,55] });
 
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Project[]; } });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
@@ -200,54 +205,34 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
 
       {/* Spreadsheet table */}
       <div className="border rounded-lg overflow-x-auto bg-white dark:bg-card shadow-sm">
-        <table className="w-full text-[10px] min-w-[1600px]">
+        <table className="text-[10px]" style={{ width: widths.reduce((a, b) => a + b, 0) + 'px' }}>
           <colgroup>
-            <col style={{width:'28px'}} />
-            <col style={{width:'24px'}} />
-            <col style={{width:'75px'}} />
-            <col style={{width:'250px'}} />
-            <col style={{width:'80px'}} />
-            <col style={{width:'80px'}} />
-            <col style={{width:'70px'}} />
-            <col style={{width:'70px'}} />
-            <col style={{width:'80px'}} />
-            <col style={{width:'70px'}} />
-            <col style={{width:'70px'}} />
-            <col style={{width:'80px'}} />
-            <col style={{width:'90px'}} />
-            <col style={{width:'90px'}} />
-            <col style={{width:'55px'}} />
-            <col style={{width:'90px'}} />
-            <col style={{width:'90px'}} />
-            <col style={{width:'55px'}} />
-            <col style={{width:'50px'}} />
-            <col style={{width:'140px'}} />
-            <col style={{width:'55px'}} />
+            {widths.map((w, i) => <col key={i} style={{ width: w + 'px' }} />)}
           </colgroup>
           <thead>
             <tr className="bg-muted/60 border-b font-semibold text-muted-foreground uppercase tracking-wider">
-              <th className="py-2 px-1 w-6"><input type="checkbox" checked={selectedTasks.size > 0 && selectedTasks.size >= paginated.length} onChange={(e) => { if (e.target.checked) selectAll(); else deselectAll(); }} className="h-3 w-3 rounded" /></th>
-              <th className="py-2 px-1 w-6"></th>
-              <th className="py-2 px-1 text-left w-20">Task #</th>
-              <th className="py-2 px-1 text-left min-w-[160px]">Title</th>
-              <th className="py-2 px-1 text-left w-20">Project</th>
-              <th className="py-2 px-1 text-left w-20">Dept</th>
-              <th className="py-2 px-1 text-left w-16">Status</th>
-              <th className="py-2 px-1 text-left w-16">Priority</th>
-              <th className="py-2 px-1 text-left w-20">Assignee</th>
-              <th className="py-2 px-1 text-left w-16">Type</th>
-              <th className="py-2 px-1 text-left w-16">Section</th>
-              <th className="py-2 px-1 text-left w-20">Milestone</th>
-              <th className="py-2 px-1 text-left w-20">Macro Proj</th>
-              <th className="py-2 px-1 text-left w-22">Start Date</th>
-              <th className="py-2 px-1 text-left w-22">Due Date</th>
-              <th className="py-2 px-1 text-left w-14">Plan Mins</th>
-              <th className="py-2 px-1 text-left w-22">Act. Start</th>
-              <th className="py-2 px-1 text-left w-22">Act. End</th>
-              <th className="py-2 px-1 text-left w-14">Act. Mins</th>
-              <th className="py-2 px-1 text-left w-12">Overdue</th>
-              <th className="py-2 px-1 text-left min-w-[80px]">Remarks</th>
-              <th className="py-2 px-1 w-14"></th>
+              <th className="py-2 px-1 relative"><input type="checkbox" checked={selectedTasks.size > 0 && selectedTasks.size >= paginated.length} onChange={(e) => { if (e.target.checked) selectAll(); else deselectAll(); }} className="h-3 w-3 rounded" /><ResizeHandle onMouseDown={(e) => onMouseDown(0, e)} /></th>
+              <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(1, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Task #<ResizeHandle onMouseDown={(e) => onMouseDown(2, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Title<ResizeHandle onMouseDown={(e) => onMouseDown(3, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Project<ResizeHandle onMouseDown={(e) => onMouseDown(4, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Dept<ResizeHandle onMouseDown={(e) => onMouseDown(5, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Status<ResizeHandle onMouseDown={(e) => onMouseDown(6, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Priority<ResizeHandle onMouseDown={(e) => onMouseDown(7, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Assignee<ResizeHandle onMouseDown={(e) => onMouseDown(8, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Type<ResizeHandle onMouseDown={(e) => onMouseDown(9, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Section<ResizeHandle onMouseDown={(e) => onMouseDown(10, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Milestone<ResizeHandle onMouseDown={(e) => onMouseDown(11, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Macro<ResizeHandle onMouseDown={(e) => onMouseDown(12, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Start<ResizeHandle onMouseDown={(e) => onMouseDown(13, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Due<ResizeHandle onMouseDown={(e) => onMouseDown(14, e)} /></th>
+              <th className="py-2 px-1 text-left relative">P.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(15, e)} /></th>
+              <th className="py-2 px-1 text-left relative">A.Start<ResizeHandle onMouseDown={(e) => onMouseDown(16, e)} /></th>
+              <th className="py-2 px-1 text-left relative">A.End<ResizeHandle onMouseDown={(e) => onMouseDown(17, e)} /></th>
+              <th className="py-2 px-1 text-left relative">A.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(18, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Overdue<ResizeHandle onMouseDown={(e) => onMouseDown(19, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Remarks<ResizeHandle onMouseDown={(e) => onMouseDown(20, e)} /></th>
+              <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(21, e)} /></th>
             </tr>
           </thead>
           <tbody>
