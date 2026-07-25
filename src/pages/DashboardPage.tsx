@@ -44,6 +44,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   const { data: categories = [] } = useQuery({ queryKey: ['master_task_categories'], queryFn: async () => { const { data } = await supabase.from('master_task_categories').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string }>; } });
   const { data: taskSections = [] } = useQuery({ queryKey: ['master_task_sections'], queryFn: async () => { const { data } = await supabase.from('master_task_sections').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color?: string }>; } });
   const { data: macroProjects = [] } = useQuery({ queryKey: ['master_macro_projects'], queryFn: async () => { const { data } = await supabase.from('master_macro_projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
+  const { data: milestones = [] } = useQuery({ queryKey: ['milestones'], queryFn: async () => { const { data } = await supabase.from('milestones').select('*').order('created_at'); return (data || []) as Array<{ id: string; milestone_no: string; project_id: string; description: string }>; } });
 
   function getOverdue(task: Task) { const s = statuses.find((st) => st.id === task.status_id); return getOverdueDays(task.planned_end_date, s?.is_closed ?? false); }
 
@@ -79,7 +80,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
     if (parentTask && nf.planned_end_date && parentTask.planned_end_date && nf.planned_end_date > parentTask.planned_end_date) {
       toast({ variant: 'destructive', title: 'Validation Error', description: "Subtask due date can't be greater than task due date" }); return;
     }
-    createTask.mutate({ title: nf.title.trim(), project_id: projId, department_id: deptId, status_id: nf.status_id || defStatus?.id || '', priority_id: nf.priority_id || null, assignee_id: nf.assignee_id || null, task_type_id: nf.task_type_id || null, category_id: nf.category_id || parentTask?.category_id || null, section_id: nf.section_id || null, planned_start_date: nf.planned_start_date || null, planned_end_date: nf.planned_end_date || null, planned_mins: nf.planned_mins ? Number(nf.planned_mins) : null, actual_mins: nf.actual_mins ? Number(nf.actual_mins) : null, description: nf.remarks || null, parent_id: parentTask?.id || null, position: 0 } as any, {
+    createTask.mutate({ title: nf.title.trim(), project_id: projId, department_id: deptId, status_id: nf.status_id || defStatus?.id || '', priority_id: nf.priority_id || null, assignee_id: nf.assignee_id || null, task_type_id: nf.task_type_id || null, category_id: nf.category_id || parentTask?.category_id || null, section_id: nf.section_id || null, milestone_id: nf.milestone_id || parentTask && (parentTask as any).milestone_id || null, planned_start_date: nf.planned_start_date || null, planned_end_date: nf.planned_end_date || null, planned_mins: nf.planned_mins ? Number(nf.planned_mins) : null, actual_mins: nf.actual_mins ? Number(nf.actual_mins) : null, description: nf.remarks || null, parent_id: parentTask?.id || null, position: 0 } as any, {
       onSuccess: () => { setNf({}); setAddingTask(false); setAddingSubtaskTo(null); if (parentTask) setExpandedTasks(new Set([...expandedTasks, parentTask.id])); queryClient.invalidateQueries({ queryKey: ['all-tasks'] }); },
     });
   }
@@ -144,6 +145,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
               <th className="py-2 px-1 text-left w-20">Assignee</th>
               <th className="py-2 px-1 text-left w-16">Type</th>
               <th className="py-2 px-1 text-left w-16">Section</th>
+              <th className="py-2 px-1 text-left w-20">Milestone</th>
               <th className="py-2 px-1 text-left w-20">Macro Proj</th>
               <th className="py-2 px-1 text-left w-22">Start Date</th>
               <th className="py-2 px-1 text-left w-22">Due Date</th>
@@ -160,17 +162,17 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
 
             {/* New task row */}
             {addingTask && (
-              <NewRow nf={nf} setNf={setNf} projects={projects} departments={deptOpts} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} onSave={() => handleCreate()} onCancel={() => { setAddingTask(false); setNf({}); }} isSubtask={false} />
+              <NewRow nf={nf} setNf={setNf} projects={projects} departments={deptOpts} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} onSave={() => handleCreate()} onCancel={() => { setAddingTask(false); setNf({}); }} isSubtask={false} />
             )}
             {/* Task rows */}
             {paginated.map((task) => (
               <React.Fragment key={task.id}>
-                <TaskRow task={task} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} departments={departments} projects={projects} expanded={expandedTasks.has(task.id)} subtaskCount={getSubtasks(task.id).length} onToggle={() => toggleTask(task.id)} onUpdate={updateField} onAddSubtask={() => { setAddingSubtaskTo(task.id); setNf({ project_id: task.project_id, department_id: task.department_id, category_id: task.category_id || '' }); setExpandedTasks(new Set([...expandedTasks, task.id])); }} onCancel={() => cancelTask(task.id)} onDelete={() => deleteTask(task.id)} overdue={getOverdue(task)} />
+                <TaskRow task={task} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} departments={departments} projects={projects} expanded={expandedTasks.has(task.id)} subtaskCount={getSubtasks(task.id).length} onToggle={() => toggleTask(task.id)} onUpdate={updateField} onAddSubtask={() => { setAddingSubtaskTo(task.id); setNf({ project_id: task.project_id, department_id: task.department_id, category_id: task.category_id || '', milestone_id: (task as any).milestone_id || '' }); setExpandedTasks(new Set([...expandedTasks, task.id])); }} onCancel={() => cancelTask(task.id)} onDelete={() => deleteTask(task.id)} overdue={getOverdue(task)} />
                 {expandedTasks.has(task.id) && addingSubtaskTo === task.id && (
-                  <NewRow nf={nf} setNf={setNf} projects={projects} departments={deptOpts} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} onSave={() => handleCreate(task)} onCancel={() => { setAddingSubtaskTo(null); setNf({}); }} isSubtask={true} />
+                  <NewRow nf={nf} setNf={setNf} projects={projects} departments={deptOpts} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} onSave={() => handleCreate(task)} onCancel={() => { setAddingSubtaskTo(null); setNf({}); }} isSubtask={true} />
                 )}
                 {expandedTasks.has(task.id) && getSubtasks(task.id).map((sub) => (
-                  <TaskRow key={sub.id} task={sub} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} departments={departments} projects={projects} expanded={false} subtaskCount={0} onToggle={() => {}} onUpdate={updateField} onAddSubtask={() => {}} onCancel={() => cancelTask(sub.id)} onDelete={() => deleteTask(sub.id)} overdue={getOverdue(sub)} isSubtask />
+                  <TaskRow key={sub.id} task={sub} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} departments={departments} projects={projects} expanded={false} subtaskCount={0} onToggle={() => {}} onUpdate={updateField} onAddSubtask={() => {}} onCancel={() => cancelTask(sub.id)} onDelete={() => deleteTask(sub.id)} overdue={getOverdue(sub)} isSubtask />
                 ))}
               </React.Fragment>
             ))}
@@ -197,8 +199,9 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
 }
 
 // New Task/Subtask inline row
-function NewRow({ nf, setNf, projects, departments, statuses, priorities, members, taskTypes, categories, taskSections, macroProjects, onSave, onCancel, isSubtask }: any) {
+function NewRow({ nf, setNf, projects, departments, statuses, priorities, members, taskTypes, categories, taskSections, macroProjects, milestones, onSave, onCancel, isSubtask }: any) {
   const macroName = (() => { const proj = projects.find((p:any) => p.id === nf.project_id); if (!proj) return ''; const mp = macroProjects.find((m:any) => m.id === proj.macro_project_id); return mp?.name || ''; })();
+  const projMilestones = nf.project_id ? milestones.filter((m:any) => m.project_id === nf.project_id) : milestones;
   return (
     <tr className={`border-b ${isSubtask ? 'bg-green-50/50 dark:bg-green-950/10' : 'bg-primary/5'}`}>
       <td className="py-1 px-1"><Plus className="h-3 w-3 text-primary" /></td>
@@ -211,6 +214,7 @@ function NewRow({ nf, setNf, projects, departments, statuses, priorities, member
       <td className="py-1 px-0.5"><select value={nf.assignee_id||''} onChange={(e) => setNf({...nf, assignee_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Assignee</option>{members.map((m:any) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></td>
       <td className="py-1 px-0.5"><select value={nf.task_type_id||''} onChange={(e) => setNf({...nf, task_type_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Type</option>{taskTypes.map((t:any) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></td>
       <td className="py-1 px-0.5"><select value={nf.section_id||''} onChange={(e) => setNf({...nf, section_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Section</option>{taskSections.map((s:any) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></td>
+      <td className="py-1 px-0.5"><select value={nf.milestone_id||''} onChange={(e) => setNf({...nf, milestone_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Milestone*</option>{projMilestones.map((m:any) => <option key={m.id} value={m.id}>{m.milestone_no}</option>)}</select></td>
       <td className="py-1 px-0.5 text-[9px] text-muted-foreground">{macroName || '-'}</td>
       <td className="py-1 px-0.5"><input type="date" value={nf.planned_start_date||''} onChange={(e) => setNf({...nf, planned_start_date: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
       <td className="py-1 px-0.5"><input type="date" value={nf.planned_end_date||''} onChange={(e) => setNf({...nf, planned_end_date: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
@@ -226,10 +230,11 @@ function NewRow({ nf, setNf, projects, departments, statuses, priorities, member
 }
 
 // Inline editable task row with ALL fields
-function TaskRow({ task, statuses, priorities, members, taskTypes, categories, taskSections, macroProjects, departments, projects, expanded, subtaskCount, onToggle, onUpdate, onAddSubtask, onCancel, onDelete, overdue, isSubtask }: any) {
+function TaskRow({ task, statuses, priorities, members, taskTypes, categories, taskSections, macroProjects, milestones, departments, projects, expanded, subtaskCount, onToggle, onUpdate, onAddSubtask, onCancel, onDelete, overdue, isSubtask }: any) {
   const status = statuses.find((s: any) => s.id === task.status_id);
   const proj = projects?.find?.((p:any) => p.id === task.project_id);
   const macroName = proj?.macro_project_id ? macroProjects?.find?.((m:any) => m.id === proj.macro_project_id)?.name || '' : '';
+  const projMilestones = task.project_id ? milestones.filter((m:any) => m.project_id === task.project_id) : milestones;
   return (
     <tr className={`border-b hover:bg-accent/20 ${isSubtask ? 'bg-muted/10' : ''} ${overdue > 0 && !status?.is_closed ? 'bg-red-50/30 dark:bg-red-950/5' : ''}`}>
       <td className="py-1 px-1">
@@ -245,6 +250,7 @@ function TaskRow({ task, statuses, priorities, members, taskTypes, categories, t
       <td className="py-1 px-0.5"><select value={task.assignee_id||''} onChange={(e) => onUpdate(task.id,'assignee_id',e.target.value)} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded"><option value="">-</option>{members.map((m:any)=><option key={m.id} value={m.id}>{m.name}</option>)}</select></td>
       <td className="py-1 px-0.5"><select value={task.task_type_id||''} onChange={(e) => onUpdate(task.id,'task_type_id',e.target.value)} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded"><option value="">-</option>{taskTypes.map((t:any)=><option key={t.id} value={t.id}>{t.name}</option>)}</select></td>
       <td className="py-1 px-0.5"><select value={(task as any).section_id||''} onChange={(e) => onUpdate(task.id,'section_id',e.target.value)} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded"><option value="">-</option>{taskSections.map((s:any)=><option key={s.id} value={s.id}>{s.name}</option>)}</select></td>
+      <td className="py-1 px-0.5"><select value={(task as any).milestone_id||''} onChange={(e) => onUpdate(task.id,'milestone_id',e.target.value)} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded"><option value="">-</option>{projMilestones.map((m:any)=><option key={m.id} value={m.id}>{m.milestone_no}</option>)}</select></td>
       <td className="py-1 px-0.5 text-[9px] text-muted-foreground">{macroName || '-'}</td>
       <td className="py-1 px-0.5"><input type="date" defaultValue={task.planned_start_date||''} onBlur={(e) => { if (e.target.value!==(task.planned_start_date||'')) onUpdate(task.id,'planned_start_date',e.target.value); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" /></td>
       <td className="py-1 px-0.5"><input type="date" defaultValue={task.planned_end_date||''} onBlur={(e) => { if (e.target.value!==(task.planned_end_date||'')) onUpdate(task.id,'planned_end_date',e.target.value); }} className={`text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded ${overdue>0?'text-red-600 font-bold':''}`} /></td>

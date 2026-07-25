@@ -11,6 +11,7 @@ import DepartmentPage from '@/pages/DepartmentPage';
 import MyTasksPage from '@/pages/MyTasksPage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import MobileProjectsPage from '@/pages/MobileProjectsPage';
+import MilestonesPage from '@/pages/MilestonesPage';
 import { useParams } from 'react-router-dom';
 import type { ReactNode } from 'react';
 
@@ -73,6 +74,7 @@ function App() {
           <Route index element={<DashboardPage />} />
           <Route path="settings" element={<AdminRoute><MastersPage /></AdminRoute>} />
           <Route path="my-tasks" element={<MyTasksPage />} />
+          <Route path="milestones" element={<MilestonesPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="projects-mobile" element={<MobileProjectsPage />} />
           <Route path="project/:projectId" element={<ProjectPage />} />

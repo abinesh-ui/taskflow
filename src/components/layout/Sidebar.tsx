@@ -35,6 +35,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
       <div className="px-2 py-2 space-y-0.5">
         <Button variant={isActive('/') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/'); onNavigate?.(); }}><Home className="h-3.5 w-3.5 mr-2" />All Tasks</Button>
+        <Button variant={isActive('/milestones') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/milestones'); onNavigate?.(); }}><Layers className="h-3.5 w-3.5 mr-2" />Milestones</Button>
         {isAdmin && <Button variant={isActive('/settings') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/settings'); onNavigate?.(); }}><Settings className="h-3.5 w-3.5 mr-2" />Settings</Button>}
       </div>
       <div className="px-3 pt-2 pb-1 border-t"><span className="text-[10px] font-semibold text-muted-foreground uppercase">Projects</span></div>
