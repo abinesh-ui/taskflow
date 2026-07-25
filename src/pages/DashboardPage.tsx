@@ -49,6 +49,8 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   const { data: taskSections = [] } = useQuery({ queryKey: ['master_task_sections'], queryFn: async () => { const { data } = await supabase.from('master_task_sections').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color?: string }>; } });
   const { data: macroProjects = [] } = useQuery({ queryKey: ['master_macro_projects'], queryFn: async () => { const { data } = await supabase.from('master_macro_projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
   const { data: milestones = [] } = useQuery({ queryKey: ['milestones'], queryFn: async () => { const { data } = await supabase.from('milestones').select('*').order('created_at'); return (data || []) as Array<{ id: string; milestone_no: string; project_id: string; description: string }>; } });
+  const { data: currentMember } = useQuery({ queryKey: ['current-member', user?.id], queryFn: async () => { const { data: profile } = await supabase.from('profiles').select('email').eq('id', user!.id).single(); if (!profile) return null; const { data } = await supabase.from('master_members').select('role').eq('email', profile.email).single(); return data as { role?: string } | null; }, enabled: !!user });
+  const canBulk = (currentMember?.role === 'admin' || currentMember?.role === 'manager');
 
   function getOverdue(task: Task) { const s = statuses.find((st) => st.id === task.status_id); return getOverdueDays(task.planned_end_date, s?.is_closed ?? false); }
 
@@ -109,6 +111,18 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
     toast({ title: `Updated ${ids.length} task(s)` });
     setSelectedTasks(new Set()); setShowBulkUpdate(false); setBulkField(''); setBulkValue('');
   }
+  async function handleBulkDelete() {
+    if (selectedTasks.size === 0) return;
+    if (!confirm(`Delete ${selectedTasks.size} task(s) permanently? This cannot be undone.`)) return;
+    const ids = Array.from(selectedTasks);
+    // Delete subtasks first (children of selected tasks)
+    await supabase.from('tasks').delete().in('parent_id', ids);
+    const { error } = await supabase.from('tasks').delete().in('id', ids);
+    if (error) { toast({ variant: 'destructive', title: 'Error', description: error.message }); return; }
+    queryClient.invalidateQueries({ queryKey: ['all-tasks'] });
+    toast({ title: `Deleted ${ids.length} task(s)` });
+    setSelectedTasks(new Set()); setShowBulkUpdate(false);
+  }
 
   const filterFields = [
     { key: 'project_id', label: 'Project', type: 'select' as const, options: projects.map((p) => ({ value: p.id, label: p.name })) },
@@ -141,10 +155,18 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => exportTasksToCSV(sorted, { statuses, priorities, taskTypes: taskTypes as any, categories: categories as any, users: members as any })}>
           <Download className="h-3.5 w-3.5 mr-1" /> Export
         </Button>
-        {selectedTasks.size > 0 && (
-          <Button variant="secondary" size="sm" className="h-8 text-xs" onClick={() => setShowBulkUpdate(true)}>
-            Bulk Update ({selectedTasks.size})
-          </Button>
+        {selectedTasks.size > 0 && canBulk && (
+          <>
+            <Button variant="secondary" size="sm" className="h-8 text-xs" onClick={() => setShowBulkUpdate(true)}>
+              Bulk Update ({selectedTasks.size})
+            </Button>
+            <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={handleBulkDelete}>
+              Bulk Delete ({selectedTasks.size})
+            </Button>
+          </>
+        )}
+        {selectedTasks.size > 0 && !canBulk && (
+          <span className="text-[10px] text-muted-foreground">Select: {selectedTasks.size} (bulk actions require Admin/Manager)</span>
         )}
         <Badge variant="secondary" className="text-[10px] ml-auto">{totalTasks} tasks</Badge>
       </div>
@@ -178,7 +200,30 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
 
       {/* Spreadsheet table */}
       <div className="border rounded-lg overflow-x-auto bg-white dark:bg-card shadow-sm">
-        <table className="w-full text-[10px] min-w-[1600px]">
+        <table className="w-full text-[10px] min-w-[1600px] table-fixed">
+          <colgroup>
+            <col className="w-7" />
+            <col className="w-6" />
+            <col className="w-20" />
+            <col className="w-[200px]" />
+            <col className="w-20" />
+            <col className="w-20" />
+            <col className="w-[70px]" />
+            <col className="w-[70px]" />
+            <col className="w-20" />
+            <col className="w-[70px]" />
+            <col className="w-[70px]" />
+            <col className="w-20" />
+            <col className="w-24" />
+            <col className="w-24" />
+            <col className="w-14" />
+            <col className="w-24" />
+            <col className="w-24" />
+            <col className="w-14" />
+            <col className="w-12" />
+            <col className="w-[100px]" />
+            <col className="w-14" />
+          </colgroup>
           <thead>
             <tr className="bg-muted/60 border-b font-semibold text-muted-foreground uppercase tracking-wider">
               <th className="py-2 px-1 w-6"><input type="checkbox" checked={selectedTasks.size > 0 && selectedTasks.size >= paginated.length} onChange={(e) => { if (e.target.checked) selectAll(); else deselectAll(); }} className="h-3 w-3 rounded" /></th>
@@ -291,7 +336,7 @@ function TaskRow({ task, statuses, priorities, members, taskTypes, categories, t
         : isSubtask ? <span className="ml-2 text-muted-foreground/40">↳</span> : <span className="text-muted-foreground/20">·</span>}
       </td>
       <td className={`py-1 px-1 font-mono text-[9px] text-muted-foreground ${isSubtask?'pl-4':''}`}>{task.task_no}{!isSubtask && subtaskCount>0 && <span className="text-primary ml-0.5">({subtaskCount})</span>}</td>
-      <td className="py-1 px-0.5"><input defaultValue={task.title} onBlur={(e) => { if (e.target.value!==task.title) onUpdate(task.id,'title',e.target.value); }} className={`w-full bg-transparent outline-none border-0 px-0.5 py-0.5 rounded hover:bg-muted/50 focus:ring-1 focus:ring-primary/20 ${isSubtask?'text-[10px]':'text-[11px] font-medium'}`} /></td>
+      <td className="py-1 px-0.5"><input defaultValue={task.title} onBlur={(e) => { if (e.target.value!==task.title) onUpdate(task.id,'title',e.target.value); }} className={`w-full bg-transparent outline-none border-0 px-0.5 py-0.5 rounded hover:bg-muted/50 focus:ring-1 focus:ring-primary/20 break-words ${isSubtask?'text-[10px]':'text-[11px] font-medium'}`} title={task.title} /></td>
       <td className="py-1 px-0.5 text-[9px] text-muted-foreground truncate">{projects?.find?.((p:any)=>p.id===task.project_id)?.name||''}</td>
       <td className="py-1 px-0.5"><select value={task.department_id||''} onChange={(e) => onUpdate(task.id,'department_id',e.target.value)} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded">{departments.map((d:any)=><option key={d.id} value={d.id}>{d.name}</option>)}</select></td>
       <td className="py-1 px-0.5"><select value={task.status_id} onChange={(e) => onUpdate(task.id,'status_id',e.target.value)} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded font-medium" style={{color:status?.color}}>{statuses.map((s:any)=><option key={s.id} value={s.id}>{s.name}</option>)}</select></td>
