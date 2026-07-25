@@ -23,6 +23,20 @@ export default function MilestonesPage() {
   const [filterConditions, setFilterConditions] = useState<FilterCondition[]>([]);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Get current user's role from members
+  const { data: currentMember } = useQuery({
+    queryKey: ['current-member', user?.email],
+    queryFn: async () => {
+      const { data: profile } = await supabase.from('profiles').select('email').eq('id', user!.id).single();
+      if (!profile) return null;
+      const { data } = await supabase.from('master_members').select('*').eq('email', profile.email).single();
+      return data as { role?: string } | null;
+    },
+    enabled: !!user,
+  });
+  const userRole = currentMember?.role || 'team_member';
+  const canManage = userRole === 'admin' || userRole === 'manager';
+
   const { data: milestones = [] } = useQuery({
     queryKey: ['milestones'],
     queryFn: async () => {
@@ -117,6 +131,16 @@ export default function MilestonesPage() {
     toast({ title: 'Milestone closed' });
   }
 
+  async function deleteMilestone(id: string) {
+    if (!confirm('Delete this milestone permanently? Tasks linked to it will be unlinked.')) return;
+    // Unlink tasks first
+    await supabase.from('tasks').update({ milestone_id: null }).eq('milestone_id', id);
+    await supabase.from('milestones').delete().eq('id', id);
+    queryClient.invalidateQueries({ queryKey: ['milestones'] });
+    queryClient.invalidateQueries({ queryKey: ['all-tasks'] });
+    toast({ title: 'Milestone deleted' });
+  }
+
   // Filter milestones
   const msFilterFields = [
     { key: 'project_id', label: 'Project', type: 'select' as const, options: projects.map((p) => ({ value: p.id, label: p.name })) },
@@ -164,9 +188,11 @@ export default function MilestonesPage() {
     <div className="space-y-3">
       {/* Header + Filter + Add */}
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" className="h-8 text-xs font-medium" onClick={() => setAdding(true)}>
-          <Plus className="h-3.5 w-3.5 mr-1" /> Add Milestone
-        </Button>
+        {canManage && (
+          <Button size="sm" className="h-8 text-xs font-medium" onClick={() => setAdding(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Milestone
+          </Button>
+        )}
         <Button variant={showFilters ? 'secondary' : 'outline'} size="sm" className="h-8 text-xs" onClick={() => setShowFilters(!showFilters)}>
           <Filter className="h-3 w-3 mr-1" /> Filter {filterConditions.length > 0 && `(${filterConditions.length})`}
         </Button>
@@ -229,9 +255,14 @@ export default function MilestonesPage() {
                   <td className="py-1.5 px-2 text-[9px]">{taskCount}</td>
                   <td className="py-1.5 px-2"><Badge style={{ backgroundColor: STATUS_COLORS[computed.status], color: '#fff' }} className="text-[8px]">{STATUS_LABELS[computed.status]}</Badge></td>
                   <td className="py-1.5 px-1">
-                    {computed.status === 'done' && (
-                      <Button size="sm" variant="outline" className="h-5 text-[8px] px-1.5" onClick={() => closeManually(ms.id)}>Close</Button>
-                    )}
+                    <div className="flex items-center gap-0.5">
+                      {computed.status === 'done' && canManage && (
+                        <Button size="sm" variant="outline" className="h-5 text-[8px] px-1.5" onClick={() => closeManually(ms.id)}>Close</Button>
+                      )}
+                      {canManage && (
+                        <button onClick={() => deleteMilestone(ms.id)} className="h-4 w-4 flex items-center justify-center rounded hover:bg-red-100 text-muted-foreground hover:text-red-600 text-[8px]" title="Delete milestone">🗑</button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
