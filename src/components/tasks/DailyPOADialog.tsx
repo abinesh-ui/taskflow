@@ -31,6 +31,12 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
   const [newPriority, setNewPriority] = useState('');
   const [newAssignee, setNewAssignee] = useState('');
   const [newDueDate, setNewDueDate] = useState('');
+  const [newType, setNewType] = useState('');
+  const [newSection, setNewSection] = useState('');
+  const [newMilestone, setNewMilestone] = useState('');
+  const [newStartDate, setNewStartDate] = useState('');
+  const [newPlannedMins, setNewPlannedMins] = useState('');
+  const [newRemarks, setNewRemarks] = useState('');
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -40,6 +46,9 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
   const { data: members = [] } = useQuery({ queryKey: ['master_members'], queryFn: async () => { const { data } = await supabase.from('master_members').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Array<{ id: string; name: string }>; } });
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Project[]; } });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
+  const { data: taskTypes = [] } = useQuery({ queryKey: ['master_task_types'], queryFn: async () => { const { data } = await supabase.from('master_task_types').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string }>; } });
+  const { data: taskSections = [] } = useQuery({ queryKey: ['master_task_sections'], queryFn: async () => { const { data } = await supabase.from('master_task_sections').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string }>; } });
+  const { data: milestones = [] } = useQuery({ queryKey: ['milestones'], queryFn: async () => { const { data } = await supabase.from('milestones').select('*').order('created_at'); return (data || []) as Array<{ id: string; milestone_no: string; project_id: string }>; } });
   const { data: todayPoa } = useQuery({ queryKey: ['poa_today', user?.id], queryFn: async () => { const { data } = await supabase.from('poa_submissions').select('*').eq('user_id', user!.id).eq('submitted_date', today).maybeSingle(); return data; }, enabled: !!user });
 
   // Get pending tasks (not closed/done/dropped)
@@ -80,8 +89,8 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
   async function handleAddTask() {
     if (!newTitle.trim() || !newProject || !newDept) return;
     const defStatus = statuses.find((s) => s.position === 1) || statuses[0];
-    createTask.mutate({ title: newTitle.trim(), project_id: newProject, department_id: newDept, status_id: newStatus || defStatus?.id || '', priority_id: newPriority || null, assignee_id: newAssignee || null, planned_end_date: newDueDate || null, position: 0, parent_id: addingSubTo || null } as any, {
-      onSuccess: () => { setNewTitle(''); setNewProject(''); setNewDept(''); setNewStatus(''); setNewPriority(''); setNewAssignee(''); setNewDueDate(''); setShowAddTask(false); setAddingSubTo(null); queryClient.invalidateQueries({ queryKey: ['all-tasks'] }); toast({ title: addingSubTo ? 'Subtask added' : 'Task added' }); },
+    createTask.mutate({ title: newTitle.trim(), project_id: newProject, department_id: newDept, status_id: newStatus || defStatus?.id || '', priority_id: newPriority || null, assignee_id: newAssignee || null, task_type_id: newType || null, section_id: newSection || null, milestone_id: newMilestone || null, planned_start_date: newStartDate || null, planned_end_date: newDueDate || null, planned_mins: newPlannedMins ? Number(newPlannedMins) : null, description: newRemarks || null, position: 0, parent_id: addingSubTo || null } as any, {
+      onSuccess: () => { setNewTitle(''); setNewProject(''); setNewDept(''); setNewStatus(''); setNewPriority(''); setNewAssignee(''); setNewDueDate(''); setNewType(''); setNewSection(''); setNewMilestone(''); setNewStartDate(''); setNewPlannedMins(''); setNewRemarks(''); setShowAddTask(false); setAddingSubTo(null); queryClient.invalidateQueries({ queryKey: ['all-tasks'] }); toast({ title: addingSubTo ? 'Subtask added' : 'Task added' }); },
     });
   }
 
@@ -125,10 +134,10 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
           </Button>
         </div>
 
-        {/* Add task with all fields */}
+        {/* Add task with ALL fields */}
         {(showAddTask || addingSubTo) && (
-          <div className="p-2 border rounded bg-muted/30 flex-shrink-0 space-y-2">
-            <span className="text-[10px] font-semibold">{addingSubTo ? 'Add Subtask' : 'Add Task'}</span>
+          <div className="p-2 border rounded bg-muted/30 flex-shrink-0 space-y-2 max-h-[200px] overflow-y-auto">
+            <span className="text-[10px] font-semibold">{addingSubTo ? 'Add Subtask' : 'Add Task'} — All Fields</span>
             <div className="grid grid-cols-4 gap-1.5">
               <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Title *" className="h-7 text-[10px] col-span-2" autoFocus />
               <select value={newProject} onChange={(e) => { setNewProject(e.target.value); setNewDept(''); }} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Project *</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
@@ -136,7 +145,13 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
               <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Status</option>{statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
               <select value={newPriority} onChange={(e) => setNewPriority(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Priority</option>{priorities.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
               <select value={newAssignee} onChange={(e) => setNewAssignee(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Assignee</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
-              <Input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="h-7 text-[9px]" />
+              <select value={newType} onChange={(e) => setNewType(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Type</option>{taskTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
+              <select value={newSection} onChange={(e) => setNewSection(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Section</option>{taskSections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+              <select value={newMilestone} onChange={(e) => setNewMilestone(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Milestone</option>{milestones.filter((m) => !newProject || m.project_id === newProject).map((m) => <option key={m.id} value={m.id}>{m.milestone_no}</option>)}</select>
+              <Input type="date" value={newStartDate} onChange={(e) => setNewStartDate(e.target.value)} placeholder="Start" className="h-7 text-[9px]" title="Start Date" />
+              <Input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="h-7 text-[9px]" title="Due Date" />
+              <Input type="number" value={newPlannedMins} onChange={(e) => setNewPlannedMins(e.target.value)} placeholder="Plan Mins" className="h-7 text-[9px]" />
+              <Input value={newRemarks} onChange={(e) => setNewRemarks(e.target.value)} placeholder="Remarks" className="h-7 text-[9px] col-span-2" />
             </div>
             <div className="flex gap-1.5">
               <Button size="sm" className="h-7 text-[10px]" onClick={handleAddTask} disabled={!newTitle.trim() || !newProject || !newDept}>{addingSubTo ? 'Add Subtask' : 'Add Task'}</Button>
