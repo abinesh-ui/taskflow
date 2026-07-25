@@ -200,29 +200,29 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
 
       {/* Spreadsheet table */}
       <div className="border rounded-lg overflow-x-auto bg-white dark:bg-card shadow-sm">
-        <table className="w-full text-[10px] min-w-[1600px] table-fixed">
+        <table className="w-full text-[10px] min-w-[1600px]">
           <colgroup>
-            <col className="w-7" />
-            <col className="w-6" />
-            <col className="w-20" />
-            <col className="w-[200px]" />
-            <col className="w-20" />
-            <col className="w-20" />
-            <col className="w-[70px]" />
-            <col className="w-[70px]" />
-            <col className="w-20" />
-            <col className="w-[70px]" />
-            <col className="w-[70px]" />
-            <col className="w-20" />
-            <col className="w-24" />
-            <col className="w-24" />
-            <col className="w-14" />
-            <col className="w-24" />
-            <col className="w-24" />
-            <col className="w-14" />
-            <col className="w-12" />
-            <col className="w-[100px]" />
-            <col className="w-14" />
+            <col style={{width:'28px'}} />
+            <col style={{width:'24px'}} />
+            <col style={{width:'75px'}} />
+            <col style={{width:'250px'}} />
+            <col style={{width:'80px'}} />
+            <col style={{width:'80px'}} />
+            <col style={{width:'70px'}} />
+            <col style={{width:'70px'}} />
+            <col style={{width:'80px'}} />
+            <col style={{width:'70px'}} />
+            <col style={{width:'70px'}} />
+            <col style={{width:'80px'}} />
+            <col style={{width:'90px'}} />
+            <col style={{width:'90px'}} />
+            <col style={{width:'55px'}} />
+            <col style={{width:'90px'}} />
+            <col style={{width:'90px'}} />
+            <col style={{width:'55px'}} />
+            <col style={{width:'50px'}} />
+            <col style={{width:'140px'}} />
+            <col style={{width:'55px'}} />
           </colgroup>
           <thead>
             <tr className="bg-muted/60 border-b font-semibold text-muted-foreground uppercase tracking-wider">
@@ -336,7 +336,7 @@ function TaskRow({ task, statuses, priorities, members, taskTypes, categories, t
         : isSubtask ? <span className="ml-2 text-muted-foreground/40">↳</span> : <span className="text-muted-foreground/20">·</span>}
       </td>
       <td className={`py-1 px-1 font-mono text-[9px] text-muted-foreground ${isSubtask?'pl-4':''}`}>{task.task_no}{!isSubtask && subtaskCount>0 && <span className="text-primary ml-0.5">({subtaskCount})</span>}</td>
-      <td className="py-1 px-0.5"><input defaultValue={task.title} onBlur={(e) => { if (e.target.value!==task.title) onUpdate(task.id,'title',e.target.value); }} className={`w-full bg-transparent outline-none border-0 px-0.5 py-0.5 rounded hover:bg-muted/50 focus:ring-1 focus:ring-primary/20 break-words ${isSubtask?'text-[10px]':'text-[11px] font-medium'}`} title={task.title} /></td>
+      <td className="py-1 px-0.5 align-top"><textarea defaultValue={task.title} onBlur={(e) => { if (e.target.value!==task.title) onUpdate(task.id,'title',e.target.value); }} rows={1} onInput={(e) => { const t = e.target as HTMLTextAreaElement; t.style.height='auto'; t.style.height=t.scrollHeight+'px'; }} className={`w-full bg-transparent outline-none border-0 px-0.5 py-0.5 rounded hover:bg-muted/50 focus:ring-1 focus:ring-primary/20 resize-none overflow-hidden ${isSubtask?'text-[10px]':'text-[11px] font-medium'}`} /></td>
       <td className="py-1 px-0.5 text-[9px] text-muted-foreground truncate">{projects?.find?.((p:any)=>p.id===task.project_id)?.name||''}</td>
       <td className="py-1 px-0.5"><select value={task.department_id||''} onChange={(e) => onUpdate(task.id,'department_id',e.target.value)} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded">{departments.map((d:any)=><option key={d.id} value={d.id}>{d.name}</option>)}</select></td>
       <td className="py-1 px-0.5"><select value={task.status_id} onChange={(e) => onUpdate(task.id,'status_id',e.target.value)} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded font-medium" style={{color:status?.color}}>{statuses.map((s:any)=><option key={s.id} value={s.id}>{s.name}</option>)}</select></td>
@@ -353,7 +353,7 @@ function TaskRow({ task, statuses, priorities, members, taskTypes, categories, t
       <td className="py-1 px-0.5"><span className="text-[9px] text-muted-foreground px-0.5">{task.actual_end_date ? formatDate(task.actual_end_date) : '-'}</span></td>
       <td className="py-1 px-0.5"><input type="number" defaultValue={task.actual_mins||''} onBlur={(e) => { const v=e.target.value?Number(e.target.value):null; if (v!==task.actual_mins) onUpdate(task.id,'actual_mins',v); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" /></td>
       <td className={`py-1 px-1 text-[9px] font-bold ${overdue>0?'text-red-600':'text-muted-foreground'}`}>{overdue>0?`${overdue}d`:'-'}</td>
-      <td className="py-1 px-0.5"><input defaultValue={task.description||''} onBlur={(e) => { if (e.target.value!==(task.description||'')) onUpdate(task.id,'description',e.target.value); }} placeholder="" className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" /></td>
+      <td className="py-1 px-0.5 align-top"><textarea defaultValue={task.description||''} onBlur={(e) => { if (e.target.value!==(task.description||'')) onUpdate(task.id,'description',e.target.value); }} rows={1} onInput={(e) => { const t = e.target as HTMLTextAreaElement; t.style.height='auto'; t.style.height=t.scrollHeight+'px'; }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded resize-none overflow-hidden" /></td>
       <td className="py-1 px-0.5">
         <div className="flex items-center gap-0.5">
           {!isSubtask && <button onClick={onAddSubtask} className="h-4 w-4 flex items-center justify-center rounded hover:bg-primary/10 text-muted-foreground hover:text-primary" title="Add subtask"><Plus className="h-2.5 w-2.5" /></button>}
