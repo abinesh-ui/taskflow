@@ -61,9 +61,15 @@ export function NestedFilterBuilder({ fields, conditions, onChange }: NestedFilt
 
   if (!expanded && conditions.length === 0) {
     return (
-      <Button variant="outline" size="sm" className="h-8 text-xs" onClick={addCondition}>
-        <Filter className="h-3.5 w-3.5 mr-1" /> Add Filter
-      </Button>
+      <div className="space-y-2 p-3 border rounded-lg bg-white dark:bg-card shadow-sm">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-muted-foreground">Filters</span>
+          <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={addCondition}>
+            <Plus className="h-3 w-3 mr-0.5" /> Add condition
+          </Button>
+        </div>
+        <p className="text-[10px] text-muted-foreground">Click "Add condition" to create an AND/OR filter with multi-select values.</p>
+      </div>
     );
   }
 
