@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { NestedFilterBuilder, applyFilters, type FilterCondition } from '@/components/tasks/NestedFilter';
+import { SortBuilderInline, type SortLevel } from '@/components/tasks/SortBuilder';
 import { useCreateTask } from '@/hooks/use-tasks';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getOverdueDays } from '@/lib/utils';
-import { Plus, ChevronDown, ChevronRight, Filter, SlidersHorizontal, X, Search, ArrowUp, ArrowDown, Save, ChevronsDown, ChevronsUp } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Filter, SlidersHorizontal, X, Search, Save, ChevronsDown, ChevronsUp } from 'lucide-react';
 import type { Task, MasterStatus, MasterPriority, Project, Department } from '@/types/database';
 
 interface MobileProps { filterProjectId?: string; filterDepartmentId?: string; }
@@ -29,8 +30,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
   const [showSort, setShowSort] = useState(false);
   const [filterConditions, setFilterConditions] = useState<FilterCondition[]>([]);
   const [allExpanded, setAllExpanded] = useState(false);
-  const [sortField, setSortField] = useState('planned_end_date');
-  const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc');
+  const [sortLevels, setSortLevels] = useState<SortLevel[]>([{ field: 'planned_end_date', direction: 'asc' }]);
   const [nf, setNf] = useState<Record<string, string>>({});
   const [editingFields, setEditingFields] = useState<Record<string, string>>({});
 
@@ -50,7 +50,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
   if (filterDepartmentId) topTasks = topTasks.filter((t) => t.department_id === filterDepartmentId);
   if (searchQuery) { const q = searchQuery.toLowerCase(); topTasks = topTasks.filter((t) => t.title.toLowerCase().includes(q) || t.task_no.toLowerCase().includes(q)); }
   topTasks = applyFilters(topTasks, filterConditions, getOverdue);
-  topTasks.sort((a, b) => { const av = (a as any)[sortField] || ''; const bv = (b as any)[sortField] || ''; return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av); });
+  topTasks.sort((a, b) => { for (const l of sortLevels) { const av = (a as any)[l.field] || ''; const bv = (b as any)[l.field] || ''; if (av < bv) return l.direction === 'asc' ? -1 : 1; if (av > bv) return l.direction === 'asc' ? 1 : -1; } return 0; });
 
   function getSubtasks(id: string) { return allTasks.filter((t) => t.parent_id === id); }
   function getStatus(id: string) { return statuses.find((s) => s.id === id); }
@@ -205,10 +205,13 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
         {showFilters && (
           <NestedFilterBuilder
             fields={[
+              { key: 'project_id', label: 'Project', type: 'select' as const, options: projects.map((p) => ({ value: p.id, label: p.name })) },
+              { key: 'department_id', label: 'Department', type: 'select' as const, options: departments.map((d) => ({ value: d.id, label: d.name })) },
               { key: 'status_id', label: 'Status', type: 'select' as const, options: statuses.map((s) => ({ value: s.id, label: s.name, color: s.color })) },
               { key: 'priority_id', label: 'Priority', type: 'select' as const, options: priorities.map((p) => ({ value: p.id, label: p.name, color: p.color })) },
               { key: 'assignee_id', label: 'Assignee', type: 'select' as const, options: members.map((m) => ({ value: m.id, label: m.name })) },
-              { key: 'project_id', label: 'Project', type: 'select' as const, options: projects.map((p) => ({ value: p.id, label: p.name })) },
+              { key: 'task_type_id', label: 'Type', type: 'select' as const, options: taskTypes.map((t) => ({ value: t.id, label: t.name })) },
+              { key: 'section_id', label: 'Section', type: 'select' as const, options: taskSections.map((s) => ({ value: s.id, label: s.name })) },
               { key: 'overdue_days', label: 'Overdue Days', type: 'number' as const },
               { key: 'due_date', label: 'Due Date', type: 'date' as const },
             ]}
@@ -217,20 +220,9 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
           />
         )}
 
-        {/* Sort */}
+        {/* Multi-level Sort (same as web) */}
         {showSort && (
-          <div className="flex items-center gap-2 p-2 border rounded-lg bg-muted/30">
-            <span className="text-[10px] font-semibold">Sort by:</span>
-            <select value={sortField} onChange={(e) => setSortField(e.target.value)} className="h-7 text-[10px] border rounded px-1.5 bg-background flex-1">
-              <option value="planned_end_date">Due Date</option>
-              <option value="created_at">Created</option>
-              <option value="title">Title</option>
-              <option value="planned_start_date">Start Date</option>
-            </select>
-            <Button variant="outline" size="sm" className="h-7 text-[10px] w-14" onClick={() => setSortDir(sortDir === 'asc' ? 'desc' : 'asc')}>
-              {sortDir === 'asc' ? <><ArrowUp className="h-3 w-3 mr-0.5" />Asc</> : <><ArrowDown className="h-3 w-3 mr-0.5" />Desc</>}
-            </Button>
-          </div>
+          <SortBuilderInline sortLevels={sortLevels} onSortChange={setSortLevels} />
         )}
 
         <div className="flex items-center justify-between">
