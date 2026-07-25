@@ -11,7 +11,17 @@ import DepartmentPage from '@/pages/DepartmentPage';
 import MyTasksPage from '@/pages/MyTasksPage';
 import NotificationsPage from '@/pages/NotificationsPage';
 import MobileProjectsPage from '@/pages/MobileProjectsPage';
+import { useParams } from 'react-router-dom';
 import type { ReactNode } from 'react';
+
+function ProjectPage() {
+  const { projectId } = useParams();
+  return <DashboardPage filterProjectId={projectId} />;
+}
+function DeptPage() {
+  const { projectId, departmentId } = useParams();
+  return <DashboardPage filterProjectId={projectId} filterDepartmentId={departmentId} />;
+}
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -65,7 +75,8 @@ function App() {
           <Route path="my-tasks" element={<MyTasksPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="projects-mobile" element={<MobileProjectsPage />} />
-          <Route path="project/:projectId/department/:departmentId" element={<DepartmentPage />} />
+          <Route path="project/:projectId" element={<ProjectPage />} />
+          <Route path="project/:projectId/department/:departmentId" element={<DeptPage />} />
         </Route>
       </Routes>
       <Toaster />
