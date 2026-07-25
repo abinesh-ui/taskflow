@@ -13,6 +13,7 @@ import { getOverdueDays, getPlannedMonthWeek, formatDate } from '@/lib/utils';
 import { exportTasksToCSV } from '@/lib/csv-export';
 import { ChevronDown, ChevronRight, Plus, Download, ChevronsDown, ChevronsUp, ChevronLeft } from 'lucide-react';
 import { useResizableColumns, ResizeHandle } from '@/components/ui/resizable-table';
+import MobileTaskView from '@/components/mobile/MobileTaskView';
 import type { Task, MasterStatus, MasterPriority, Project, Department } from '@/types/database';
 
 interface DashboardProps { filterProjectId?: string; filterDepartmentId?: string; }
@@ -143,8 +144,11 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   const deptOpts = nf.project_id ? departments.filter((d) => d.project_id === nf.project_id) : departments;
 
   return (
-    <div className="space-y-2">
-      {/* Toolbar */}
+    <>
+      {/* Mobile View */}
+      <MobileTaskView />
+      {/* Desktop View */}
+      <div className="space-y-2 hidden md:block">
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" className="h-8 text-xs font-medium" onClick={() => { setAddingTask(true); setNf({ project_id: filterProjectId || '', department_id: filterDepartmentId || '' }); }}>
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Task
@@ -272,6 +276,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
         )}
       </div>
     </div>
+    </>
   );
 }
 
