@@ -66,3 +66,15 @@
 table td input, table td select {
   text-overflow: ellipsis;
 }
+/* Frozen columns (first 4: checkbox, expand, task#, title) */
+table thead th:nth-child(1), table tbody td:nth-child(1) { position: sticky; left: 0; z-index: 2; background: inherit; }
+table thead th:nth-child(2), table tbody td:nth-child(2) { position: sticky; left: 28px; z-index: 2; background: inherit; }
+table thead th:nth-child(3), table tbody td:nth-child(3) { position: sticky; left: 52px; z-index: 2; background: inherit; }
+table thead th:nth-child(4), table tbody td:nth-child(4) { position: sticky; left: 127px; z-index: 2; background: inherit; box-shadow: 2px 0 4px -2px rgba(0,0,0,0.1); }
+table thead th:nth-child(1), table thead th:nth-child(2), table thead th:nth-child(3), table thead th:nth-child(4) { z-index: 3; }
+table tbody tr:hover td:nth-child(1), table tbody tr:hover td:nth-child(2), table tbody tr:hover td:nth-child(3), table tbody tr:hover td:nth-child(4) { background: hsl(var(--accent)); }
+table tbody tr td { background: hsl(var(--card)); }
+table tbody tr.bg-muted\/10 td { background: hsl(var(--muted) / 0.1); }
+table tbody tr.bg-primary\/5 td { background: hsl(var(--primary) / 0.05); }
+table tbody tr.bg-red-50\/30 td { background: rgb(254 242 242 / 0.3); }
+table tbody tr.bg-primary\/10 td { background: hsl(var(--primary) / 0.1); }
