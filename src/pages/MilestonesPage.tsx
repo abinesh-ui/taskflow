@@ -5,9 +5,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { NestedFilterBuilder, type FilterCondition } from '@/components/tasks/NestedFilter';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Filter } from 'lucide-react';
 import type { Project, Task } from '@/types/database';
 
 const STATUS_LABELS: Record<string, string> = { yet_to_initiate: 'Yet to Initiate', wip: 'WIP', done: 'Done', closed: 'Closed' };
@@ -19,6 +20,8 @@ export default function MilestonesPage() {
   const { toast } = useToast();
   const [adding, setAdding] = useState(false);
   const [nf, setNf] = useState<Record<string, string>>({});
+  const [filterConditions, setFilterConditions] = useState<FilterCondition[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
 
   const { data: milestones = [] } = useQuery({
     queryKey: ['milestones'],
@@ -114,14 +117,65 @@ export default function MilestonesPage() {
     toast({ title: 'Milestone closed' });
   }
 
+  // Filter milestones
+  const msFilterFields = [
+    { key: 'project_id', label: 'Project', type: 'select' as const, options: projects.map((p) => ({ value: p.id, label: p.name })) },
+    { key: 'department_id', label: 'Department', type: 'select' as const, options: departments.map((d) => ({ value: d.id, label: d.name })) },
+    { key: 'status', label: 'Status', type: 'select' as const, options: [{ value: 'yet_to_initiate', label: 'Yet to Initiate' }, { value: 'wip', label: 'WIP' }, { value: 'done', label: 'Done' }, { value: 'closed', label: 'Closed' }] },
+    { key: 'due_date', label: 'Due Date', type: 'date' as const },
+  ];
+
+  function applyMsFilters(list: any[]): any[] {
+    if (filterConditions.length === 0) return list;
+    return list.filter((ms) => {
+      let result = true;
+      for (let i = 0; i < filterConditions.length; i++) {
+        const cond = filterConditions[i];
+        let match = true;
+        if (cond.values.length === 0 || (cond.values.length === 1 && !cond.values[0])) { match = true; }
+        else if (cond.field === 'due_date') {
+          const d = ms.planned_end_date;
+          if (!d) match = false;
+          else {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const preset = cond.values[0];
+            if (preset === 'today') match = d === today.toISOString().split('T')[0];
+            else if (preset === 'this_week') { const s = new Date(today); s.setDate(s.getDate()-s.getDay()); const e = new Date(s); e.setDate(e.getDate()+6); match = d >= s.toISOString().split('T')[0] && d <= e.toISOString().split('T')[0]; }
+            else if (preset === 'this_month') match = d.startsWith(today.toISOString().slice(0,7));
+            else if (preset === 'custom') { if (cond.values[1] && d < cond.values[1]) match = false; if (cond.values[2] && d > cond.values[2]) match = false; }
+            else match = true;
+          }
+        } else {
+          const val = ms[cond.field];
+          if (!val) match = false;
+          else match = cond.values.includes(val);
+        }
+        if (i === 0) result = match;
+        else if (cond.connector === 'AND') result = result && match;
+        else result = result || match;
+      }
+      return result;
+    });
+  }
+
+  const filteredMilestones = applyMsFilters(milestones);
+
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      {/* Header + Filter + Add */}
+      <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-lg font-bold">Milestones</h2>
-        <Button size="sm" className="h-8 text-xs" onClick={() => setAdding(true)}>
+        <Badge variant="secondary" className="text-[10px]">{filteredMilestones.length}</Badge>
+        <Button variant={showFilters ? 'secondary' : 'outline'} size="sm" className="h-8 text-xs ml-2" onClick={() => setShowFilters(!showFilters)}>
+          <Filter className="h-3 w-3 mr-1" /> Filter {filterConditions.length > 0 && `(${filterConditions.length})`}
+        </Button>
+        <Button size="sm" className="h-8 text-xs ml-auto" onClick={() => setAdding(true)}>
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Milestone
         </Button>
       </div>
+
+      {/* Nested filters */}
+      {showFilters && <NestedFilterBuilder fields={msFilterFields} conditions={filterConditions} onChange={setFilterConditions} />}
 
       <div className="border rounded-lg overflow-x-auto bg-white dark:bg-card shadow-sm">
         <table className="w-full text-[10px] min-w-[900px]">
@@ -159,7 +213,7 @@ export default function MilestonesPage() {
             )}
 
             {/* Milestone rows */}
-            {milestones.map((ms) => {
+            {filteredMilestones.map((ms) => {
               const computed = computeStatus(ms);
               const taskCount = allTasks.filter((t) => (t as any).milestone_id === ms.id).length;
               const projName = projects.find((p) => p.id === ms.project_id)?.name || '';
@@ -184,7 +238,7 @@ export default function MilestonesPage() {
               );
             })}
 
-            {milestones.length === 0 && !adding && (
+            {filteredMilestones.length === 0 && !adding && (
               <tr><td colSpan={10} className="text-center py-12 text-muted-foreground text-sm">No milestones. Click "Add Milestone" to create one.</td></tr>
             )}
           </tbody>
