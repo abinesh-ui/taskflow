@@ -29,6 +29,10 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   const [sortLevels, setSortLevels] = useState<SortLevel[]>([{ field: 'planned_end_date', direction: 'asc' }]);
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
+  const [showBulkUpdate, setShowBulkUpdate] = useState(false);
+  const [bulkField, setBulkField] = useState('');
+  const [bulkValue, setBulkValue] = useState('');
   const PAGE_SIZE = 200;
 
   // New task/subtask form state
@@ -93,6 +97,19 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   async function cancelTask(id: string) { const s = statuses.find((st) => st.name === 'Cancel' || st.name === 'Dropped'); if (s) await updateField(id, 'status_id', s.id); }
   async function deleteTask(id: string) { if (!confirm('Delete permanently?')) return; await supabase.from('tasks').delete().eq('id', id); queryClient.invalidateQueries({ queryKey: ['all-tasks'] }); }
 
+  function toggleSelect(id: string) { const n = new Set(selectedTasks); if (n.has(id)) n.delete(id); else n.add(id); setSelectedTasks(n); }
+  function selectAll() { const allIds = new Set<string>(); paginated.forEach((t) => { allIds.add(t.id); getSubtasks(t.id).forEach((s) => allIds.add(s.id)); }); setSelectedTasks(allIds); }
+  function deselectAll() { setSelectedTasks(new Set()); }
+  async function handleBulkUpdate() {
+    if (!bulkField || !bulkValue || selectedTasks.size === 0) return;
+    const ids = Array.from(selectedTasks);
+    const { error } = await supabase.from('tasks').update({ [bulkField]: bulkValue }).in('id', ids);
+    if (error) { toast({ variant: 'destructive', title: 'Error', description: error.message }); return; }
+    queryClient.invalidateQueries({ queryKey: ['all-tasks'] });
+    toast({ title: `Updated ${ids.length} task(s)` });
+    setSelectedTasks(new Set()); setShowBulkUpdate(false); setBulkField(''); setBulkValue('');
+  }
+
   const filterFields = [
     { key: 'project_id', label: 'Project', type: 'select' as const, options: projects.map((p) => ({ value: p.id, label: p.name })) },
     { key: 'department_id', label: 'Department', type: 'select' as const, options: departments.map((d) => ({ value: d.id, label: d.name })) },
@@ -108,7 +125,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
 
   return (
     <div className="space-y-2">
-      {/* Toolbar: Add + Filter + Sort + Expand + Export — all in one row */}
+      {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" className="h-8 text-xs font-medium" onClick={() => { setAddingTask(true); setNf({ project_id: filterProjectId || '', department_id: filterDepartmentId || '' }); }}>
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Task
@@ -124,8 +141,37 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
         <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => exportTasksToCSV(sorted, { statuses, priorities, taskTypes: taskTypes as any, categories: categories as any, users: members as any })}>
           <Download className="h-3.5 w-3.5 mr-1" /> Export
         </Button>
+        {selectedTasks.size > 0 && (
+          <Button variant="secondary" size="sm" className="h-8 text-xs" onClick={() => setShowBulkUpdate(true)}>
+            Bulk Update ({selectedTasks.size})
+          </Button>
+        )}
         <Badge variant="secondary" className="text-[10px] ml-auto">{totalTasks} tasks</Badge>
       </div>
+
+      {/* Bulk update bar */}
+      {showBulkUpdate && selectedTasks.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 p-2 bg-primary/5 border rounded-lg">
+          <span className="text-xs font-medium">{selectedTasks.size} selected —</span>
+          <select value={bulkField} onChange={(e) => { setBulkField(e.target.value); setBulkValue(''); }} className="h-7 text-xs border rounded px-2 bg-background">
+            <option value="">Field to update</option>
+            <option value="status_id">Status</option>
+            <option value="priority_id">Priority</option>
+            <option value="assignee_id">Assignee</option>
+            <option value="task_type_id">Type</option>
+            <option value="section_id">Section</option>
+            <option value="milestone_id">Milestone</option>
+          </select>
+          {bulkField === 'status_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
+          {bulkField === 'priority_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{priorities.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
+          {bulkField === 'assignee_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}
+          {bulkField === 'task_type_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{taskTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>}
+          {bulkField === 'section_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{taskSections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
+          {bulkField === 'milestone_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{milestones.map((m: any) => <option key={m.id} value={m.id}>{m.milestone_no}</option>)}</select>}
+          <Button size="sm" className="h-7 text-xs" onClick={handleBulkUpdate} disabled={!bulkField || !bulkValue}>Apply</Button>
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setShowBulkUpdate(false); deselectAll(); }}>Cancel</Button>
+        </div>
+      )}
 
       {/* Filters panel (toggle) */}
       {showFilters && <NestedFilterBuilder fields={filterFields} conditions={filterConditions} onChange={(c) => { setFilterConditions(c); setCurrentPage(1); }} />}
@@ -135,6 +181,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
         <table className="w-full text-[10px] min-w-[1600px]">
           <thead>
             <tr className="bg-muted/60 border-b font-semibold text-muted-foreground uppercase tracking-wider">
+              <th className="py-2 px-1 w-6"><input type="checkbox" checked={selectedTasks.size > 0 && selectedTasks.size >= paginated.length} onChange={(e) => { if (e.target.checked) selectAll(); else deselectAll(); }} className="h-3 w-3 rounded" /></th>
               <th className="py-2 px-1 w-6"></th>
               <th className="py-2 px-1 text-left w-20">Task #</th>
               <th className="py-2 px-1 text-left min-w-[160px]">Title</th>
@@ -167,12 +214,12 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
             {/* Task rows */}
             {paginated.map((task) => (
               <React.Fragment key={task.id}>
-                <TaskRow task={task} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} departments={departments} projects={projects} expanded={expandedTasks.has(task.id)} subtaskCount={getSubtasks(task.id).length} onToggle={() => toggleTask(task.id)} onUpdate={updateField} onAddSubtask={() => { setAddingSubtaskTo(task.id); setNf({ project_id: task.project_id, department_id: task.department_id, category_id: task.category_id || '', milestone_id: (task as any).milestone_id || '' }); setExpandedTasks(new Set([...expandedTasks, task.id])); }} onCancel={() => cancelTask(task.id)} onDelete={() => deleteTask(task.id)} overdue={getOverdue(task)} />
+                <TaskRow task={task} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} departments={departments} projects={projects} expanded={expandedTasks.has(task.id)} subtaskCount={getSubtasks(task.id).length} onToggle={() => toggleTask(task.id)} onUpdate={updateField} onAddSubtask={() => { setAddingSubtaskTo(task.id); setNf({ project_id: task.project_id, department_id: task.department_id, category_id: task.category_id || '', milestone_id: (task as any).milestone_id || '' }); setExpandedTasks(new Set([...expandedTasks, task.id])); }} onCancel={() => cancelTask(task.id)} onDelete={() => deleteTask(task.id)} overdue={getOverdue(task)} selected={selectedTasks.has(task.id)} onSelect={toggleSelect} />
                 {expandedTasks.has(task.id) && addingSubtaskTo === task.id && (
                   <NewRow nf={nf} setNf={setNf} projects={projects} departments={deptOpts} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} onSave={() => handleCreate(task)} onCancel={() => { setAddingSubtaskTo(null); setNf({}); }} isSubtask={true} />
                 )}
                 {expandedTasks.has(task.id) && getSubtasks(task.id).map((sub) => (
-                  <TaskRow key={sub.id} task={sub} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} departments={departments} projects={projects} expanded={false} subtaskCount={0} onToggle={() => {}} onUpdate={updateField} onAddSubtask={() => {}} onCancel={() => cancelTask(sub.id)} onDelete={() => deleteTask(sub.id)} overdue={getOverdue(sub)} isSubtask />
+                  <TaskRow key={sub.id} task={sub} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} departments={departments} projects={projects} expanded={false} subtaskCount={0} onToggle={() => {}} onUpdate={updateField} onAddSubtask={() => {}} onCancel={() => cancelTask(sub.id)} onDelete={() => deleteTask(sub.id)} overdue={getOverdue(sub)} isSubtask selected={selectedTasks.has(sub.id)} onSelect={toggleSelect} />
                 ))}
               </React.Fragment>
             ))}
@@ -204,6 +251,7 @@ function NewRow({ nf, setNf, projects, departments, statuses, priorities, member
   const projMilestones = nf.project_id ? milestones.filter((m:any) => m.project_id === nf.project_id) : milestones;
   return (
     <tr className={`border-b ${isSubtask ? 'bg-green-50/50 dark:bg-green-950/10' : 'bg-primary/5'}`}>
+      <td className="py-1 px-1"></td>
       <td className="py-1 px-1"><Plus className="h-3 w-3 text-primary" /></td>
       <td className="py-1 px-1 text-[9px] text-muted-foreground italic">{isSubtask ? 'Sub' : 'New'}</td>
       <td className="py-1 px-0.5"><input value={nf.title||''} onChange={(e) => setNf({...nf, title: e.target.value})} onKeyDown={(e) => { if (e.key==='Enter') onSave(); if (e.key==='Escape') onCancel(); }} placeholder="Title *" className="w-full h-5 text-[10px] bg-transparent border-0 outline-none px-1 focus:ring-1 focus:ring-primary/30 rounded" autoFocus /></td>
@@ -230,13 +278,14 @@ function NewRow({ nf, setNf, projects, departments, statuses, priorities, member
 }
 
 // Inline editable task row with ALL fields
-function TaskRow({ task, statuses, priorities, members, taskTypes, categories, taskSections, macroProjects, milestones, departments, projects, expanded, subtaskCount, onToggle, onUpdate, onAddSubtask, onCancel, onDelete, overdue, isSubtask }: any) {
+function TaskRow({ task, statuses, priorities, members, taskTypes, categories, taskSections, macroProjects, milestones, departments, projects, expanded, subtaskCount, onToggle, onUpdate, onAddSubtask, onCancel, onDelete, overdue, isSubtask, selected, onSelect }: any) {
   const status = statuses.find((s: any) => s.id === task.status_id);
   const proj = projects?.find?.((p:any) => p.id === task.project_id);
   const macroName = proj?.macro_project_id ? macroProjects?.find?.((m:any) => m.id === proj.macro_project_id)?.name || '' : '';
   const projMilestones = task.project_id ? milestones.filter((m:any) => m.project_id === task.project_id) : milestones;
   return (
-    <tr className={`border-b hover:bg-accent/20 ${isSubtask ? 'bg-muted/10' : ''} ${overdue > 0 && !status?.is_closed ? 'bg-red-50/30 dark:bg-red-950/5' : ''}`}>
+    <tr className={`border-b hover:bg-accent/20 ${isSubtask ? 'bg-muted/10' : ''} ${overdue > 0 && !status?.is_closed ? 'bg-red-50/30 dark:bg-red-950/5' : ''} ${selected ? 'bg-primary/10' : ''}`}>
+      <td className="py-1 px-1"><input type="checkbox" checked={selected} onChange={() => onSelect(task.id)} className="h-3 w-3 rounded" /></td>
       <td className="py-1 px-1">
         {!isSubtask && subtaskCount > 0 ? <button onClick={onToggle} className="p-0.5 hover:bg-accent rounded">{expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}</button>
         : isSubtask ? <span className="ml-2 text-muted-foreground/40">↳</span> : <span className="text-muted-foreground/20">·</span>}
