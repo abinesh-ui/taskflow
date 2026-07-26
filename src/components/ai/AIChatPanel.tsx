@@ -63,7 +63,7 @@ Answer the user's question based on this data. Be concise, actionable, and highl
       const context = buildContext();
 
       // Try the generateContent endpoint with x-goog-api-key header
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
@@ -79,8 +79,8 @@ Answer the user's question based on this data. Be concise, actionable, and highl
       const data = await response.json();
 
       if (!response.ok) {
-        // If gemini-2.0-flash fails, try gemini-1.5-flash
-        const response2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`, {
+        // If first model fails, try gemini-pro
+        const response2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
           body: JSON.stringify({
