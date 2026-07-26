@@ -59,7 +59,10 @@ Answer the user's question based on this data. Be concise, actionable, and highl
 
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) { setMessages((prev) => [...prev, { role: 'ai', content: 'API key not configured. Add VITE_GEMINI_API_KEY in Vercel environment variables.', timestamp: new Date() }]); setLoading(false); return; }
       const context = buildContext();
+
+      // Try the generateContent endpoint with x-goog-api-key header
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
@@ -74,10 +77,34 @@ Answer the user's question based on this data. Be concise, actionable, and highl
       });
 
       const data = await response.json();
-      const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not generate a response. Please try again.';
+
+      if (!response.ok) {
+        // If gemini-2.0-flash fails, try gemini-1.5-flash
+        const response2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          body: JSON.stringify({
+            contents: [
+              { role: 'user', parts: [{ text: context }] },
+              { role: 'model', parts: [{ text: 'Understood. I have the TaskFlow data context. How can I help?' }] },
+              { role: 'user', parts: [{ text: input.trim() }] },
+            ],
+          }),
+        });
+        const data2 = await response2.json();
+        if (!response2.ok) {
+          setMessages((prev) => [...prev, { role: 'ai', content: `API Error (${response2.status}): ${JSON.stringify(data2?.error?.message || data2?.error || 'Unknown error')}`, timestamp: new Date() }]);
+          setLoading(false); return;
+        }
+        const aiText2 = data2?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
+        setMessages((prev) => [...prev, { role: 'ai', content: aiText2, timestamp: new Date() }]);
+        setLoading(false); return;
+      }
+
+      const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
       setMessages((prev) => [...prev, { role: 'ai', content: aiText, timestamp: new Date() }]);
-    } catch (err) {
-      setMessages((prev) => [...prev, { role: 'ai', content: 'Error connecting to AI. Check your API key or try again.', timestamp: new Date() }]);
+    } catch (err: any) {
+      setMessages((prev) => [...prev, { role: 'ai', content: `Connection error: ${err?.message || 'Network issue'}. Check browser console for details.`, timestamp: new Date() }]);
     }
     setLoading(false);
   }
