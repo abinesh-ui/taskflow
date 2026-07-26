@@ -53,14 +53,6 @@ export default function MilestonesPage() {
     },
   });
 
-  const { data: departments = [] } = useQuery({
-    queryKey: ['departments'],
-    queryFn: async () => {
-      const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position');
-      return (data || []) as Array<{ id: string; name: string; project_id: string }>;
-    },
-  });
-
   const { data: allTasks = [] } = useQuery({
     queryKey: ['all-tasks'],
     queryFn: async () => {
@@ -108,7 +100,6 @@ export default function MilestonesPage() {
     }
     const { error } = await supabase.from('milestones').insert({
       project_id: nf.project_id,
-      department_id: nf.department_id || null,
       description: nf.description.trim(),
       planned_start_date: nf.planned_start_date || null,
       planned_end_date: nf.planned_end_date || null,
@@ -144,7 +135,6 @@ export default function MilestonesPage() {
   // Filter milestones
   const msFilterFields = [
     { key: 'project_id', label: 'Project', type: 'select' as const, options: projects.map((p) => ({ value: p.id, label: p.name })) },
-    { key: 'department_id', label: 'Department', type: 'select' as const, options: departments.map((d) => ({ value: d.id, label: d.name })) },
     { key: 'status', label: 'Status', type: 'select' as const, options: [{ value: 'yet_to_initiate', label: 'Yet to Initiate' }, { value: 'wip', label: 'WIP' }, { value: 'done', label: 'Done' }, { value: 'closed', label: 'Closed' }] },
     { key: 'due_date', label: 'Due Date', type: 'date' as const },
   ];
@@ -208,7 +198,6 @@ export default function MilestonesPage() {
             <tr className="bg-muted/60 border-b font-semibold text-muted-foreground uppercase tracking-wider">
               <th className="py-2 px-2 text-left w-20">MS #</th>
               <th className="py-2 px-2 text-left w-24">Project</th>
-              <th className="py-2 px-2 text-left w-24">Dept</th>
               <th className="py-2 px-2 text-left min-w-[200px]">Description</th>
               <th className="py-2 px-2 text-left w-24">Plan Start</th>
               <th className="py-2 px-2 text-left w-24">Plan End</th>
@@ -225,8 +214,7 @@ export default function MilestonesPage() {
             {adding && (
               <tr className="border-b bg-primary/5">
                 <td className="py-1.5 px-2 text-[9px] italic text-muted-foreground">New</td>
-                <td className="py-1.5 px-1"><select value={nf.project_id || ''} onChange={(e) => setNf({ ...nf, project_id: e.target.value, department_id: '' })} className="h-6 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Project *</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></td>
-                <td className="py-1.5 px-1"><select value={nf.department_id || ''} onChange={(e) => setNf({ ...nf, department_id: e.target.value })} className="h-6 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Dept</option>{departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></td>
+                <td className="py-1.5 px-1"><select value={nf.project_id || ''} onChange={(e) => setNf({ ...nf, project_id: e.target.value })} className="h-6 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Project *</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></td>
                 <td className="py-1.5 px-1"><input value={nf.description || ''} onChange={(e) => setNf({ ...nf, description: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }} placeholder="Description *" className="w-full h-6 text-[10px] bg-transparent border-0 outline-none focus:ring-1 focus:ring-primary/30 rounded px-1" autoFocus /></td>
                 <td className="py-1.5 px-1"><input type="date" value={nf.planned_start_date || ''} onChange={(e) => setNf({ ...nf, planned_start_date: e.target.value })} className="h-6 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
                 <td className="py-1.5 px-1"><input type="date" value={nf.planned_end_date || ''} onChange={(e) => setNf({ ...nf, planned_end_date: e.target.value })} className="h-6 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
@@ -249,7 +237,6 @@ export default function MilestonesPage() {
                 <tr key={ms.id} className="border-b hover:bg-accent/20">
                   <td className="py-1.5 px-2 font-mono text-[9px] text-muted-foreground">{ms.milestone_no}</td>
                   <td className="py-1.5 px-2 text-[9px]">{projName}</td>
-                  <td className="py-1.5 px-1"><select value={(ms as any).department_id || ''} onChange={(e) => updateField(ms.id, 'department_id', e.target.value)} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded"><option value="">-</option>{departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></td>
                   <td className="py-1.5 px-1"><input defaultValue={ms.description} onBlur={(e) => { if (e.target.value !== ms.description) updateField(ms.id, 'description', e.target.value); }} className="w-full text-[10px] font-medium bg-transparent border-0 outline-none hover:bg-muted/50 rounded px-1" /></td>
                   <td className="py-1.5 px-1"><input type="date" defaultValue={ms.planned_start_date || ''} onBlur={(e) => { if (e.target.value !== (ms.planned_start_date || '')) updateField(ms.id, 'planned_start_date', e.target.value); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" /></td>
                   <td className="py-1.5 px-1"><input type="date" defaultValue={ms.planned_end_date || ''} onBlur={(e) => { if (e.target.value !== (ms.planned_end_date || '')) updateField(ms.id, 'planned_end_date', e.target.value); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" /></td>
