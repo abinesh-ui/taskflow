@@ -165,7 +165,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
     { key: 'overdue_days', label: 'Overdue Days', type: 'number' as const },
     { key: 'due_date', label: 'Due Date', type: 'date' as const },
   ];
-  const deptOpts = nf.project_id ? departments.filter((d) => d.project_id === nf.project_id) : departments;
+  const deptOpts = departments;
 
   return (
     <>

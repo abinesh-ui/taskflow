@@ -34,7 +34,8 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </div>
       <div className="px-2 py-2 space-y-0.5">
-        <Button variant={isActive('/') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/'); onNavigate?.(); }}><Home className="h-3.5 w-3.5 mr-2" />All Tasks</Button>
+        <Button variant={isActive('/') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/'); onNavigate?.(); }}><Home className="h-3.5 w-3.5 mr-2" />Dashboard</Button>
+        <Button variant={isActive('/tasks') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/tasks'); onNavigate?.(); }}><Layers className="h-3.5 w-3.5 mr-2" />All Tasks</Button>
         <Button variant={isActive('/milestones') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/milestones'); onNavigate?.(); }}><Layers className="h-3.5 w-3.5 mr-2" />Milestones</Button>
         <Button variant={isActive('/poa') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/poa'); onNavigate?.(); }}><Layers className="h-3.5 w-3.5 mr-2" />POA</Button>
         {isAdmin && <Button variant={isActive('/settings') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/settings'); onNavigate?.(); }}><Settings className="h-3.5 w-3.5 mr-2" />Settings</Button>}

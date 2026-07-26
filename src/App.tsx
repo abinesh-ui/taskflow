@@ -5,6 +5,7 @@ import LoginPage from '@/pages/LoginPage';
 import SignupPage from '@/pages/SignupPage';
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import AnalyticsDashboard from '@/pages/AnalyticsDashboard';
 import DashboardPage from '@/pages/DashboardPage';
 import MastersPage from '@/pages/MastersPage';
 import DepartmentPage from '@/pages/DepartmentPage';
@@ -16,6 +17,7 @@ import POAPage from '@/pages/POAPage';
 import { useParams } from 'react-router-dom';
 import type { ReactNode } from 'react';
 
+function AllTasksPage() { return <DashboardPage />; }
 function ProjectPage() {
   const { projectId } = useParams();
   return <DashboardPage filterProjectId={projectId} />;
@@ -72,7 +74,8 @@ function App() {
         <Route path="/signup" element={<PublicRoute><SignupPage /></PublicRoute>} />
         <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
         <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-          <Route index element={<DashboardPage />} />
+          <Route index element={<AnalyticsDashboard />} />
+          <Route path="tasks" element={<AllTasksPage />} />
           <Route path="settings" element={<AdminRoute><MastersPage /></AdminRoute>} />
           <Route path="my-tasks" element={<MyTasksPage />} />
           <Route path="milestones" element={<MilestonesPage />} />
