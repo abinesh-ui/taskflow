@@ -19,9 +19,18 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { data: macroProjects = [] } = useQuery({ queryKey: ['master_macro_projects'], queryFn: async () => { const { data } = await supabase.from('master_macro_projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<Project & { macro_project_id?: string }>; } });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
+  const { data: projectMembersData = [] } = useQuery({ queryKey: ['project_members'], queryFn: async () => { const { data } = await supabase.from('project_members').select('*'); return (data || []) as Array<{ project_id: string; member_id: string }>; } });
+  const { data: currentMemberSidebar } = useQuery({ queryKey: ['current-member-sidebar', profile?.email], queryFn: async () => { if (!profile?.email) return null; const { data } = await supabase.from('master_members').select('id, role').eq('email', profile.email).single(); return data as { id?: string; role?: string } | null; }, enabled: !!profile?.email });
+
+  // Filter projects for non-admin users
+  const visibleProjects = (currentMemberSidebar?.role === 'admin' || !currentMemberSidebar?.id)
+    ? projects
+    : projects.filter((p) => projectMembersData.some((pm) => pm.project_id === p.id && pm.member_id === currentMemberSidebar?.id));
 
   function toggle(set: Set<string>, setFn: (s: Set<string>) => void, id: string) { const n = new Set(set); if (n.has(id)) n.delete(id); else n.add(id); setFn(n); }
   function isActive(path: string) { return location.pathname === path; }
+  function getProjectsForMacro(macroId: string) { return visibleProjects.filter((p) => (p as any).macro_project_id === macroId); }
+  const unassignedProjects = visibleProjects.filter((p) => !(p as any).macro_project_id);
 
   return (
     <div className="flex flex-col h-full">
@@ -44,7 +53,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <ScrollArea className="flex-1 px-2">
         <div className="space-y-0.5 pb-4">
           {macroProjects.map((macro) => {
-            const macroProjs = projects.filter((p) => (p as any).macro_project_id === macro.id);
+            const macroProjs = getProjectsForMacro(macro.id);
             if (macroProjs.length === 0) return null;
             return (
               <div key={macro.id}>
@@ -75,7 +84,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             );
           })}
           {/* Unassigned projects */}
-          {projects.filter((p) => !(p as any).macro_project_id).map((proj) => {
+          {unassignedProjects.map((proj) => {
             const projDepts = departments.filter((d) => d.project_id === proj.id);
             return (
               <div key={proj.id}>
