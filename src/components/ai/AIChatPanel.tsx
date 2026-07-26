@@ -58,40 +58,32 @@ Answer the user's question based on this data. Be concise, actionable, and highl
     setLoading(true);
 
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) { setMessages((prev) => [...prev, { role: 'ai', content: 'API key not configured. Add VITE_GEMINI_API_KEY in Vercel environment variables.', timestamp: new Date() }]); setLoading(false); return; }
+      const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+      if (!apiKey) { setMessages((prev) => [...prev, { role: 'ai', content: 'API key not configured. Add VITE_GROQ_API_KEY in Vercel environment variables.', timestamp: new Date() }]); setLoading(false); return; }
       const context = buildContext();
-      const fullPrompt = `${context}\n\nUser question: ${input.trim()}\n\nPrevious conversation:\n${messages.filter((m) => m.role === 'user').slice(-3).map((m) => `User: ${m.content}`).join('\n')}`;
 
-      // Use the new interactions endpoint for AQ auth keys
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`, {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }),
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: context },
+            ...messages.slice(-6).map((m) => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content })),
+            { role: 'user', content: input.trim() },
+          ],
+          temperature: 0.7,
+          max_tokens: 1024,
+        }),
       });
 
-      let data = await response.json();
+      const data = await response.json();
 
-      // If 404, try different model names
-      if (!response.ok && response.status === 404) {
-        const models = ['gemini-2.0-flash-001', 'gemini-2.5-flash', 'gemini-exp-1206'];
-        for (const model of models) {
-          const retry = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-            body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }),
-          });
-          if (retry.ok) { data = await retry.json(); break; }
-          if (retry.status !== 404) { data = await retry.json(); break; }
-        }
-      }
-
-      if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
-        setMessages((prev) => [...prev, { role: 'ai', content: data.candidates[0].content.parts[0].text, timestamp: new Date() }]);
-      } else if (data?.error) {
-        setMessages((prev) => [...prev, { role: 'ai', content: `API Error (${data.error.code || '?'}): ${data.error.message || JSON.stringify(data.error)}`, timestamp: new Date() }]);
+      if (!response.ok) {
+        setMessages((prev) => [...prev, { role: 'ai', content: `Error (${response.status}): ${data?.error?.message || JSON.stringify(data)}`, timestamp: new Date() }]);
       } else {
-        setMessages((prev) => [...prev, { role: 'ai', content: 'No response. Try a different question.', timestamp: new Date() }]);
+        const aiText = data?.choices?.[0]?.message?.content || 'No response.';
+        setMessages((prev) => [...prev, { role: 'ai', content: aiText, timestamp: new Date() }]);
       }
     } catch (err: any) {
       setMessages((prev) => [...prev, { role: 'ai', content: `Connection error: ${err?.message || 'Network issue'}`, timestamp: new Date() }]);
