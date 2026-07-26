@@ -215,6 +215,7 @@ export default function MilestonesPage() {
               <th className="py-2 px-2 text-left w-24">Act. Start</th>
               <th className="py-2 px-2 text-left w-24">Act. End</th>
               <th className="py-2 px-2 text-left w-16">Tasks</th>
+              <th className="py-2 px-2 text-left w-16">%</th>
               <th className="py-2 px-2 text-left w-24">Status</th>
               <th className="py-2 px-2 text-left w-16"></th>
             </tr>
@@ -241,6 +242,8 @@ export default function MilestonesPage() {
             {filteredMilestones.map((ms) => {
               const computed = computeStatus(ms);
               const taskCount = allTasks.filter((t) => (t as any).milestone_id === ms.id).length;
+              const msTasks = allTasks.filter((t) => (t as any).milestone_id === ms.id);
+              const completionPct = msTasks.length > 0 ? Math.round(msTasks.reduce((sum, t) => { const s = statuses.find((st) => st.id === t.status_id); return sum + ((s as any)?.completion_weight ?? 0); }, 0) / msTasks.length * 100) : 0;
               const projName = projects.find((p) => p.id === ms.project_id)?.name || '';
               return (
                 <tr key={ms.id} className="border-b hover:bg-accent/20">
@@ -253,6 +256,7 @@ export default function MilestonesPage() {
                   <td className="py-1.5 px-2 text-[9px] text-muted-foreground">{computed.actualStart ? formatDate(computed.actualStart) : '-'}</td>
                   <td className="py-1.5 px-2 text-[9px] text-muted-foreground">{computed.actualEnd ? formatDate(computed.actualEnd) : '-'}</td>
                   <td className="py-1.5 px-2 text-[9px]">{taskCount}</td>
+                  <td className="py-1.5 px-2 text-center">{(() => { const color = completionPct >= 100 ? '#10b981' : completionPct >= 50 ? '#f59e0b' : '#6b7280'; return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{backgroundColor: color+'20', color}}>{completionPct}%</span>; })()}</td>
                   <td className="py-1.5 px-2"><Badge style={{ backgroundColor: STATUS_COLORS[computed.status], color: '#fff' }} className="text-[8px]">{STATUS_LABELS[computed.status]}</Badge></td>
                   <td className="py-1.5 px-1">
                     <div className="flex items-center gap-0.5">
