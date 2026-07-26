@@ -46,7 +46,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
 
   // Resizable columns
   const COL_NAMES = ['☑','▾','Task #','Title','Project','Dept','Status','Priority','Assignee','Type','Section','Milestone','Macro','Start','Due','P.Mins','A.Start','A.End','A.Mins','Overdue','Remarks','Actions'];
-  const { widths, onMouseDown } = useResizableColumns({ initialWidths: [28,24,100,75,280,80,80,70,70,80,70,70,80,90,90,55,90,90,55,50,160,55] });
+  const { widths, onMouseDown } = useResizableColumns({ initialWidths: [28,24,100,75,280,80,80,70,70,80,70,70,80,90,90,65,55,90,90,55,50,160,55] });
 
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Project[]; } });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
@@ -240,13 +240,14 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
               <th className="py-2 px-1 text-left relative">Macro<ResizeHandle onMouseDown={(e) => onMouseDown(12, e)} /></th>
               <th className="py-2 px-1 text-left relative">Start<ResizeHandle onMouseDown={(e) => onMouseDown(13, e)} /></th>
               <th className="py-2 px-1 text-left relative">Due<ResizeHandle onMouseDown={(e) => onMouseDown(14, e)} /></th>
-              <th className="py-2 px-1 text-left relative">P.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(15, e)} /></th>
-              <th className="py-2 px-1 text-left relative">A.Start<ResizeHandle onMouseDown={(e) => onMouseDown(16, e)} /></th>
-              <th className="py-2 px-1 text-left relative">A.End<ResizeHandle onMouseDown={(e) => onMouseDown(17, e)} /></th>
-              <th className="py-2 px-1 text-left relative">A.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(18, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Overdue<ResizeHandle onMouseDown={(e) => onMouseDown(19, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Remarks<ResizeHandle onMouseDown={(e) => onMouseDown(20, e)} /></th>
-              <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(21, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Recur<ResizeHandle onMouseDown={(e) => onMouseDown(15, e)} /></th>
+              <th className="py-2 px-1 text-left relative">P.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(16, e)} /></th>
+              <th className="py-2 px-1 text-left relative">A.Start<ResizeHandle onMouseDown={(e) => onMouseDown(17, e)} /></th>
+              <th className="py-2 px-1 text-left relative">A.End<ResizeHandle onMouseDown={(e) => onMouseDown(18, e)} /></th>
+              <th className="py-2 px-1 text-left relative">A.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(19, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Overdue<ResizeHandle onMouseDown={(e) => onMouseDown(20, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Remarks<ResizeHandle onMouseDown={(e) => onMouseDown(21, e)} /></th>
+              <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(22, e)} /></th>
             </tr>
           </thead>
           <tbody>
@@ -351,6 +352,7 @@ function TaskRow({ task, statuses, priorities, members, taskTypes, categories, t
       <td className="py-1 px-0.5 text-[9px]">{(() => { const mp = macroProjects?.find?.((m:any)=>m.id===proj?.macro_project_id); return mp ? <span className="px-1.5 py-0.5 rounded text-[8px] font-medium" style={{backgroundColor: mp.color+'25', color: mp.color}}>{mp.name}</span> : <span className="text-muted-foreground">-</span>; })()}</td>
       <td className="py-1 px-0.5"><input type="date" defaultValue={task.planned_start_date||''} onBlur={(e) => { if (e.target.value!==(task.planned_start_date||'')) onUpdate(task.id,'planned_start_date',e.target.value); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" /></td>
       <td className="py-1 px-0.5"><input type="date" defaultValue={task.planned_end_date||''} onBlur={(e) => { if (e.target.value!==(task.planned_end_date||'')) onUpdate(task.id,'planned_end_date',e.target.value); }} className={`text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded ${overdue>0?'text-red-600 font-bold':''}`} /></td>
+      <td className="py-1 px-0.5"><select value={(task as any).recurrence_type||''} onChange={(e) => { if (e.target.value) { onUpdate(task.id,'is_recurring',true); onUpdate(task.id,'recurrence_type',e.target.value); onUpdate(task.id,'recurrence_trigger','on_status_closed'); onUpdate(task.id,'recur_forever',true); } else { onUpdate(task.id,'is_recurring',false); onUpdate(task.id,'recurrence_type',null); } }} className="text-[9px] border-0 outline-none w-full rounded px-0.5 py-0.5 hover:bg-muted/50" style={{backgroundColor: (task as any).is_recurring ? '#8b5cf620' : 'transparent', color: (task as any).is_recurring ? '#8b5cf6' : 'inherit'}}><option value="">-</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="days_after">Custom</option></select></td>
       <td className="py-1 px-0.5"><input type="number" defaultValue={task.planned_mins||''} onBlur={(e) => { const v=e.target.value?Number(e.target.value):null; if (v!==task.planned_mins) onUpdate(task.id,'planned_mins',v); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" /></td>
       <td className="py-1 px-0.5"><span className="text-[9px] text-muted-foreground px-0.5">{task.actual_start_date ? formatDate(task.actual_start_date) : '-'}</span></td>
       <td className="py-1 px-0.5"><span className="text-[9px] text-muted-foreground px-0.5">{task.actual_end_date ? formatDate(task.actual_end_date) : '-'}</span></td>
