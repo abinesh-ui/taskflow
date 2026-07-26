@@ -42,7 +42,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
   const { data: taskTypes = [] } = useQuery({ queryKey: ['master_task_types'], queryFn: async () => { const { data } = await supabase.from('master_task_types').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string }>; } });
   const { data: taskSections = [] } = useQuery({ queryKey: ['master_task_sections'], queryFn: async () => { const { data } = await supabase.from('master_task_sections').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string }>; } });
-  const { data: milestones = [] } = useQuery({ queryKey: ['milestones'], queryFn: async () => { const { data } = await supabase.from('milestones').select('*').order('created_at'); return (data || []) as Array<{ id: string; milestone_no: string; project_id: string }>; } });
+  const { data: milestones = [] } = useQuery({ queryKey: ['milestones'], queryFn: async () => { const { data } = await supabase.from('milestones').select('*').order('created_at'); return (data || []) as Array<{ id: string; milestone_no: string; project_id: string; description: string }>; } });
 
   // Filter + sort
   let topTasks = allTasks.filter((t) => !t.parent_id);
@@ -144,7 +144,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
                 <div><label className="text-[9px] text-muted-foreground">Section</label><select value={editingFields.section_id} onChange={(e) => setEditingFields({...editingFields, section_id: e.target.value})} className="w-full h-8 text-xs border rounded px-2 bg-background"><option value="">-</option>{taskSections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div><label className="text-[9px] text-muted-foreground">Milestone</label><select value={editingFields.milestone_id} onChange={(e) => setEditingFields({...editingFields, milestone_id: e.target.value})} className="w-full h-8 text-xs border rounded px-2 bg-background"><option value="">-</option>{milestones.filter((m) => m.project_id === task.project_id).map((m) => <option key={m.id} value={m.id}>{m.milestone_no}</option>)}</select></div>
+                <div><label className="text-[9px] text-muted-foreground">Milestone</label><select value={editingFields.milestone_id} onChange={(e) => setEditingFields({...editingFields, milestone_id: e.target.value})} className="w-full h-8 text-xs border rounded px-2 bg-background"><option value="">-</option>{milestones.filter((m) => m.project_id === task.project_id).map((m) => <option key={m.id} value={m.id}>{m.description}</option>)}</select></div>
                 <div><label className="text-[9px] text-muted-foreground">Plan Mins</label><Input type="number" value={editingFields.planned_mins} onChange={(e) => setEditingFields({...editingFields, planned_mins: e.target.value})} className="h-8 text-xs" /></div>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -272,7 +272,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <select value={nf.section_id || ''} onChange={(e) => setNf({ ...nf, section_id: e.target.value })} className="h-9 text-xs border rounded px-2 bg-background"><option value="">Section</option>{taskSections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
-                <select value={nf.milestone_id || ''} onChange={(e) => setNf({ ...nf, milestone_id: e.target.value })} className="h-9 text-xs border rounded px-2 bg-background"><option value="">Milestone</option>{milestones.filter((m) => !nf.project_id || m.project_id === nf.project_id).map((m) => <option key={m.id} value={m.id}>{m.milestone_no}</option>)}</select>
+                <select value={nf.milestone_id || ''} onChange={(e) => setNf({ ...nf, milestone_id: e.target.value })} className="h-9 text-xs border rounded px-2 bg-background"><option value="">Milestone</option>{milestones.filter((m) => !nf.project_id || m.project_id === nf.project_id).map((m) => <option key={m.id} value={m.id}>{m.description}</option>)}</select>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div><label className="text-[9px] text-muted-foreground">Start</label><Input type="date" value={nf.planned_start_date || ''} onChange={(e) => setNf({ ...nf, planned_start_date: e.target.value })} className="h-9 text-xs" /></div>
