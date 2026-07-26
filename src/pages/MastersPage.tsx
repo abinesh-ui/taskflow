@@ -417,28 +417,109 @@ function ProjectMembersSection() {
 }
 
 function TagsMasterSection() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [tagName, setTagName] = useState('');
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+
+  const AUTO_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#6366f1'];
+
+  const { data: tags = [] } = useQuery({ queryKey: ['master_tags'], queryFn: async () => { const { data } = await supabase.from('master_tags').select('*').order('position'); return (data || []) as Array<{ id: string; name: string; color: string; position: number; is_active: boolean }>; } });
+  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string }>; } });
+  const { data: projectTags = [] } = useQuery({ queryKey: ['project_tags'], queryFn: async () => { const { data } = await supabase.from('project_tags').select('*'); return (data || []) as Array<{ id: string; project_id: string; tag_id: string }>; } });
+
+  function getProjectsForTag(tagId: string) { return projectTags.filter((pt) => pt.tag_id === tagId).map((pt) => pt.project_id); }
+  function getProjectNames(tagId: string) { const pIds = getProjectsForTag(tagId); return projects.filter((p) => pIds.includes(p.id)).map((p) => p.name); }
+
+  const addMutation = useMutation({
+    mutationFn: async () => {
+      const { data: newTag, error } = await supabase.from('master_tags').insert({ name: tagName.trim(), color: AUTO_COLORS[tags.length % AUTO_COLORS.length], position: tags.length + 1 }).select().single();
+      if (error) throw error;
+      if (selectedProjects.length > 0 && newTag) { await supabase.from('project_tags').insert(selectedProjects.map((pid) => ({ project_id: pid, tag_id: newTag.id }))); }
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['master_tags'] }); queryClient.invalidateQueries({ queryKey: ['project_tags'] }); setAdding(false); setTagName(''); setSelectedProjects([]); toast({ title: 'Tag created' }); },
+    onError: (err: Error) => { toast({ variant: 'destructive', title: 'Error', description: err.message }); },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingId) return;
+      await supabase.from('master_tags').update({ name: tagName.trim() }).eq('id', editingId);
+      await supabase.from('project_tags').delete().eq('tag_id', editingId);
+      if (selectedProjects.length > 0) { await supabase.from('project_tags').insert(selectedProjects.map((pid) => ({ project_id: pid, tag_id: editingId }))); }
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['master_tags'] }); queryClient.invalidateQueries({ queryKey: ['project_tags'] }); setEditingId(null); setTagName(''); setSelectedProjects([]); toast({ title: 'Tag updated' }); },
+    onError: (err: Error) => { toast({ variant: 'destructive', title: 'Error', description: err.message }); },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => { await supabase.from('project_tags').delete().eq('tag_id', id); await supabase.from('master_tags').delete().eq('id', id); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['master_tags'] }); queryClient.invalidateQueries({ queryKey: ['project_tags'] }); toast({ title: 'Tag deleted' }); },
+  });
+
+  function startEdit(tag: any) { setEditingId(tag.id); setTagName(tag.name); setSelectedProjects(getProjectsForTag(tag.id)); }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="text-base">Tags</CardTitle>
+        <Button size="sm" variant="outline" onClick={() => { setAdding(true); setTagName(''); setSelectedProjects([]); }}><Plus className="h-4 w-4 mr-1" /> Add</Button>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {(adding || editingId) && (
+            <div className="flex flex-wrap items-center gap-2 p-2 border rounded bg-muted/50">
+              <Input value={tagName} onChange={(e) => setTagName(e.target.value)} placeholder="Tag name" className="h-8 text-sm flex-1 min-w-[100px]" autoFocus />
+              <MultiSelect options={projects.map((p) => ({ value: p.id, label: p.name }))} selected={selectedProjects} onChange={setSelectedProjects} placeholder="Map to Projects" className="min-w-[180px]" />
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { if (editingId) updateMutation.mutate(); else addMutation.mutate(); }}><Check className="h-4 w-4 text-green-600" /></Button>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setAdding(false); setEditingId(null); }}><X className="h-4 w-4" /></Button>
+            </div>
+          )}
+          {tags.map((tag) => (
+            <div key={tag.id} className="flex flex-wrap items-center gap-2 p-2 border rounded">
+              <div className="h-4 w-4 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
+              <span className="text-sm font-medium">{tag.name}</span>
+              <div className="flex-1 flex flex-wrap gap-1">{getProjectNames(tag.id).map((name) => (<Badge key={name} variant="outline" className="text-[9px]">{name}</Badge>))}</div>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(tag)}><Pencil className="h-3 w-3" /></Button>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteMutation.mutate(tag.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
+            </div>
+          ))}
+          {tags.length === 0 && !adding && <p className="text-sm text-muted-foreground py-2">No tags yet.</p>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function MastersPage() {
+  const [tab, setTab] = useState<'general' | 'users'>('general');
+  return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h2 className="text-2xl font-bold">Settings & Masters</h2>
-        <p className="text-muted-foreground">Manage master data used in dropdowns and fields.</p>
+        <h2 className="text-2xl font-bold">Settings</h2>
+        <p className="text-muted-foreground">Manage masters, users, and permissions.</p>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <MasterSection title="Macro Projects" table="master_macro_projects" fields={[]} />
-        <MasterSection title="Projects" table="projects" fields={['is_live']} />
-        <ProjectMembersSection />
-        <MasterSection title="Departments" table="master_departments" fields={[]} />
-        <MasterSection title="Members" table="master_members" fields={['is_live']} />
-        <MasterSection title="Task Types" table="master_task_types" />
-        <MasterSection title="Task Sections" table="master_task_sections" fields={[]} />
-        <TagsMasterSection />
-        <MasterSection title="Priorities" table="master_priorities" fields={['color', 'sort_weight']} />
-        <MasterSection title="Statuses" table="master_statuses" fields={['color', 'is_closed', 'is_done']} />
+      <div className="flex items-center gap-1 bg-muted rounded-lg p-1 w-fit">
+        <Button variant={tab === 'general' ? 'secondary' : 'ghost'} size="sm" className="h-8 font-medium" onClick={() => setTab('general')}>General Settings</Button>
+        <Button variant={tab === 'users' ? 'secondary' : 'ghost'} size="sm" className="h-8 font-medium" onClick={() => setTab('users')}>User Management</Button>
       </div>
-
-      <div className="pt-4">
-        <AlertRulesSection />
-      </div>
+      {tab === 'general' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <MasterSection title="Macro Projects" table="master_macro_projects" fields={[]} />
+          <MasterSection title="Projects" table="projects" fields={['is_live']} />
+          <ProjectMembersSection />
+          <MasterSection title="Departments" table="master_departments" fields={[]} />
+          <MasterSection title="Task Types" table="master_task_types" />
+          <MasterSection title="Task Sections" table="master_task_sections" fields={[]} />
+          <TagsMasterSection />
+          <MasterSection title="Priorities" table="master_priorities" fields={['color', 'sort_weight']} />
+          <MasterSection title="Statuses" table="master_statuses" fields={['color', 'is_closed', 'is_done']} />
+          <div className="lg:col-span-2"><AlertRulesSection /></div>
+        </div>
+      )}
+      {tab === 'users' && <UserManagementPage />}
     </div>
   );
 }
