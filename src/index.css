@@ -63,8 +63,12 @@
 }
 
 /* Task table styling */
-table td input, table td select {
+table td input, table td select, table td textarea {
   text-overflow: ellipsis;
+}
+/* Auto-scroll: when any input/select/textarea in the table gets focus, scroll it into view */
+table td input:focus, table td select:focus, table td textarea:focus {
+  scroll-margin-inline: 100px;
 }
 /* Frozen columns (first 4: checkbox, expand, task#, title) */
 table thead th:nth-child(1), table tbody td:nth-child(1) { position: sticky; left: 0; z-index: 2; background: inherit; }

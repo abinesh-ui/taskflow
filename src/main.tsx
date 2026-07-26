@@ -14,6 +14,16 @@ const queryClient = new QueryClient({
   },
 });
 
+// Auto-scroll table horizontally when focusing inputs inside scrollable tables
+document.addEventListener('focusin', (e) => {
+  const target = e.target as HTMLElement;
+  if (target.matches('table td input, table td select, table td textarea')) {
+    setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }, 50);
+  }
+});
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
