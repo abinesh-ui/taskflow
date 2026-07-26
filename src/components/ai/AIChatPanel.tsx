@@ -60,9 +60,9 @@ Answer the user's question based on this data. Be concise, actionable, and highl
     try {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       const context = buildContext();
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
           contents: [
             { role: 'user', parts: [{ text: context }] },
