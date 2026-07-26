@@ -69,6 +69,35 @@ table td input, table td select, table td textarea {
 table td {
   vertical-align: middle;
 }
+/* Show full text on hover as tooltip for truncated content */
+table td select, table td span, table td input {
+  title: attr(value);
+}
+table td select:hover, table td input:hover, table td textarea:hover, table td span:hover {
+  position: relative;
+}
+/* Tooltip on hover for all truncated cells */
+table td {
+  position: relative;
+}
+table td [title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 100;
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 10px;
+  white-space: normal;
+  max-width: 300px;
+  word-wrap: break-word;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  pointer-events: none;
+}
 table td select {
   cursor: pointer;
   appearance: none;
