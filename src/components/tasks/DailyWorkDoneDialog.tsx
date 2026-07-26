@@ -109,7 +109,7 @@ export default function DailyWorkDoneDialog({ open, onOpenChange }: Props) {
     });
   }
 
-  const deptOpts = newProject ? departments.filter((d) => d.project_id === newProject) : departments;
+  const deptOpts = departments;
 
   if (!todayPoa) {
     return (

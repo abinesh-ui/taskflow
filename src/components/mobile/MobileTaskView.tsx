@@ -94,7 +94,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
     toast({ title: 'Saved' });
   }
 
-  const deptOpts = nf.project_id ? departments.filter((d) => d.project_id === nf.project_id) : departments;
+  const deptOpts = departments;
 
   function renderEditableCard(task: Task, isSubtask: boolean) {
     const status = getStatus(task.status_id);

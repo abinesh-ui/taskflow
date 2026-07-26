@@ -94,7 +94,7 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
     });
   }
 
-  const deptOpts = newProject ? departments.filter((d) => d.project_id === newProject) : departments;
+  const deptOpts = departments;
 
   if (todayPoa) {
     return (
