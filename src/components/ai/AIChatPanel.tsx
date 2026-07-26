@@ -61,50 +61,40 @@ Answer the user's question based on this data. Be concise, actionable, and highl
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       if (!apiKey) { setMessages((prev) => [...prev, { role: 'ai', content: 'API key not configured. Add VITE_GEMINI_API_KEY in Vercel environment variables.', timestamp: new Date() }]); setLoading(false); return; }
       const context = buildContext();
+      const fullPrompt = `${context}\n\nUser question: ${input.trim()}\n\nPrevious conversation:\n${messages.filter((m) => m.role === 'user').slice(-3).map((m) => `User: ${m.content}`).join('\n')}`;
 
-      // Try the generateContent endpoint with x-goog-api-key header
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent`, {
+      // Use the new interactions endpoint for AQ auth keys
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          contents: [
-            { role: 'user', parts: [{ text: context }] },
-            { role: 'model', parts: [{ text: 'Understood. I have the TaskFlow data context. How can I help?' }] },
-            ...messages.filter((m) => m.role === 'user').slice(-5).map((m) => ({ role: 'user', parts: [{ text: m.content }] })),
-            { role: 'user', parts: [{ text: input.trim() }] },
-          ],
-        }),
+        body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }),
       });
 
-      const data = await response.json();
+      let data = await response.json();
 
-      if (!response.ok) {
-        // If first model fails, try gemini-pro
-        const response2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-          body: JSON.stringify({
-            contents: [
-              { role: 'user', parts: [{ text: context }] },
-              { role: 'model', parts: [{ text: 'Understood. I have the TaskFlow data context. How can I help?' }] },
-              { role: 'user', parts: [{ text: input.trim() }] },
-            ],
-          }),
-        });
-        const data2 = await response2.json();
-        if (!response2.ok) {
-          setMessages((prev) => [...prev, { role: 'ai', content: `API Error (${response2.status}): ${JSON.stringify(data2?.error?.message || data2?.error || 'Unknown error')}`, timestamp: new Date() }]);
-          setLoading(false); return;
+      // If 404, try different model names
+      if (!response.ok && response.status === 404) {
+        const models = ['gemini-2.0-flash-001', 'gemini-2.5-flash', 'gemini-exp-1206'];
+        for (const model of models) {
+          const retry = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+            body: JSON.stringify({ contents: [{ parts: [{ text: fullPrompt }] }] }),
+          });
+          if (retry.ok) { data = await retry.json(); break; }
+          if (retry.status !== 404) { data = await retry.json(); break; }
         }
-        const aiText2 = data2?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
-        setMessages((prev) => [...prev, { role: 'ai', content: aiText2, timestamp: new Date() }]);
-        setLoading(false); return;
       }
 
-      const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
-      setMessages((prev) => [...prev, { role: 'ai', content: aiText, timestamp: new Date() }]);
+      if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+        setMessages((prev) => [...prev, { role: 'ai', content: data.candidates[0].content.parts[0].text, timestamp: new Date() }]);
+      } else if (data?.error) {
+        setMessages((prev) => [...prev, { role: 'ai', content: `API Error (${data.error.code || '?'}): ${data.error.message || JSON.stringify(data.error)}`, timestamp: new Date() }]);
+      } else {
+        setMessages((prev) => [...prev, { role: 'ai', content: 'No response. Try a different question.', timestamp: new Date() }]);
+      }
     } catch (err: any) {
-      setMessages((prev) => [...prev, { role: 'ai', content: `Connection error: ${err?.message || 'Network issue'}. Check browser console for details.`, timestamp: new Date() }]);
+      setMessages((prev) => [...prev, { role: 'ai', content: `Connection error: ${err?.message || 'Network issue'}`, timestamp: new Date() }]);
     }
     setLoading(false);
   }
