@@ -111,14 +111,11 @@ table td select {
 table td input:focus, table td select:focus, table td textarea:focus {
   scroll-margin-inline: 100px;
 }
-/* Frozen columns (first 5: checkbox, expand, milestone, task#, title) */
-table thead th:nth-child(1), table tbody td:nth-child(1) { position: sticky; left: 0; z-index: 2; background: inherit; }
-table thead th:nth-child(2), table tbody td:nth-child(2) { position: sticky; left: 28px; z-index: 2; background: inherit; }
-table thead th:nth-child(3), table tbody td:nth-child(3) { position: sticky; left: 52px; z-index: 2; background: inherit; }
-table thead th:nth-child(4), table tbody td:nth-child(4) { position: sticky; left: 152px; z-index: 2; background: inherit; }
-table thead th:nth-child(5), table tbody td:nth-child(5) { position: sticky; left: 227px; z-index: 2; background: inherit; box-shadow: 2px 0 4px -2px rgba(0,0,0,0.1); }
-table thead th:nth-child(1), table thead th:nth-child(2), table thead th:nth-child(3), table thead th:nth-child(4), table thead th:nth-child(5) { z-index: 3; }
-table tbody tr:hover td:nth-child(1), table tbody tr:hover td:nth-child(2), table tbody tr:hover td:nth-child(3), table tbody tr:hover td:nth-child(4), table tbody tr:hover td:nth-child(5) { background: hsl(var(--accent)); }
+/* Frozen columns - applied dynamically via inline styles */
+table thead th.frozen, table tbody td.frozen { position: sticky; z-index: 2; background: inherit; }
+table thead th.frozen { z-index: 3; }
+table thead th.freeze-edge, table tbody td.freeze-edge { box-shadow: 2px 0 4px -2px rgba(0,0,0,0.1); }
+table tbody tr:hover td.frozen { background: hsl(var(--accent)); }
 table tbody tr td { background: hsl(var(--card)); }
 table tbody tr.bg-muted\/10 td { background: hsl(var(--muted) / 0.1); }
 table tbody tr.bg-primary\/5 td { background: hsl(var(--primary) / 0.05); }

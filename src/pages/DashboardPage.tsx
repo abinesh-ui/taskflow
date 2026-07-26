@@ -44,9 +44,16 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   // New task/subtask form state
   const [nf, setNf] = useState<Record<string, string>>({});
 
-  // Resizable columns
-  const COL_NAMES = ['☑','▾','Task #','Title','Project','Dept','Status','Priority','Assignee','Type','Section','Milestone','Macro','Start','Due','P.Mins','A.Start','A.End','A.Mins','Overdue','Remarks','Actions'];
+  // Column configuration
+  const COL_NAMES = ['☑','▾','Milestone','Task #','%','Title','Project','Dept','Status','Priority','Assignee','Type','Section','Macro','Recur','Start','Due','P.Mins','A.Start','A.End','A.Mins','Overdue','Remarks','Actions'];
   const { widths, onMouseDown } = useResizableColumns({ initialWidths: [28,24,100,75,40,280,80,80,70,70,80,70,70,80,65,90,90,55,90,90,55,50,160,55] });
+  const [freezeCount, setFreezeCount] = useState(6); // Freeze up to Title (index 5 = 6 columns)
+  const [hiddenCols, setHiddenCols] = useState<Set<number>>(new Set());
+  const [showColMenu, setShowColMenu] = useState(false);
+
+  function toggleColVisibility(idx: number) { const n = new Set(hiddenCols); if (n.has(idx)) n.delete(idx); else n.add(idx); setHiddenCols(n); }
+  function getVisibleColIndex(idx: number) { let count = 0; for (let i = 0; i < idx; i++) { if (!hiddenCols.has(i)) count++; } return count; }
+  function getStickyLeft(idx: number) { let left = 0; for (let i = 0; i < idx; i++) { if (!hiddenCols.has(i)) left += widths[i]; } return left; }
 
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Project[]; } });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
@@ -187,21 +194,41 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
         <Button variant="default" size="sm" className="h-8 text-xs bg-green-600 hover:bg-green-700" onClick={() => setShowWorkDone(true)}>
           Work Done
         </Button>
-        {selectedTasks.size > 0 && canBulk && (
-          <>
-            <Button variant="secondary" size="sm" className="h-8 text-xs" onClick={() => setShowBulkUpdate(true)}>
-              Bulk Update ({selectedTasks.size})
-            </Button>
-            <Button variant="destructive" size="sm" className="h-8 text-xs" onClick={handleBulkDelete}>
-              Bulk Delete ({selectedTasks.size})
-            </Button>
-          </>
-        )}
-        {selectedTasks.size > 0 && !canBulk && (
-          <span className="text-[10px] text-muted-foreground">Select: {selectedTasks.size} (bulk actions require Admin/Manager)</span>
-        )}
-        <Badge variant="secondary" className="text-[10px] ml-auto">{totalTasks} tasks</Badge>
+        {/* Column settings */}
+        <div className="relative ml-auto flex items-center gap-1">
+          <select value={freezeCount} onChange={(e) => setFreezeCount(Number(e.target.value))} className="h-8 text-[10px] border rounded px-1.5 bg-background" title="Freeze columns">
+            {COL_NAMES.map((_, i) => <option key={i} value={i}>Freeze {i} col{i !== 1 ? 's' : ''}</option>)}
+          </select>
+          <Button variant="outline" size="sm" className="h-8 text-[10px]" onClick={() => setShowColMenu(!showColMenu)}>
+            Columns
+          </Button>
+          {showColMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowColMenu(false)} />
+              <div className="absolute right-0 top-9 z-50 bg-popover border rounded-lg shadow-lg p-2 w-48 max-h-80 overflow-y-auto">
+                <span className="text-[10px] font-semibold text-muted-foreground">Show/Hide Columns</span>
+                {COL_NAMES.map((name, idx) => (idx < 2 ? null : (
+                  <label key={idx} className="flex items-center gap-2 py-0.5 text-[10px] cursor-pointer hover:bg-accent rounded px-1">
+                    <input type="checkbox" checked={!hiddenCols.has(idx)} onChange={() => toggleColVisibility(idx)} className="h-3 w-3 rounded" />
+                    {name}
+                  </label>
+                )))}
+              </div>
+            </>
+          )}
+        </div>
+        <Badge variant="secondary" className="text-[10px]">{totalTasks} tasks</Badge>
       </div>
+      {/* Bulk actions */}
+      {selectedTasks.size > 0 && canBulk && (
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" className="h-7 text-xs" onClick={() => setShowBulkUpdate(true)}>Bulk Update ({selectedTasks.size})</Button>
+          <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={handleBulkDelete}>Bulk Delete ({selectedTasks.size})</Button>
+        </div>
+      )}
+      {selectedTasks.size > 0 && !canBulk && (
+        <span className="text-[10px] text-muted-foreground">Select: {selectedTasks.size} (bulk actions require Admin/Manager)</span>
+      )}
 
       {/* Bulk update bar */}
       {showBulkUpdate && selectedTasks.size > 0 && (
@@ -232,6 +259,19 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
 
       {/* Spreadsheet table */}
       <div className="border rounded-lg overflow-x-auto bg-white dark:bg-card shadow-sm">
+        {/* Dynamic freeze styles */}
+        <style>{(() => {
+          let css = '';
+          let left = 0;
+          for (let i = 0; i < freezeCount; i++) {
+            if (hiddenCols.has(i)) continue;
+            css += `table thead th:nth-child(${i+1}), table tbody td:nth-child(${i+1}) { position: sticky; left: ${left}px; z-index: 2; background: inherit; }\n`;
+            css += `table thead th:nth-child(${i+1}) { z-index: 3; }\n`;
+            left += widths[i];
+          }
+          if (freezeCount > 0) css += `table thead th:nth-child(${freezeCount}), table tbody td:nth-child(${freezeCount}) { box-shadow: 2px 0 4px -2px rgba(0,0,0,0.1); }\n`;
+          return css;
+        })()}</style>
         <table className="text-[10px]" style={{ width: widths.reduce((a, b) => a + b, 0) + 'px' }}>
           <colgroup>
             {widths.map((w, i) => <col key={i} style={{ width: w + 'px' }} />)}
