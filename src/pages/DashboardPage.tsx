@@ -91,12 +91,14 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
     const projId = nf.project_id || parentTask?.project_id || filterProjectId || '';
     const deptId = nf.department_id || parentTask?.department_id || filterDepartmentId || '';
     if (!projId || !deptId) { toast({ variant: 'destructive', title: 'Error', description: 'Project and Department are required' }); return; }
+    const milestoneId = nf.milestone_id || (parentTask ? (parentTask as any).milestone_id : null);
+    if (!parentTask && !milestoneId) { toast({ variant: 'destructive', title: 'Error', description: 'Milestone is mandatory for tasks' }); return; }
     const defStatus = statuses.find((s) => s.position === 1) || statuses[0];
     // Subtask due date validation
     if (parentTask && nf.planned_end_date && parentTask.planned_end_date && nf.planned_end_date > parentTask.planned_end_date) {
       toast({ variant: 'destructive', title: 'Validation Error', description: "Subtask due date can't be greater than task due date" }); return;
     }
-    createTask.mutate({ title: nf.title.trim(), project_id: projId, department_id: deptId, status_id: nf.status_id || defStatus?.id || '', priority_id: nf.priority_id || null, assignee_id: nf.assignee_id || null, task_type_id: nf.task_type_id || null, category_id: nf.category_id || parentTask?.category_id || null, section_id: nf.section_id || null, milestone_id: nf.milestone_id || parentTask && (parentTask as any).milestone_id || null, planned_start_date: nf.planned_start_date || null, planned_end_date: nf.planned_end_date || null, planned_mins: nf.planned_mins ? Number(nf.planned_mins) : null, actual_mins: nf.actual_mins ? Number(nf.actual_mins) : null, description: nf.remarks || null, parent_id: parentTask?.id || null, position: 0, is_recurring: !!nf.recurrence_type, recurrence_type: nf.recurrence_type || null, recurrence_trigger: nf.recurrence_type ? 'on_status_closed' : null, recur_forever: !!nf.recurrence_type } as any, {
+    createTask.mutate({ title: nf.title.trim(), project_id: projId, department_id: deptId, status_id: nf.status_id || defStatus?.id || '', priority_id: nf.priority_id || null, assignee_id: nf.assignee_id || null, task_type_id: nf.task_type_id || null, category_id: nf.category_id || parentTask?.category_id || null, section_id: nf.section_id || null, milestone_id: milestoneId || null, planned_start_date: nf.planned_start_date || null, planned_end_date: nf.planned_end_date || null, planned_mins: nf.planned_mins ? Number(nf.planned_mins) : null, actual_mins: nf.actual_mins ? Number(nf.actual_mins) : null, description: nf.remarks || null, parent_id: parentTask?.id || null, position: 0, is_recurring: !!nf.recurrence_type, recurrence_type: nf.recurrence_type || null, recurrence_trigger: nf.recurrence_type ? 'on_status_closed' : null, recur_forever: !!nf.recurrence_type } as any, {
       onSuccess: () => { setNf({}); setAddingTask(false); setAddingSubtaskTo(null); if (parentTask) setExpandedTasks(new Set([...expandedTasks, parentTask.id])); queryClient.invalidateQueries({ queryKey: ['all-tasks'] }); },
     });
   }
