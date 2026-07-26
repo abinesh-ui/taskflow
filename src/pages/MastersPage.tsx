@@ -349,7 +349,6 @@ function MasterSection({
   );
 }
 
-export default function MastersPage() {
 function ProjectMembersSection() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
