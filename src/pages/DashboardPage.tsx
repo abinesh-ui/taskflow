@@ -46,7 +46,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
 
   // Resizable columns
   const COL_NAMES = ['☑','▾','Task #','Title','Project','Dept','Status','Priority','Assignee','Type','Section','Milestone','Macro','Start','Due','P.Mins','A.Start','A.End','A.Mins','Overdue','Remarks','Actions'];
-  const { widths, onMouseDown } = useResizableColumns({ initialWidths: [28,24,100,75,280,80,80,70,70,80,70,70,80,90,90,65,55,90,90,55,50,160,55] });
+  const { widths, onMouseDown } = useResizableColumns({ initialWidths: [28,24,100,75,40,280,80,80,70,70,80,70,70,80,65,90,90,55,90,90,55,50,160,55] });
 
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Project[]; } });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
@@ -63,6 +63,17 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   const canBulk = (currentMember?.role === 'admin' || currentMember?.role === 'manager');
 
   function getOverdue(task: Task) { const s = statuses.find((st) => st.id === task.status_id); return getOverdueDays(task.planned_end_date, s?.is_closed ?? false); }
+
+  // Completion % calculation
+  function getTaskCompletion(task: Task): number {
+    const subtasks = allTasks.filter((t) => t.parent_id === task.id);
+    if (subtasks.length > 0) {
+      const total = subtasks.reduce((sum, st) => { const s = statuses.find((x) => x.id === st.status_id); return sum + ((s as any)?.completion_weight ?? 0); }, 0);
+      return (total / subtasks.length) * 100;
+    }
+    const status = statuses.find((s) => s.id === task.status_id);
+    return ((status as any)?.completion_weight ?? 0) * 100;
+  }
 
   let contextFiltered = allTasks.filter((t) => !t.parent_id);
   if (filterProjectId) contextFiltered = contextFiltered.filter((t) => t.project_id === filterProjectId);
@@ -231,25 +242,26 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
               <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(1, e)} /></th>
               <th className="py-2 px-1 text-left relative">Milestone<ResizeHandle onMouseDown={(e) => onMouseDown(2, e)} /></th>
               <th className="py-2 px-1 text-left relative">Task #<ResizeHandle onMouseDown={(e) => onMouseDown(3, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Title<ResizeHandle onMouseDown={(e) => onMouseDown(4, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Project<ResizeHandle onMouseDown={(e) => onMouseDown(5, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Dept<ResizeHandle onMouseDown={(e) => onMouseDown(6, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Status<ResizeHandle onMouseDown={(e) => onMouseDown(7, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Priority<ResizeHandle onMouseDown={(e) => onMouseDown(8, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Assignee<ResizeHandle onMouseDown={(e) => onMouseDown(9, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Type<ResizeHandle onMouseDown={(e) => onMouseDown(10, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Section<ResizeHandle onMouseDown={(e) => onMouseDown(11, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Macro<ResizeHandle onMouseDown={(e) => onMouseDown(12, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Recur<ResizeHandle onMouseDown={(e) => onMouseDown(13, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Start<ResizeHandle onMouseDown={(e) => onMouseDown(14, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Due<ResizeHandle onMouseDown={(e) => onMouseDown(15, e)} /></th>
-              <th className="py-2 px-1 text-left relative">P.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(16, e)} /></th>
-              <th className="py-2 px-1 text-left relative">A.Start<ResizeHandle onMouseDown={(e) => onMouseDown(17, e)} /></th>
-              <th className="py-2 px-1 text-left relative">A.End<ResizeHandle onMouseDown={(e) => onMouseDown(18, e)} /></th>
-              <th className="py-2 px-1 text-left relative">A.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(19, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Overdue<ResizeHandle onMouseDown={(e) => onMouseDown(20, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Remarks<ResizeHandle onMouseDown={(e) => onMouseDown(21, e)} /></th>
-              <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(22, e)} /></th>
+              <th className="py-2 px-1 text-left relative">%<ResizeHandle onMouseDown={(e) => onMouseDown(4, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Title<ResizeHandle onMouseDown={(e) => onMouseDown(5, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Project<ResizeHandle onMouseDown={(e) => onMouseDown(6, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Dept<ResizeHandle onMouseDown={(e) => onMouseDown(7, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Status<ResizeHandle onMouseDown={(e) => onMouseDown(8, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Priority<ResizeHandle onMouseDown={(e) => onMouseDown(9, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Assignee<ResizeHandle onMouseDown={(e) => onMouseDown(10, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Type<ResizeHandle onMouseDown={(e) => onMouseDown(11, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Section<ResizeHandle onMouseDown={(e) => onMouseDown(12, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Macro<ResizeHandle onMouseDown={(e) => onMouseDown(13, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Recur<ResizeHandle onMouseDown={(e) => onMouseDown(14, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Start<ResizeHandle onMouseDown={(e) => onMouseDown(15, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Due<ResizeHandle onMouseDown={(e) => onMouseDown(16, e)} /></th>
+              <th className="py-2 px-1 text-left relative">P.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(17, e)} /></th>
+              <th className="py-2 px-1 text-left relative">A.Start<ResizeHandle onMouseDown={(e) => onMouseDown(18, e)} /></th>
+              <th className="py-2 px-1 text-left relative">A.End<ResizeHandle onMouseDown={(e) => onMouseDown(19, e)} /></th>
+              <th className="py-2 px-1 text-left relative">A.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(20, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Overdue<ResizeHandle onMouseDown={(e) => onMouseDown(21, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Remarks<ResizeHandle onMouseDown={(e) => onMouseDown(22, e)} /></th>
+              <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(23, e)} /></th>
             </tr>
           </thead>
           <tbody>
@@ -261,12 +273,12 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
             {/* Task rows */}
             {paginated.map((task) => (
               <React.Fragment key={task.id}>
-                <TaskRow task={task} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} departments={departments} projects={projects} expanded={expandedTasks.has(task.id)} subtaskCount={getSubtasks(task.id).length} onToggle={() => toggleTask(task.id)} onUpdate={updateField} onAddSubtask={() => { setAddingSubtaskTo(task.id); setNf({ project_id: task.project_id, department_id: task.department_id, category_id: task.category_id || '', milestone_id: (task as any).milestone_id || '' }); setExpandedTasks(new Set([...expandedTasks, task.id])); }} onCancel={() => cancelTask(task.id)} onDelete={() => deleteTask(task.id)} overdue={getOverdue(task)} selected={selectedTasks.has(task.id)} onSelect={toggleSelect} />
+                <TaskRow task={task} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} departments={departments} projects={projects} expanded={expandedTasks.has(task.id)} subtaskCount={getSubtasks(task.id).length} onToggle={() => toggleTask(task.id)} onUpdate={updateField} onAddSubtask={() => { setAddingSubtaskTo(task.id); setNf({ project_id: task.project_id, department_id: task.department_id, category_id: task.category_id || '', milestone_id: (task as any).milestone_id || '' }); setExpandedTasks(new Set([...expandedTasks, task.id])); }} onCancel={() => cancelTask(task.id)} onDelete={() => deleteTask(task.id)} overdue={getOverdue(task)} selected={selectedTasks.has(task.id)} onSelect={toggleSelect} getTaskCompletion={getTaskCompletion} />
                 {expandedTasks.has(task.id) && addingSubtaskTo === task.id && (
                   <NewRow nf={nf} setNf={setNf} projects={projects} departments={deptOpts} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} onSave={() => handleCreate(task)} onCancel={() => { setAddingSubtaskTo(null); setNf({}); }} isSubtask={true} />
                 )}
                 {expandedTasks.has(task.id) && getSubtasks(task.id).map((sub) => (
-                  <TaskRow key={sub.id} task={sub} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} departments={departments} projects={projects} expanded={false} subtaskCount={0} onToggle={() => {}} onUpdate={updateField} onAddSubtask={() => {}} onCancel={() => cancelTask(sub.id)} onDelete={() => deleteTask(sub.id)} overdue={getOverdue(sub)} isSubtask selected={selectedTasks.has(sub.id)} onSelect={toggleSelect} />
+                  <TaskRow key={sub.id} task={sub} statuses={statuses} priorities={priorities} members={members} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} departments={departments} projects={projects} expanded={false} subtaskCount={0} onToggle={() => {}} onUpdate={updateField} onAddSubtask={() => {}} onCancel={() => cancelTask(sub.id)} onDelete={() => deleteTask(sub.id)} overdue={getOverdue(sub)} isSubtask selected={selectedTasks.has(sub.id)} onSelect={toggleSelect} getTaskCompletion={getTaskCompletion} />
                 ))}
               </React.Fragment>
             ))}
@@ -306,6 +318,7 @@ function NewRow({ nf, setNf, projects, departments, statuses, priorities, member
       <td className="py-1 px-1"><Plus className="h-3 w-3 text-primary" /></td>
       <td className="py-1 px-0.5"><select value={nf.milestone_id||''} onChange={(e) => setNf({...nf, milestone_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Milestone*</option>{projMilestones.map((m:any) => <option key={m.id} value={m.id}>{m.description}</option>)}</select></td>
       <td className="py-1 px-1 text-[9px] text-muted-foreground italic">{isSubtask ? 'Sub' : 'New'}</td>
+      <td className="py-1 px-0.5 text-[8px] text-muted-foreground text-center">-</td>
       <td className="py-1 px-0.5"><input value={nf.title||''} onChange={(e) => setNf({...nf, title: e.target.value})} onKeyDown={(e) => { if (e.key==='Enter') onSave(); if (e.key==='Escape') onCancel(); }} placeholder="Title *" className="w-full h-5 text-[10px] bg-transparent border-0 outline-none px-1 focus:ring-1 focus:ring-primary/30 rounded" autoFocus /></td>
       <td className="py-1 px-0.5"><select value={nf.project_id||''} onChange={(e) => setNf({...nf, project_id: e.target.value, department_id: ''})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Project*</option>{projects.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></td>
       <td className="py-1 px-0.5"><select value={nf.department_id||''} onChange={(e) => setNf({...nf, department_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Dept*</option>{departments.map((d:any) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></td>
@@ -330,7 +343,7 @@ function NewRow({ nf, setNf, projects, departments, statuses, priorities, member
 }
 
 // Inline editable task row with ALL fields
-function TaskRow({ task, statuses, priorities, members, taskTypes, categories, taskSections, macroProjects, milestones, departments, projects, expanded, subtaskCount, onToggle, onUpdate, onAddSubtask, onCancel, onDelete, overdue, isSubtask, selected, onSelect }: any) {
+function TaskRow({ task, statuses, priorities, members, taskTypes, categories, taskSections, macroProjects, milestones, departments, projects, expanded, subtaskCount, onToggle, onUpdate, onAddSubtask, onCancel, onDelete, overdue, isSubtask, selected, onSelect, getTaskCompletion }: any) {
   const status = statuses.find((s: any) => s.id === task.status_id);
   const proj = projects?.find?.((p:any) => p.id === task.project_id);
   const macroName = proj?.macro_project_id ? macroProjects?.find?.((m:any) => m.id === proj.macro_project_id)?.name || '' : '';
@@ -344,6 +357,7 @@ function TaskRow({ task, statuses, priorities, members, taskTypes, categories, t
       </td>
       <td className="py-1 px-0.5"><select value={(task as any).milestone_id||''} onChange={(e) => onUpdate(task.id,'milestone_id',e.target.value)} title={projMilestones.find((m:any)=>m.id===(task as any).milestone_id)?.description || ''} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded"><option value="">-</option>{projMilestones.map((m:any)=><option key={m.id} value={m.id}>{m.description}</option>)}</select></td>
       <td className={`py-1 px-1 font-mono text-[9px] text-muted-foreground ${isSubtask?'pl-4':''}`}>{task.task_no}{!isSubtask && subtaskCount>0 && <span className="text-primary ml-0.5">({subtaskCount})</span>}</td>
+      <td className="py-1 px-0.5 text-center">{(() => { const pct = getTaskCompletion(task); const color = pct >= 100 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#6b7280'; return <span className="text-[8px] font-bold px-1 py-0.5 rounded" style={{backgroundColor: color+'20', color}}>{Math.round(pct)}%</span>; })()}</td>
       <td className="py-1 px-0.5 align-top"><textarea defaultValue={task.title} title={task.title} onBlur={(e) => { if (e.target.value!==task.title) onUpdate(task.id,'title',e.target.value); }} rows={1} ref={(el) => { if (el) { el.style.height='auto'; el.style.height=el.scrollHeight+'px'; } }} onInput={(e) => { const t = e.target as HTMLTextAreaElement; t.style.height='auto'; t.style.height=t.scrollHeight+'px'; }} className={`w-full bg-transparent outline-none border-0 px-0.5 py-0.5 rounded hover:bg-muted/50 focus:ring-1 focus:ring-primary/20 resize-none overflow-hidden whitespace-pre-wrap ${isSubtask?'text-[10px]':'text-[11px] font-medium'}`} /></td>
       <td className="py-1 px-0.5 text-[9px] text-muted-foreground truncate">{(() => { const p = projects?.find?.((pr:any)=>pr.id===task.project_id); return p ? <span title={p.name} className="px-1.5 py-0.5 rounded text-[9px] font-medium text-white" style={{backgroundColor: p.color || '#6b7280'}}>{p.name}</span> : ''; })()}</td>
       <td className="py-1 px-0.5">{(() => { const d = departments.find((dp:any)=>dp.id===task.department_id); return d ? <select value={task.department_id||''} onChange={(e) => onUpdate(task.id,'department_id',e.target.value)} className="text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium text-white" style={{backgroundColor: (d as any).color || '#6b7280'}}>{departments.map((dp:any)=><option key={dp.id} value={dp.id}>{dp.name}</option>)}</select> : <select value={task.department_id||''} onChange={(e) => onUpdate(task.id,'department_id',e.target.value)} className="text-[9px] bg-transparent border-0 outline-none w-full rounded">{departments.map((dp:any)=><option key={dp.id} value={dp.id}>{dp.name}</option>)}</select>; })()}</td>
