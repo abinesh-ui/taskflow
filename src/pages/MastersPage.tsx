@@ -10,7 +10,6 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import AlertRulesSection from '@/components/notifications/AlertRulesPage';
-import UserManagementPage from '@/pages/UserManagementPage';
 
 type MasterTable = 'master_task_types' | 'master_task_categories' | 'master_priorities' | 'master_statuses' | 'projects' | 'master_departments' | 'master_members' | 'master_macro_projects' | 'master_task_sections' | 'master_tags';
 
@@ -350,137 +349,96 @@ function MasterSection({
   );
 }
 
-function TagsMasterSection() {
+export default function MastersPage() {
+function ProjectMembersSection() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [adding, setAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [tagName, setTagName] = useState('');
-  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
 
-  const AUTO_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#84cc16','#f97316','#6366f1'];
-
-  const { data: tags = [] } = useQuery({ queryKey: ['master_tags'], queryFn: async () => { const { data } = await supabase.from('master_tags').select('*').order('position'); return (data || []) as Array<{ id: string; name: string; color: string; position: number; is_active: boolean }>; } });
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string }>; } });
-  const { data: projectTags = [] } = useQuery({ queryKey: ['project_tags'], queryFn: async () => { const { data } = await supabase.from('project_tags').select('*'); return (data || []) as Array<{ id: string; project_id: string; tag_id: string }>; } });
+  const { data: members = [] } = useQuery({ queryKey: ['master_members'], queryFn: async () => { const { data } = await supabase.from('master_members').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
+  const { data: projectMembers = [] } = useQuery({ queryKey: ['project_members'], queryFn: async () => { const { data } = await supabase.from('project_members').select('*'); return (data || []) as Array<{ id: string; project_id: string; member_id: string }>; } });
 
-  function getProjectsForTag(tagId: string) { return projectTags.filter((pt) => pt.tag_id === tagId).map((pt) => pt.project_id); }
-  function getProjectNames(tagId: string) { const pIds = getProjectsForTag(tagId); return projects.filter((p) => pIds.includes(p.id)).map((p) => p.name); }
+  function getMembersForProject(projectId: string) { return projectMembers.filter((pm) => pm.project_id === projectId).map((pm) => pm.member_id); }
+  function getMemberNames(projectId: string) { const ids = getMembersForProject(projectId); return members.filter((m) => ids.includes(m.id)); }
 
-  const addMutation = useMutation({
+  function startEdit(projectId: string) { setEditingProjectId(projectId); setSelectedMembers(getMembersForProject(projectId)); }
+
+  const saveMutation = useMutation({
     mutationFn: async () => {
-      const { data: newTag, error } = await supabase.from('master_tags').insert({ name: tagName.trim(), color: AUTO_COLORS[tags.length % AUTO_COLORS.length], position: tags.length + 1 }).select().single();
-      if (error) throw error;
-      // Map projects
-      if (selectedProjects.length > 0 && newTag) {
-        const mappings = selectedProjects.map((pid) => ({ project_id: pid, tag_id: newTag.id }));
-        await supabase.from('project_tags').insert(mappings);
+      if (!editingProjectId) return;
+      await supabase.from('project_members').delete().eq('project_id', editingProjectId);
+      if (selectedMembers.length > 0) {
+        const mappings = selectedMembers.map((mid) => ({ project_id: editingProjectId, member_id: mid }));
+        await supabase.from('project_members').insert(mappings);
       }
     },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['master_tags'] }); queryClient.invalidateQueries({ queryKey: ['project_tags'] }); setAdding(false); setTagName(''); setSelectedProjects([]); toast({ title: 'Tag created' }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['project_members'] }); setEditingProjectId(null); setSelectedMembers([]); toast({ title: 'Members updated' }); },
     onError: (err: Error) => { toast({ variant: 'destructive', title: 'Error', description: err.message }); },
   });
-
-  const updateMutation = useMutation({
-    mutationFn: async () => {
-      if (!editingId) return;
-      await supabase.from('master_tags').update({ name: tagName.trim() }).eq('id', editingId);
-      // Update project mappings: delete old, insert new
-      await supabase.from('project_tags').delete().eq('tag_id', editingId);
-      if (selectedProjects.length > 0) {
-        const mappings = selectedProjects.map((pid) => ({ project_id: pid, tag_id: editingId }));
-        await supabase.from('project_tags').insert(mappings);
-      }
-    },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['master_tags'] }); queryClient.invalidateQueries({ queryKey: ['project_tags'] }); setEditingId(null); setTagName(''); setSelectedProjects([]); toast({ title: 'Tag updated' }); },
-    onError: (err: Error) => { toast({ variant: 'destructive', title: 'Error', description: err.message }); },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => { await supabase.from('project_tags').delete().eq('tag_id', id); await supabase.from('master_tags').delete().eq('id', id); },
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['master_tags'] }); queryClient.invalidateQueries({ queryKey: ['project_tags'] }); toast({ title: 'Tag deleted' }); },
-  });
-
-  function startEdit(tag: any) { setEditingId(tag.id); setTagName(tag.name); setSelectedProjects(getProjectsForTag(tag.id)); }
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="text-base">Tags</CardTitle>
-        <Button size="sm" variant="outline" onClick={() => { setAdding(true); setTagName(''); setSelectedProjects([]); }}><Plus className="h-4 w-4 mr-1" /> Add</Button>
+        <CardTitle className="text-base">Project Members</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {(adding || editingId) && (
-            <div className="flex flex-wrap items-center gap-2 p-2 border rounded bg-muted/50">
-              <Input value={tagName} onChange={(e) => setTagName(e.target.value)} placeholder="Tag name" className="h-8 text-sm flex-1 min-w-[100px]" autoFocus />
-              <MultiSelect
-                options={projects.map((p) => ({ value: p.id, label: p.name }))}
-                selected={selectedProjects}
-                onChange={setSelectedProjects}
-                placeholder="Map to Projects"
-                className="min-w-[180px]"
-              />
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { if (editingId) updateMutation.mutate(); else addMutation.mutate(); }}><Check className="h-4 w-4 text-green-600" /></Button>
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setAdding(false); setEditingId(null); setTagName(''); setSelectedProjects([]); }}><X className="h-4 w-4" /></Button>
-            </div>
-          )}
-          {tags.map((tag) => (
-            <div key={tag.id} className="flex flex-wrap items-center gap-2 p-2 border rounded">
-              <div className="h-4 w-4 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
-              <span className="text-sm font-medium">{tag.name}</span>
-              <div className="flex-1 flex flex-wrap gap-1">
-                {getProjectNames(tag.id).map((name) => (
-                  <Badge key={name} variant="outline" className="text-[9px]">{name}</Badge>
-                ))}
+          {projects.map((project) => {
+            const assignedMembers = getMemberNames(project.id);
+            const isEditing = editingProjectId === project.id;
+            return (
+              <div key={project.id} className="flex flex-wrap items-center gap-2 p-2 border rounded">
+                <span className="text-sm font-medium min-w-[100px]">{project.name}</span>
+                {isEditing ? (
+                  <>
+                    <MultiSelect options={members.map((m) => ({ value: m.id, label: m.name, color: m.color }))} selected={selectedMembers} onChange={setSelectedMembers} placeholder="Select members..." className="flex-1 min-w-[180px]" />
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => saveMutation.mutate()}><Check className="h-4 w-4 text-green-600" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingProjectId(null)}><X className="h-4 w-4" /></Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex-1 flex flex-wrap gap-1">
+                      {assignedMembers.length > 0 ? assignedMembers.map((m) => (
+                        <Badge key={m.id} variant="secondary" className="text-[9px]" style={{ backgroundColor: m.color + '20', color: m.color }}>{m.name}</Badge>
+                      )) : <span className="text-[10px] text-muted-foreground">No members assigned</span>}
+                    </div>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(project.id)}><Pencil className="h-3 w-3" /></Button>
+                  </>
+                )}
               </div>
-              {!tag.is_active && <Badge variant="destructive" className="text-[10px]">Inactive</Badge>}
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(tag)}><Pencil className="h-3 w-3" /></Button>
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteMutation.mutate(tag.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-            </div>
-          ))}
-          {tags.length === 0 && !adding && <p className="text-sm text-muted-foreground py-2">No tags yet. Click Add to create one.</p>}
+            );
+          })}
         </div>
       </CardContent>
     </Card>
   );
 }
 
-export default function MastersPage() {
-  const [tab, setTab] = useState<'general' | 'users'>('general');
-
-  return (
+function TagsMasterSection() {
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h2 className="text-2xl font-bold">Settings</h2>
-        <p className="text-muted-foreground">Manage masters, users, and permissions.</p>
+        <h2 className="text-2xl font-bold">Settings & Masters</h2>
+        <p className="text-muted-foreground">Manage master data used in dropdowns and fields.</p>
       </div>
 
-      {/* Tab switcher */}
-      <div className="flex items-center gap-1 bg-muted rounded-lg p-1 w-fit">
-        <Button variant={tab === 'general' ? 'secondary' : 'ghost'} size="sm" className="h-8 font-medium" onClick={() => setTab('general')}>
-          General Settings
-        </Button>
-        <Button variant={tab === 'users' ? 'secondary' : 'ghost'} size="sm" className="h-8 font-medium" onClick={() => setTab('users')}>
-          User Management
-        </Button>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <MasterSection title="Macro Projects" table="master_macro_projects" fields={[]} />
+        <MasterSection title="Projects" table="projects" fields={['is_live']} />
+        <ProjectMembersSection />
+        <MasterSection title="Departments" table="master_departments" fields={[]} />
+        <MasterSection title="Members" table="master_members" fields={['is_live']} />
+        <MasterSection title="Task Types" table="master_task_types" />
+        <MasterSection title="Task Sections" table="master_task_sections" fields={[]} />
+        <TagsMasterSection />
+        <MasterSection title="Priorities" table="master_priorities" fields={['color', 'sort_weight']} />
+        <MasterSection title="Statuses" table="master_statuses" fields={['color', 'is_closed', 'is_done']} />
       </div>
 
-      {tab === 'general' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <MasterSection title="Macro Projects" table="master_macro_projects" fields={[]} />
-          <MasterSection title="Projects" table="projects" fields={['is_live']} />
-          <MasterSection title="Departments" table="master_departments" fields={[]} />
-          <MasterSection title="Task Types" table="master_task_types" />
-          <MasterSection title="Task Sections" table="master_task_sections" fields={[]} />
-          <TagsMasterSection />
-          <MasterSection title="Priorities" table="master_priorities" fields={['color', 'sort_weight']} />
-          <MasterSection title="Statuses" table="master_statuses" fields={['color', 'is_closed', 'is_done']} />
-          <div className="lg:col-span-2"><AlertRulesSection /></div>
-        </div>
-      )}
-
-      {tab === 'users' && <UserManagementPage />}
+      <div className="pt-4">
+        <AlertRulesSection />
+      </div>
     </div>
   );
 }
