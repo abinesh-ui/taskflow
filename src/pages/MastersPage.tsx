@@ -10,6 +10,7 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react';
 import AlertRulesSection from '@/components/notifications/AlertRulesPage';
+import UserManagementPage from '@/pages/UserManagementPage';
 
 type MasterTable = 'master_task_types' | 'master_task_categories' | 'master_priorities' | 'master_statuses' | 'projects' | 'master_departments' | 'master_members' | 'master_macro_projects' | 'master_task_sections' | 'master_tags';
 
