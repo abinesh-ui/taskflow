@@ -366,12 +366,12 @@ function ProjectMembersSection() {
   function startEdit(projectId: string) { setEditingProjectId(projectId); setSelectedMembers(getMembersForProject(projectId)); }
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
-      if (!editingProjectId) return;
-      await supabase.from('project_members').delete().eq('project_id', editingProjectId);
+    mutationFn: async (projectId: string) => {
+      await supabase.from('project_members').delete().eq('project_id', projectId);
       if (selectedMembers.length > 0) {
-        const mappings = selectedMembers.map((mid) => ({ project_id: editingProjectId, member_id: mid }));
-        await supabase.from('project_members').insert(mappings);
+        const mappings = selectedMembers.map((mid) => ({ project_id: projectId, member_id: mid }));
+        const { error } = await supabase.from('project_members').insert(mappings);
+        if (error) throw error;
       }
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['project_members'] }); setEditingProjectId(null); setSelectedMembers([]); toast({ title: 'Members updated' }); },
@@ -394,7 +394,7 @@ function ProjectMembersSection() {
                 {isEditing ? (
                   <>
                     <MultiSelect options={members.map((m) => ({ value: m.id, label: m.name, color: m.color }))} selected={selectedMembers} onChange={setSelectedMembers} placeholder="Select members..." className="flex-1 min-w-[180px]" />
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => saveMutation.mutate()}><Check className="h-4 w-4 text-green-600" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => saveMutation.mutate(project.id)}><Check className="h-4 w-4 text-green-600" /></Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingProjectId(null)}><X className="h-4 w-4" /></Button>
                   </>
                 ) : (
