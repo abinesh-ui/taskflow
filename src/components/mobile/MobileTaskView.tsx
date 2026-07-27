@@ -38,10 +38,10 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
   const { data: statuses = [] } = useQuery({ queryKey: ['master_statuses'], queryFn: async () => { const { data } = await supabase.from('master_statuses').select('*').eq('is_active', true).order('position'); return (data || []) as MasterStatus[]; } });
   const { data: priorities = [] } = useQuery({ queryKey: ['master_priorities'], queryFn: async () => { const { data } = await supabase.from('master_priorities').select('*').eq('is_active', true).order('position'); return (data || []) as MasterPriority[]; } });
   const { data: members = [] } = useQuery({ queryKey: ['master_members'], queryFn: async () => { const { data } = await supabase.from('master_members').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Project[]; } });
-  const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
-  const { data: taskTypes = [] } = useQuery({ queryKey: ['master_task_types'], queryFn: async () => { const { data } = await supabase.from('master_task_types').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string }>; } });
-  const { data: taskSections = [] } = useQuery({ queryKey: ['master_task_sections'], queryFn: async () => { const { data } = await supabase.from('master_task_sections').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string }>; } });
+  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Array<Project & { color?: string }>; } });
+  const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Array<Department & { color?: string }>; } });
+  const { data: taskTypes = [] } = useQuery({ queryKey: ['master_task_types'], queryFn: async () => { const { data } = await supabase.from('master_task_types').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color?: string }>; } });
+  const { data: taskSections = [] } = useQuery({ queryKey: ['master_task_sections'], queryFn: async () => { const { data } = await supabase.from('master_task_sections').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color?: string }>; } });
   const { data: milestones = [] } = useQuery({ queryKey: ['milestones'], queryFn: async () => { const { data } = await supabase.from('milestones').select('*').order('created_at'); return (data || []) as Array<{ id: string; milestone_no: string; project_id: string; description: string }>; } });
   const { data: projectMembers = [] } = useQuery({ queryKey: ['project_members'], queryFn: async () => { const { data } = await supabase.from('project_members').select('*'); return (data || []) as Array<{ id: string; project_id: string; member_id: string }>; } });
 
@@ -104,70 +104,82 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
 
   function renderEditableCard(task: Task, isSubtask: boolean) {
     const status = getStatus(task.status_id);
+    const priority = getPriority(task.priority_id);
     const overdue = getOverdue(task);
     const isExp = isSubtask ? expandedSub === task.id : expandedTask === task.id;
+    const proj = projects.find((p) => p.id === task.project_id);
+    const dept = departments.find((d) => d.id === task.department_id);
+    const assignee = members.find((m) => m.id === task.assignee_id);
+    const taskType = taskTypes.find((t) => t.id === task.task_type_id);
 
     return (
-      <div key={task.id} className={`border rounded-xl overflow-hidden ${overdue > 0 ? 'border-red-200' : ''} ${isSubtask ? 'ml-4' : ''}`}>
+      <div key={task.id} className={`border rounded-xl overflow-hidden shadow-sm ${overdue > 0 ? 'border-red-300 shadow-red-100' : 'border-border/60'} ${isSubtask ? 'ml-4' : ''}`} style={{ borderLeftWidth: '4px', borderLeftColor: status?.color || '#6b7280' }}>
         {/* Card summary - tap to expand */}
-        <div className="p-3 space-y-1" onClick={() => { if (isSubtask) setExpandedSub(isExp ? null : task.id); else { setExpandedTask(isExp ? null : task.id); startEdit(task); } if (!isSubtask && !isExp) startEdit(task); if (isSubtask && !isExp) startEdit(task); }}>
+        <div className="p-3 space-y-1.5" onClick={() => { if (isSubtask) setExpandedSub(isExp ? null : task.id); else { setExpandedTask(isExp ? null : task.id); startEdit(task); } if (!isSubtask && !isExp) startEdit(task); if (isSubtask && !isExp) startEdit(task); }}>
           <div className="flex items-start gap-2">
-            <div className="flex-1">
-              <p className={`font-medium leading-tight ${isSubtask ? 'text-xs' : 'text-sm'}`}>{task.title}</p>
-              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                <span className="text-[9px] font-mono text-muted-foreground">{task.task_no}</span>
-                <Badge style={{ backgroundColor: status?.color, color: '#fff' }} className="text-[8px] h-4">{status?.name}</Badge>
-                <span className="text-[9px] text-muted-foreground">{projects.find((p) => p.id === task.project_id)?.name}</span>
-                {task.planned_end_date && <span className={`text-[9px] ${overdue > 0 ? 'text-red-600 font-bold' : 'text-muted-foreground'}`}>{formatDate(task.planned_end_date)}</span>}
-                {overdue > 0 && <Badge variant="destructive" className="text-[7px] h-3.5">{overdue}d</Badge>}
-                {!isSubtask && getSubtasks(task.id).length > 0 && <button onClick={(e) => { e.stopPropagation(); const n = new Set(showSubtasks); if (n.has(task.id)) n.delete(task.id); else n.add(task.id); setShowSubtasks(n); }}><Badge variant="secondary" className="text-[7px] h-3.5">{getSubtasks(task.id).length} sub</Badge></button>}
+            <div className="flex-1 min-w-0">
+              <p className={`font-semibold leading-tight truncate ${isSubtask ? 'text-xs' : 'text-sm'}`} title={task.title}>{task.title}</p>
+              <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                <span className="text-[8px] font-mono bg-muted/80 px-1 py-0.5 rounded">{task.task_no}</span>
+                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: status?.color || '#6b7280' }}>{status?.name}</span>
+                {priority && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: priority.color + '25', color: priority.color }}>{priority.name}</span>}
+                {proj && <span className="text-[8px] font-medium px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: (proj as any).color || '#3b82f6' }}>{proj.name}</span>}
+                {dept && <span className="text-[8px] font-medium px-1.5 py-0.5 rounded" style={{ backgroundColor: ((dept as any).color || '#8b5cf6') + '25', color: (dept as any).color || '#8b5cf6' }}>{dept.name}</span>}
+              </div>
+              <div className="flex items-center gap-1 mt-1 flex-wrap">
+                {assignee && <span className="text-[8px] font-medium px-1.5 py-0.5 rounded" style={{ backgroundColor: (assignee.color || '#06b6d4') + '20', color: assignee.color || '#06b6d4' }}>{assignee.name}</span>}
+                {taskType && <span className="text-[8px] px-1.5 py-0.5 rounded" style={{ backgroundColor: ((taskType as any).color || '#f59e0b') + '20', color: (taskType as any).color || '#f59e0b' }}>{taskType.name}</span>}
+                {task.planned_end_date && <span className={`text-[8px] px-1.5 py-0.5 rounded font-medium ${overdue > 0 ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'}`}>{formatDate(task.planned_end_date)}</span>}
+                {overdue > 0 && <span className="text-[7px] font-bold px-1 py-0.5 rounded bg-red-500 text-white">{overdue}d overdue</span>}
+                {(task as any).is_recurring && <span className="text-[7px] font-bold px-1 py-0.5 rounded bg-purple-100 text-purple-700">Recurring</span>}
+                {!isSubtask && getSubtasks(task.id).length > 0 && <button onClick={(e) => { e.stopPropagation(); const n = new Set(showSubtasks); if (n.has(task.id)) n.delete(task.id); else n.add(task.id); setShowSubtasks(n); }}><span className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">{getSubtasks(task.id).length} sub</span></button>}
               </div>
             </div>
-            {isExp ? <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
+            {isExp ? <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" /> : <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1" />}
           </div>
         </div>
 
         {/* Expanded - all editable fields */}
         {isExp && (
-          <div className="border-t px-3 pb-3 pt-2 space-y-2 bg-muted/10">
-            {/* Status bar */}
+          <div className="border-t px-3 pb-3 pt-2 space-y-2 bg-gradient-to-b from-muted/20 to-muted/5">
+            {/* Status bar - vibrant colored buttons */}
             <div className="flex gap-1 overflow-x-auto pb-1">
               {statuses.map((s) => (
-                <button key={s.id} onClick={() => { setEditingFields({...editingFields, status_id: s.id}); saveField(task.id, 'status_id', s.id); }} className={`px-2 py-1 rounded text-[8px] font-medium flex-shrink-0 border ${task.status_id === s.id ? 'ring-2 ring-primary' : ''}`} style={{ backgroundColor: task.status_id === s.id ? s.color+'20' : 'transparent', borderColor: s.color, color: s.color }}>{s.name}</button>
+                <button key={s.id} onClick={() => { setEditingFields({...editingFields, status_id: s.id}); saveField(task.id, 'status_id', s.id); }} className={`px-2.5 py-1.5 rounded-lg text-[9px] font-bold flex-shrink-0 transition-all ${task.status_id === s.id ? 'ring-2 ring-offset-1 ring-primary shadow-md scale-105 text-white' : 'opacity-70'}`} style={{ backgroundColor: task.status_id === s.id ? s.color : s.color+'20', color: task.status_id === s.id ? '#fff' : s.color, borderColor: s.color }}>{s.name}</button>
               ))}
             </div>
 
             {/* Editable fields */}
             <div className="space-y-2">
-              <div><label className="text-[9px] text-muted-foreground font-medium">Title</label><textarea value={editingFields.title || ''} onChange={(e) => setEditingFields({...editingFields, title: e.target.value})} className="w-full h-auto min-h-[32px] text-xs border rounded px-2 py-1 bg-background resize-none" /></div>
+              <div><label className="text-[9px] text-primary font-semibold uppercase tracking-wide">Title</label><textarea value={editingFields.title || ''} onChange={(e) => setEditingFields({...editingFields, title: e.target.value})} className="w-full h-auto min-h-[32px] text-xs border rounded-lg px-2 py-1.5 bg-background resize-none focus:ring-2 focus:ring-primary/30" /></div>
 
               <div className="grid grid-cols-2 gap-2">
-                <div><label className="text-[9px] text-muted-foreground">Priority</label><select value={editingFields.priority_id} onChange={(e) => setEditingFields({...editingFields, priority_id: e.target.value})} className="w-full h-8 text-xs border rounded px-2 bg-background"><option value="">-</option>{priorities.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
-                <div><label className="text-[9px] text-muted-foreground">Assignee</label><select value={editingFields.assignee_id} onChange={(e) => setEditingFields({...editingFields, assignee_id: e.target.value})} className="w-full h-8 text-xs border rounded px-2 bg-background"><option value="">-</option>{getFilteredMembers(task.project_id).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
+                <div><label className="text-[9px] text-orange-600 font-semibold">Priority</label><select value={editingFields.priority_id} onChange={(e) => setEditingFields({...editingFields, priority_id: e.target.value})} className="w-full h-8 text-xs border rounded-lg px-2 bg-background font-medium" style={editingFields.priority_id ? {backgroundColor: (priorities.find(p=>p.id===editingFields.priority_id)?.color||'')+'15', color: priorities.find(p=>p.id===editingFields.priority_id)?.color} : {}}><option value="">-</option>{priorities.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+                <div><label className="text-[9px] text-cyan-600 font-semibold">Assignee</label><select value={editingFields.assignee_id} onChange={(e) => setEditingFields({...editingFields, assignee_id: e.target.value})} className="w-full h-8 text-xs border rounded-lg px-2 bg-background font-medium" style={editingFields.assignee_id ? {backgroundColor: (members.find(m=>m.id===editingFields.assignee_id)?.color||'')+'15', color: members.find(m=>m.id===editingFields.assignee_id)?.color} : {}}><option value="">-</option>{getFilteredMembers(task.project_id).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div><label className="text-[9px] text-muted-foreground">Type</label><select value={editingFields.task_type_id} onChange={(e) => setEditingFields({...editingFields, task_type_id: e.target.value})} className="w-full h-8 text-xs border rounded px-2 bg-background"><option value="">-</option>{taskTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
-                <div><label className="text-[9px] text-muted-foreground">Section</label><select value={editingFields.section_id} onChange={(e) => setEditingFields({...editingFields, section_id: e.target.value})} className="w-full h-8 text-xs border rounded px-2 bg-background"><option value="">-</option>{taskSections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+                <div><label className="text-[9px] text-amber-600 font-semibold">Type</label><select value={editingFields.task_type_id} onChange={(e) => setEditingFields({...editingFields, task_type_id: e.target.value})} className="w-full h-8 text-xs border rounded-lg px-2 bg-background font-medium" style={editingFields.task_type_id ? {backgroundColor: ((taskTypes.find(t=>t.id===editingFields.task_type_id) as any)?.color||'')+'15', color: (taskTypes.find(t=>t.id===editingFields.task_type_id) as any)?.color} : {}}><option value="">-</option>{taskTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
+                <div><label className="text-[9px] text-emerald-600 font-semibold">Section</label><select value={editingFields.section_id} onChange={(e) => setEditingFields({...editingFields, section_id: e.target.value})} className="w-full h-8 text-xs border rounded-lg px-2 bg-background font-medium" style={editingFields.section_id ? {backgroundColor: ((taskSections.find(s=>s.id===editingFields.section_id) as any)?.color||'')+'15', color: (taskSections.find(s=>s.id===editingFields.section_id) as any)?.color} : {}}><option value="">-</option>{taskSections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div><label className="text-[9px] text-muted-foreground">Milestone</label><select value={editingFields.milestone_id} onChange={(e) => setEditingFields({...editingFields, milestone_id: e.target.value})} className="w-full h-8 text-xs border rounded px-2 bg-background"><option value="">-</option>{milestones.filter((m) => m.project_id === task.project_id).map((m) => <option key={m.id} value={m.id}>{m.description}</option>)}</select></div>
-                <div><label className="text-[9px] text-muted-foreground">Plan Mins</label><Input type="number" value={editingFields.planned_mins} onChange={(e) => setEditingFields({...editingFields, planned_mins: e.target.value})} className="h-8 text-xs" /></div>
+                <div><label className="text-[9px] text-indigo-600 font-semibold">Milestone</label><select value={editingFields.milestone_id} onChange={(e) => setEditingFields({...editingFields, milestone_id: e.target.value})} className="w-full h-8 text-xs border rounded-lg px-2 bg-background"><option value="">-</option>{milestones.filter((m) => m.project_id === task.project_id).map((m) => <option key={m.id} value={m.id}>{m.description}</option>)}</select></div>
+                <div><label className="text-[9px] text-slate-600 font-semibold">Plan Mins</label><Input type="number" value={editingFields.planned_mins} onChange={(e) => setEditingFields({...editingFields, planned_mins: e.target.value})} className="h-8 text-xs rounded-lg" /></div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div><label className="text-[9px] text-muted-foreground">Start Date</label><Input type="date" value={editingFields.planned_start_date} onChange={(e) => setEditingFields({...editingFields, planned_start_date: e.target.value})} className="h-8 text-xs" /></div>
-                <div><label className="text-[9px] text-muted-foreground">Due Date</label><Input type="date" value={editingFields.planned_end_date} onChange={(e) => setEditingFields({...editingFields, planned_end_date: e.target.value})} className="h-8 text-xs" /></div>
+                <div><label className="text-[9px] text-blue-600 font-semibold">Start Date</label><Input type="date" value={editingFields.planned_start_date} onChange={(e) => setEditingFields({...editingFields, planned_start_date: e.target.value})} className="h-8 text-xs rounded-lg" /></div>
+                <div><label className="text-[9px] text-rose-600 font-semibold">Due Date</label><Input type="date" value={editingFields.planned_end_date} onChange={(e) => setEditingFields({...editingFields, planned_end_date: e.target.value})} className="h-8 text-xs rounded-lg" /></div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div><label className="text-[9px] text-muted-foreground">Act. Start</label><span className="block text-xs text-muted-foreground px-2 py-1">{formatDate(task.actual_start_date)}</span></div>
-                <div><label className="text-[9px] text-muted-foreground">Act. End</label><span className="block text-xs text-muted-foreground px-2 py-1">{formatDate(task.actual_end_date)}</span></div>
+                <div><label className="text-[9px] text-slate-500 font-semibold">Act. Start</label><span className="block text-xs text-muted-foreground px-2 py-1 bg-muted/30 rounded-lg">{formatDate(task.actual_start_date) || '-'}</span></div>
+                <div><label className="text-[9px] text-slate-500 font-semibold">Act. End</label><span className="block text-xs text-muted-foreground px-2 py-1 bg-muted/30 rounded-lg">{formatDate(task.actual_end_date) || '-'}</span></div>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div><label className="text-[9px] text-muted-foreground">Act. Mins</label><Input type="number" value={editingFields.actual_mins} onChange={(e) => setEditingFields({...editingFields, actual_mins: e.target.value})} className="h-8 text-xs" /></div>
-                <div><label className="text-[9px] text-muted-foreground">Recurring</label><select value={editingFields.recurrence_type || ''} onChange={(e) => setEditingFields({...editingFields, recurrence_type: e.target.value})} className="w-full h-8 text-xs border rounded px-2 bg-background"><option value="">None</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></div>
+                <div><label className="text-[9px] text-slate-600 font-semibold">Act. Mins</label><Input type="number" value={editingFields.actual_mins} onChange={(e) => setEditingFields({...editingFields, actual_mins: e.target.value})} className="h-8 text-xs rounded-lg" /></div>
+                <div><label className="text-[9px] text-purple-600 font-semibold">Recurring</label><select value={editingFields.recurrence_type || ''} onChange={(e) => setEditingFields({...editingFields, recurrence_type: e.target.value})} className="w-full h-8 text-xs border rounded-lg px-2 bg-background" style={editingFields.recurrence_type ? {backgroundColor: '#8b5cf620', color: '#8b5cf6'} : {}}><option value="">None</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></div>
               </div>
-              <div><label className="text-[9px] text-muted-foreground">Remarks</label><textarea value={editingFields.description || ''} onChange={(e) => setEditingFields({...editingFields, description: e.target.value})} className="w-full min-h-[40px] text-xs border rounded px-2 py-1 bg-background resize-none" placeholder="Notes..." /></div>
+              <div><label className="text-[9px] text-slate-600 font-semibold">Remarks</label><textarea value={editingFields.description || ''} onChange={(e) => setEditingFields({...editingFields, description: e.target.value})} className="w-full min-h-[40px] text-xs border rounded-lg px-2 py-1.5 bg-background resize-none" placeholder="Notes..." /></div>
 
-              <Button className="w-full h-9 text-xs font-medium" onClick={() => saveAll(task.id)}><Save className="h-3.5 w-3.5 mr-1" /> Save Changes</Button>
+              <Button className="w-full h-9 text-xs font-bold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-md" onClick={() => saveAll(task.id)}><Save className="h-3.5 w-3.5 mr-1" /> Save Changes</Button>
             </div>
 
             {/* Add subtask */}
@@ -193,16 +205,16 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
   return (
     <div className="md:hidden flex flex-col h-full">
       {/* Search + Filter + Sort bar */}
-      <div className="p-3 border-b bg-card space-y-2 flex-shrink-0">
+      <div className="p-3 border-b bg-gradient-to-r from-card to-card/95 space-y-2 flex-shrink-0 shadow-sm">
         <div className="flex items-center gap-2">
           <div className="flex-1 relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search..." className="h-8 pl-7 text-xs" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-primary/60" />
+            <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search tasks..." className="h-8 pl-8 text-xs rounded-lg border-primary/20 focus:border-primary" />
           </div>
-          <Button variant={showFilters ? 'secondary' : 'outline'} size="icon" className="h-8 w-8" onClick={() => { setShowFilters(!showFilters); setShowSort(false); }}>
+          <Button variant={showFilters ? 'default' : 'outline'} size="icon" className={`h-8 w-8 rounded-lg ${showFilters ? 'bg-primary text-white' : ''}`} onClick={() => { setShowFilters(!showFilters); setShowSort(false); }}>
             <Filter className="h-3.5 w-3.5" />
           </Button>
-          <Button variant={showSort ? 'secondary' : 'outline'} size="icon" className="h-8 w-8" onClick={() => { setShowSort(!showSort); setShowFilters(false); }}>
+          <Button variant={showSort ? 'default' : 'outline'} size="icon" className={`h-8 w-8 rounded-lg ${showSort ? 'bg-primary text-white' : ''}`} onClick={() => { setShowSort(!showSort); setShowFilters(false); }}>
             <SlidersHorizontal className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -232,8 +244,8 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
         )}
 
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground">{topTasks.length} tasks</span>
-          <Button variant="outline" size="sm" className="h-6 text-[9px]" onClick={() => { if (allExpanded) { setShowSubtasks(new Set()); setAllExpanded(false); } else { setShowSubtasks(new Set(topTasks.map((t) => t.id))); setAllExpanded(true); } }}>
+          <span className="text-[10px] font-semibold text-primary/70">{topTasks.length} tasks</span>
+          <Button variant="outline" size="sm" className="h-6 text-[9px] rounded-lg" onClick={() => { if (allExpanded) { setShowSubtasks(new Set()); setAllExpanded(false); } else { setShowSubtasks(new Set(topTasks.map((t) => t.id))); setAllExpanded(true); } }}>
             {allExpanded ? <><ChevronsUp className="h-3 w-3 mr-0.5" />Collapse</> : <><ChevronsDown className="h-3 w-3 mr-0.5" />Expand All</>}
           </Button>
         </div>
@@ -253,7 +265,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
 
       {/* Floating Add - hidden when create sheet is open */}
       {!showCreate && (
-        <button onClick={() => { setCreateParent(null); setNf({ project_id: filterProjectId || '', department_id: filterDepartmentId || '' }); setShowCreate(true); }} className="fixed bottom-20 right-4 h-14 w-14 rounded-full bg-primary text-white shadow-lg flex items-center justify-center active:scale-95 transition-transform z-50 md:hidden">
+        <button onClick={() => { setCreateParent(null); setNf({ project_id: filterProjectId || '', department_id: filterDepartmentId || '' }); setShowCreate(true); }} className="fixed bottom-20 right-4 h-14 w-14 rounded-full bg-gradient-to-br from-primary to-primary/80 text-white shadow-xl shadow-primary/30 flex items-center justify-center active:scale-95 transition-transform z-50 md:hidden">
           <Plus className="h-6 w-6" />
         </button>
       )}
@@ -264,9 +276,9 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
           <div className="absolute inset-0 bg-black/50" onClick={() => { setShowCreate(false); setCreateParent(null); }} />
           <div className="relative bg-card rounded-t-2xl max-h-[85vh] flex flex-col shadow-xl animate-in slide-in-from-bottom duration-300">
             {/* Header - sticky */}
-            <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
-              <h3 className="font-bold text-sm">{createParent ? 'New Subtask' : 'New Task'}</h3>
-              <button onClick={() => { setShowCreate(false); setCreateParent(null); }}><X className="h-5 w-5" /></button>
+            <div className="flex items-center justify-between p-4 border-b flex-shrink-0 bg-gradient-to-r from-primary/5 to-transparent">
+              <h3 className="font-bold text-sm text-primary">{createParent ? 'New Subtask' : 'New Task'}</h3>
+              <button onClick={() => { setShowCreate(false); setCreateParent(null); }} className="p-1 rounded-full hover:bg-muted"><X className="h-5 w-5" /></button>
             </div>
             {/* Scrollable form body */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -299,7 +311,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
             </div>
             {/* Sticky Save button at bottom */}
             <div className="p-4 border-t flex-shrink-0 bg-card safe-area-bottom">
-              <Button className="w-full h-11 font-medium text-sm" onClick={handleCreate} disabled={createTask.isPending || !nf.title?.trim() || !nf.project_id || !nf.department_id}>
+              <Button className="w-full h-11 font-bold text-sm bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary shadow-lg" onClick={handleCreate} disabled={createTask.isPending || !nf.title?.trim() || !nf.project_id || !nf.department_id}>
                 {createTask.isPending ? 'Creating...' : createParent ? 'Create Subtask' : 'Create Task'}
               </Button>
             </div>
