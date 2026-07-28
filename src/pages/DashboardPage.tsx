@@ -304,11 +304,11 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
             <tr className="bg-muted/60 border-b font-semibold text-muted-foreground uppercase tracking-wider">
               <th className="py-2 px-1 relative"><input type="checkbox" checked={selectedTasks.size > 0 && selectedTasks.size >= paginated.length} onChange={(e) => { if (e.target.checked) selectAll(); else deselectAll(); }} className="h-3 w-3 rounded" /><ResizeHandle onMouseDown={(e) => onMouseDown(0, e)} /></th>
               <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(1, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Milestone<ResizeHandle onMouseDown={(e) => onMouseDown(2, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Task #<ResizeHandle onMouseDown={(e) => onMouseDown(3, e)} /></th>
-              <th className="py-2 px-1 text-left relative">%<ResizeHandle onMouseDown={(e) => onMouseDown(4, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Title<ResizeHandle onMouseDown={(e) => onMouseDown(5, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Project<ResizeHandle onMouseDown={(e) => onMouseDown(6, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Project<ResizeHandle onMouseDown={(e) => onMouseDown(2, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Milestone<ResizeHandle onMouseDown={(e) => onMouseDown(3, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Task #<ResizeHandle onMouseDown={(e) => onMouseDown(4, e)} /></th>
+              <th className="py-2 px-1 text-left relative">%<ResizeHandle onMouseDown={(e) => onMouseDown(5, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Title<ResizeHandle onMouseDown={(e) => onMouseDown(6, e)} /></th>
               <th className="py-2 px-1 text-left relative">Dept<ResizeHandle onMouseDown={(e) => onMouseDown(7, e)} /></th>
               <th className="py-2 px-1 text-left relative">Status<ResizeHandle onMouseDown={(e) => onMouseDown(8, e)} /></th>
               <th className="py-2 px-1 text-left relative">Priority<ResizeHandle onMouseDown={(e) => onMouseDown(9, e)} /></th>
