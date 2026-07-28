@@ -182,9 +182,9 @@ export default function DailyWorkDoneDialog({ open, onOpenChange }: Props) {
           <table className="w-full text-[10px]">
             <thead className="sticky top-0 bg-muted/80 border-b z-10">
               <tr className="font-semibold text-muted-foreground">
+                <th className="py-2 px-2 text-left">Project</th>
                 <th className="py-2 px-2 text-left">Task #</th>
                 <th className="py-2 px-2 text-left">Title</th>
-                <th className="py-2 px-2 text-left">Project</th>
                 <th className="py-2 px-2 text-left">Status</th>
                 <th className="py-2 px-2 text-left">POA Planned</th>
                 <th className="py-2 px-2 text-left w-20">Actual Mins</th>
@@ -198,9 +198,9 @@ export default function DailyWorkDoneDialog({ open, onOpenChange }: Props) {
                 const poaItem = poaItems.find((i) => i.task_id === task.id);
                 return (
                   <tr key={task.id} className={`border-b hover:bg-accent/20 ${task.parent_id ? 'bg-muted/10' : ''}`}>
+                    <td className="py-1.5 px-2 text-[9px] text-muted-foreground">{projects.find((p) => p.id === task.project_id)?.name}</td>
                     <td className="py-1.5 px-2 font-mono text-[9px] text-muted-foreground">{task.parent_id && '↳ '}{task.task_no}</td>
                     <td className="py-1.5 px-2 text-[10px] font-medium">{task.title}</td>
-                    <td className="py-1.5 px-2 text-[9px] text-muted-foreground">{projects.find((p) => p.id === task.project_id)?.name}</td>
                     <td className="py-1.5 px-2">{status && <Badge style={{ backgroundColor: status.color, color: '#fff' }} className="text-[8px]">{status.name}</Badge>}</td>
                     <td className="py-1.5 px-2 text-[9px]">{poaItem?.planned_mins || 0} mins</td>
                     <td className="py-1.5 px-2"><Input type="number" value={actualMins[task.id] || ''} onChange={(e) => setActualMins({ ...actualMins, [task.id]: Number(e.target.value) || 0 })} placeholder="mins" className="h-6 text-[10px] w-16" /></td>

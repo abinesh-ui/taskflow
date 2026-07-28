@@ -173,9 +173,9 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
             <thead className="sticky top-0 bg-muted/80 border-b z-10">
               <tr className="font-semibold text-muted-foreground">
                 <th className="py-2 px-2 w-7"><input type="checkbox" onChange={(e) => { if (e.target.checked) setSelectedTasks(new Set(pendingTasks.map((t) => t.id))); else setSelectedTasks(new Set()); }} className="h-3 w-3" /></th>
+                <th className="py-2 px-2 text-left">Project</th>
                 <th className="py-2 px-2 text-left">Task #</th>
                 <th className="py-2 px-2 text-left">Title</th>
-                <th className="py-2 px-2 text-left">Project</th>
                 <th className="py-2 px-2 text-left">Status</th>
                 <th className="py-2 px-2 text-left">Due Date</th>
                 <th className="py-2 px-2 text-left w-24">POA Mins</th>
@@ -189,9 +189,9 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
                 return (
                   <tr key={task.id} className={`border-b hover:bg-accent/20 ${isSelected ? 'bg-primary/5' : ''} ${task.parent_id ? 'bg-muted/10' : ''}`}>
                     <td className="py-1.5 px-2"><input type="checkbox" checked={isSelected} onChange={() => toggleSelect(task.id)} className="h-3 w-3" /></td>
+                    <td className="py-1.5 px-2 text-[9px] text-muted-foreground">{projects.find((p) => p.id === task.project_id)?.name}</td>
                     <td className="py-1.5 px-2 font-mono text-[9px] text-muted-foreground">{task.parent_id && '↳ '}{task.task_no}</td>
                     <td className="py-1.5 px-2 text-[10px] font-medium">{task.title}</td>
-                    <td className="py-1.5 px-2 text-[9px] text-muted-foreground">{projects.find((p) => p.id === task.project_id)?.name}</td>
                     <td className="py-1.5 px-2">{status && <Badge style={{ backgroundColor: status.color, color: '#fff' }} className="text-[8px]">{status.name}</Badge>}</td>
                     <td className="py-1.5 px-2 text-[9px]">{formatDate(task.planned_end_date)}</td>
                     <td className="py-1.5 px-2">
