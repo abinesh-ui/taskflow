@@ -167,18 +167,24 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
     setSelectedTasks(new Set()); setShowBulkUpdate(false);
   }
 
+  // Filter dropdown options: non-admin sees only their projects' data
+  const visibleProjects = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
+  const visibleDepartments = userProjectIds ? departments.filter((d) => visibleProjects.some((p) => p.id === d.project_id)) : departments;
+  const visibleMemberIds = userProjectIds ? [...new Set(projectMembers.filter((pm: any) => userProjectIds.includes(pm.project_id)).map((pm: any) => pm.member_id))] : null;
+  const visibleMembers = visibleMemberIds ? members.filter((m) => visibleMemberIds.includes(m.id)) : members;
+
   const filterFields = [
-    { key: 'project_id', label: 'Project', type: 'select' as const, options: projects.map((p) => ({ value: p.id, label: p.name })) },
-    { key: 'department_id', label: 'Department', type: 'select' as const, options: departments.map((d) => ({ value: d.id, label: d.name })) },
+    { key: 'project_id', label: 'Project', type: 'select' as const, options: visibleProjects.map((p) => ({ value: p.id, label: p.name })) },
+    { key: 'department_id', label: 'Department', type: 'select' as const, options: visibleDepartments.map((d) => ({ value: d.id, label: d.name })) },
     { key: 'status_id', label: 'Status', type: 'select' as const, options: statuses.map((s) => ({ value: s.id, label: s.name, color: s.color })) },
     { key: 'priority_id', label: 'Priority', type: 'select' as const, options: priorities.map((p) => ({ value: p.id, label: p.name, color: p.color })) },
-    { key: 'assignee_id', label: 'Assignee', type: 'select' as const, options: members.map((m) => ({ value: m.id, label: m.name })) },
+    { key: 'assignee_id', label: 'Assignee', type: 'select' as const, options: visibleMembers.map((m) => ({ value: m.id, label: m.name })) },
     { key: 'task_type_id', label: 'Type', type: 'select' as const, options: taskTypes.map((t) => ({ value: t.id, label: t.name })) },
     { key: 'section_id', label: 'Section', type: 'select' as const, options: taskSections.map((s) => ({ value: s.id, label: s.name })) },
     { key: 'overdue_days', label: 'Overdue Days', type: 'number' as const },
     { key: 'due_date', label: 'Due Date', type: 'date' as const },
   ];
-  const deptOpts = departments;
+  const deptOpts = visibleDepartments;
 
   return (
     <>

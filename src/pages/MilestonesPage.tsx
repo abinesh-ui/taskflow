@@ -135,8 +135,9 @@ export default function MilestonesPage() {
   }
 
   // Filter milestones
+  const visibleProjects = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
   const msFilterFields = [
-    { key: 'project_id', label: 'Project', type: 'select' as const, options: projects.map((p) => ({ value: p.id, label: p.name })) },
+    { key: 'project_id', label: 'Project', type: 'select' as const, options: visibleProjects.map((p) => ({ value: p.id, label: p.name })) },
     { key: 'status', label: 'Status', type: 'select' as const, options: [{ value: 'yet_to_initiate', label: 'Yet to Initiate' }, { value: 'wip', label: 'WIP' }, { value: 'done', label: 'Done' }, { value: 'closed', label: 'Closed' }] },
     { key: 'due_date', label: 'Due Date', type: 'date' as const },
   ];
@@ -216,7 +217,7 @@ export default function MilestonesPage() {
             {adding && (
               <tr className="border-b bg-primary/5">
                 <td className="py-1.5 px-2 text-[9px] italic text-muted-foreground">New</td>
-                <td className="py-1.5 px-1"><select value={nf.project_id || ''} onChange={(e) => setNf({ ...nf, project_id: e.target.value })} className="h-6 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Project *</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></td>
+                <td className="py-1.5 px-1"><select value={nf.project_id || ''} onChange={(e) => setNf({ ...nf, project_id: e.target.value })} className="h-6 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Project *</option>{visibleProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></td>
                 <td className="py-1.5 px-1"><input value={nf.description || ''} onChange={(e) => setNf({ ...nf, description: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') handleCreate(); }} placeholder="Description *" className="w-full h-6 text-[10px] bg-transparent border-0 outline-none focus:ring-1 focus:ring-primary/30 rounded px-1" autoFocus /></td>
                 <td className="py-1.5 px-1"><input type="date" value={nf.planned_start_date || ''} onChange={(e) => setNf({ ...nf, planned_start_date: e.target.value })} className="h-6 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
                 <td className="py-1.5 px-1"><input type="date" value={nf.planned_end_date || ''} onChange={(e) => setNf({ ...nf, planned_end_date: e.target.value })} className="h-6 text-[9px] w-full bg-transparent border-0 outline-none" /></td>

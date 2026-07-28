@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAccessControl } from '@/hooks/use-access-control';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +18,7 @@ interface MobileProps { filterProjectId?: string; filterDepartmentId?: string; }
 
 export default function MobileTaskView({ filterProjectId, filterDepartmentId }: MobileProps = {}) {
   const { user } = useAuth();
+  const { userProjectIds } = useAccessControl();
   const queryClient = useQueryClient();
   const createTask = useCreateTask();
   const { toast } = useToast();
@@ -47,6 +49,8 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
 
   // Filter + sort
   let topTasks = allTasks.filter((t) => !t.parent_id);
+  // Access control: non-admin only sees assigned projects
+  if (userProjectIds) topTasks = topTasks.filter((t) => userProjectIds.includes(t.project_id));
   if (filterProjectId) topTasks = topTasks.filter((t) => t.project_id === filterProjectId);
   if (filterDepartmentId) topTasks = topTasks.filter((t) => t.department_id === filterDepartmentId);
   if (searchQuery) { const q = searchQuery.toLowerCase(); topTasks = topTasks.filter((t) => t.title.toLowerCase().includes(q) || t.task_no.toLowerCase().includes(q)); }
@@ -112,7 +116,8 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
     toast({ title: 'Saved' });
   }
 
-  const deptOpts = departments;
+  const deptOpts = userProjectIds ? departments.filter((d: any) => userProjectIds.includes(d.project_id)) : departments;
+  const projectOpts = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
 
   function renderEditableCard(task: Task, isSubtask: boolean) {
     const status = getStatus(task.status_id);
@@ -235,11 +240,11 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
         {showFilters && (
           <NestedFilterBuilder
             fields={[
-              { key: 'project_id', label: 'Project', type: 'select' as const, options: projects.map((p) => ({ value: p.id, label: p.name })) },
-              { key: 'department_id', label: 'Department', type: 'select' as const, options: departments.map((d) => ({ value: d.id, label: d.name })) },
+              { key: 'project_id', label: 'Project', type: 'select' as const, options: (userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects).map((p) => ({ value: p.id, label: p.name })) },
+              { key: 'department_id', label: 'Department', type: 'select' as const, options: (userProjectIds ? departments.filter((d) => (projects.find((p) => p.id === d.project_id) && userProjectIds.includes(d.project_id))) : departments).map((d) => ({ value: d.id, label: d.name })) },
               { key: 'status_id', label: 'Status', type: 'select' as const, options: statuses.map((s) => ({ value: s.id, label: s.name, color: s.color })) },
               { key: 'priority_id', label: 'Priority', type: 'select' as const, options: priorities.map((p) => ({ value: p.id, label: p.name, color: p.color })) },
-              { key: 'assignee_id', label: 'Assignee', type: 'select' as const, options: members.map((m) => ({ value: m.id, label: m.name })) },
+              { key: 'assignee_id', label: 'Assignee', type: 'select' as const, options: (userProjectIds ? members.filter((m) => projectMembers.some((pm) => userProjectIds.includes(pm.project_id) && pm.member_id === m.id)) : members).map((m) => ({ value: m.id, label: m.name })) },
               { key: 'task_type_id', label: 'Type', type: 'select' as const, options: taskTypes.map((t) => ({ value: t.id, label: t.name })) },
               { key: 'section_id', label: 'Section', type: 'select' as const, options: taskSections.map((s) => ({ value: s.id, label: s.name })) },
               { key: 'overdue_days', label: 'Overdue Days', type: 'number' as const },
@@ -296,7 +301,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               <Input value={nf.title || ''} onChange={(e) => setNf({ ...nf, title: e.target.value })} placeholder="Title *" className="h-10" autoFocus />
               <div className="grid grid-cols-2 gap-2">
-                <select value={nf.project_id || ''} onChange={(e) => setNf({ ...nf, project_id: e.target.value })} className="h-9 text-xs border rounded px-2 bg-background"><option value="">Project *</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+                <select value={nf.project_id || ''} onChange={(e) => setNf({ ...nf, project_id: e.target.value })} className="h-9 text-xs border rounded px-2 bg-background"><option value="">Project *</option>{projectOpts.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
                 <select value={nf.department_id || ''} onChange={(e) => setNf({ ...nf, department_id: e.target.value })} className="h-9 text-xs border rounded px-2 bg-background"><option value="">Dept *</option>{deptOpts.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
               </div>
               <div className="grid grid-cols-2 gap-2">
