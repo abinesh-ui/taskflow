@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAccessControl } from '@/hooks/use-access-control';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ interface DailyPOADialogProps { open: boolean; onOpenChange: (open: boolean) => 
 
 export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogProps) {
   const { user } = useAuth();
+  const { userProjectIds } = useAccessControl();
   const queryClient = useQueryClient();
   const createTask = useCreateTask();
   const { toast } = useToast();
@@ -51,9 +53,10 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
   const { data: milestones = [] } = useQuery({ queryKey: ['milestones'], queryFn: async () => { const { data } = await supabase.from('milestones').select('*').order('created_at'); return (data || []) as Array<{ id: string; milestone_no: string; project_id: string; description: string }>; } });
   const { data: todayPoa } = useQuery({ queryKey: ['poa_today', user?.id], queryFn: async () => { const { data } = await supabase.from('poa_submissions').select('*').eq('user_id', user!.id).eq('submitted_date', today).maybeSingle(); return data; }, enabled: !!user });
 
-  // Get pending tasks (not closed/done/dropped)
+  // Get pending tasks (not closed/done/dropped) - filtered by user's projects
   const closedStatusIds = statuses.filter((s) => s.is_closed).map((s) => s.id);
   let pendingTasks = allTasks.filter((t) => !closedStatusIds.includes(t.status_id));
+  if (userProjectIds) pendingTasks = pendingTasks.filter((t) => userProjectIds.includes(t.project_id));
   if (searchQuery) { const q = searchQuery.toLowerCase(); pendingTasks = pendingTasks.filter((t) => t.title.toLowerCase().includes(q) || t.task_no.toLowerCase().includes(q)); }
 
   const totalPlannedMins = Array.from(selectedTasks).reduce((sum, id) => sum + (poaMins[id] || 0), 0);

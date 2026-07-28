@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAccessControl } from '@/hooks/use-access-control';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ interface Props { open: boolean; onOpenChange: (open: boolean) => void; }
 
 export default function DailyWorkDoneDialog({ open, onOpenChange }: Props) {
   const { user } = useAuth();
+  const { userProjectIds } = useAccessControl();
   const queryClient = useQueryClient();
   const createTask = useCreateTask();
   const { toast } = useToast();
@@ -52,9 +54,11 @@ export default function DailyWorkDoneDialog({ open, onOpenChange }: Props) {
   const { data: todayPoa } = useQuery({ queryKey: ['poa_today', user?.id], queryFn: async () => { const { data } = await supabase.from('poa_submissions').select('*').eq('user_id', user!.id).eq('submitted_date', today).maybeSingle(); return data; }, enabled: !!user });
   const { data: poaItems = [] } = useQuery({ queryKey: ['poa_items', todayPoa?.id], queryFn: async () => { if (!todayPoa) return []; const { data } = await supabase.from('poa_items').select('*').eq('poa_id', todayPoa.id); return (data || []) as Array<{ id: string; task_id: string; planned_mins: number; actual_mins: number }>; }, enabled: !!todayPoa });
 
-  // POA tasks for today
+  // POA tasks for today (filtered by user's projects)
   const poaTaskIds = poaItems.map((i) => i.task_id);
-  const poaTasks = allTasks.filter((t) => poaTaskIds.includes(t.id));
+  const poaTasks = userProjectIds
+    ? allTasks.filter((t) => poaTaskIds.includes(t.id) && userProjectIds.includes(t.project_id))
+    : allTasks.filter((t) => poaTaskIds.includes(t.id));
 
   const totalActual = Object.values(actualMins).reduce((s, v) => s + v, 0) + poaItems.reduce((s, i) => s + i.actual_mins, 0);
   const totalPlanned = todayPoa?.total_planned_mins || 0;

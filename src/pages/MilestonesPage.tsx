@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAccessControl } from '@/hooks/use-access-control';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +17,7 @@ const STATUS_COLORS: Record<string, string> = { yet_to_initiate: '#6b7280', wip:
 
 export default function MilestonesPage() {
   const { user } = useAuth();
+  const { userProjectIds, isAdmin } = useAccessControl();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [adding, setAdding] = useState(false);
@@ -29,7 +31,7 @@ export default function MilestonesPage() {
     queryFn: async () => {
       const { data: profile } = await supabase.from('profiles').select('email').eq('id', user!.id).single();
       if (!profile) return null;
-      const { data } = await supabase.from('master_members').select('*').eq('email', profile.email).single();
+      const { data } = await supabase.from('master_members').select('*').ilike('email', profile.email.toLowerCase()).single();
       return data as { role?: string } | null;
     },
     enabled: !!user,
@@ -172,7 +174,7 @@ export default function MilestonesPage() {
     });
   }
 
-  const filteredMilestones = applyMsFilters(milestones);
+  const filteredMilestones = applyMsFilters(userProjectIds ? milestones.filter((ms) => userProjectIds.includes(ms.project_id)) : milestones);
 
   return (
     <div className="space-y-3">
