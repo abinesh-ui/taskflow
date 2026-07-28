@@ -54,10 +54,11 @@ export default function UserManagementPage() {
 
   const inviteUser = useMutation({
     mutationFn: async () => {
+      const email = newEmail.trim().toLowerCase();
       // Create member entry
       const { data: member, error } = await supabase.from('master_members').insert({
         name: newName.trim(),
-        email: newEmail.trim().toLowerCase(),
+        email,
         role: newRole,
         color: AUTO_COLORS[users.length % AUTO_COLORS.length],
         position: users.length + 1,
@@ -66,19 +67,30 @@ export default function UserManagementPage() {
       }).select().single();
       if (error) throw error;
 
-      // Send invite via Supabase Auth
-      const { error: inviteError } = await supabase.auth.admin.inviteUserByEmail(newEmail.trim().toLowerCase());
-      // Note: This may fail on anon key - that's okay, user can still sign up manually
-      if (inviteError) {
-        // Fallback: just create the member, user signs up manually
-        console.log('Invite email not sent (admin key required):', inviteError.message);
+      // Send magic link invite via Supabase Auth OTP (works with anon key)
+      const siteUrl = window.location.origin;
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: siteUrl,
+          shouldCreateUser: true,
+          data: { full_name: newName.trim() },
+        },
+      });
+      if (otpError) {
+        console.warn('Magic link send failed:', otpError.message);
+        // Still save the member - user can sign up manually
       }
-      return member;
+      return { member, emailSent: !otpError };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['master_members'] });
       setAdding(false); setNewName(''); setNewEmail(''); setNewRole('team_member');
-      toast({ title: 'User invited', description: 'They can sign up with the provided email.' });
+      if (result.emailSent) {
+        toast({ title: 'Invite sent!', description: 'A magic link email has been sent. User can click it to login.' });
+      } else {
+        toast({ title: 'User added', description: 'Email could not be sent. Share the app URL and ask them to sign up manually.' });
+      }
     },
     onError: (err: Error) => { toast({ variant: 'destructive', title: 'Error', description: err.message }); },
   });
@@ -116,7 +128,10 @@ export default function UserManagementPage() {
       {/* Users List */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-          <CardTitle className="text-base">Users ({users.length})</CardTitle>
+          <div>
+            <CardTitle className="text-base">Users ({users.length})</CardTitle>
+            <p className="text-[10px] text-muted-foreground mt-1">Invite sends a magic link email. Free tier: max 4 emails/hour.</p>
+          </div>
           <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
             <Plus className="h-4 w-4 mr-1" /> Invite User
           </Button>
@@ -165,12 +180,16 @@ export default function UserManagementPage() {
                     {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                   </select>
                   {/* Send invite button (only if has email and not yet accepted) */}
-                  {user.email && !user.accepted_at && (
+                  {user.email && user.email !== 'email@example.com' && !user.accepted_at && (
                     <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={async () => {
+                      const siteUrl = window.location.origin;
+                      const { error } = await supabase.auth.signInWithOtp({
+                        email: user.email!,
+                        options: { emailRedirectTo: siteUrl, shouldCreateUser: true, data: { full_name: user.name } },
+                      });
                       await supabase.from('master_members').update({ invited_at: new Date().toISOString() }).eq('id', user.id);
-                      const { error } = await supabase.auth.admin.inviteUserByEmail(user.email!);
-                      if (error) toast({ title: 'Note', description: 'User can sign up manually with this email.' });
-                      else toast({ title: 'Invite sent!' });
+                      if (error) toast({ variant: 'destructive', title: 'Failed to send', description: error.message });
+                      else toast({ title: 'Magic link sent!', description: `Login email sent to ${user.email}` });
                       queryClient.invalidateQueries({ queryKey: ['master_members'] });
                     }}>
                       <Mail className="h-3 w-3 mr-1" /> {user.invited_at ? 'Resend' : 'Send'} Invite
