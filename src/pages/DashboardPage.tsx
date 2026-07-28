@@ -70,6 +70,10 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   const { data: currentMember } = useQuery({ queryKey: ['current-member', user?.id], queryFn: async () => { const { data: profile } = await supabase.from('profiles').select('email').eq('id', user!.id).single(); if (!profile) return null; const { data } = await supabase.from('master_members').select('id, role').ilike('email', profile.email.toLowerCase()).single(); return data as { id?: string; role?: string } | null; }, enabled: !!user });
   const isAdmin = currentMember?.role === 'admin';
   const canBulk = (currentMember?.role === 'admin' || currentMember?.role === 'manager');
+  const { data: rolePermissions = [] } = useQuery({ queryKey: ['role_permissions'], queryFn: async () => { const { data } = await supabase.from('role_permissions').select('*'); return (data || []) as Array<{ role: string; permission: string; allowed: boolean }>; } });
+  const userRole = currentMember?.role || 'team_member';
+  const canDeleteTask = userRole === 'admin' || (rolePermissions.find((p) => p.role === userRole && p.permission === 'delete_task')?.allowed ?? false);
+  const canCancelTask = userRole === 'admin' || (rolePermissions.find((p) => p.role === userRole && p.permission === 'cancel_task')?.allowed ?? false);
   // Get user's assigned project IDs (admin sees all, null = still loading/admin)
   const userProjectIds = !currentMember ? null : isAdmin ? null : projectMembers.filter((pm: any) => pm.member_id === currentMember?.id).map((pm: any) => pm.project_id);
 
@@ -172,6 +176,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   const visibleDepartments = userProjectIds ? departments.filter((d) => visibleProjects.some((p) => p.id === d.project_id)) : departments;
   const visibleMemberIds = userProjectIds ? [...new Set(projectMembers.filter((pm: any) => userProjectIds.includes(pm.project_id)).map((pm: any) => pm.member_id))] : null;
   const visibleMembers = visibleMemberIds ? members.filter((m) => visibleMemberIds.includes(m.id)) : members;
+  const visibleMilestones = userProjectIds ? milestones.filter((m: any) => userProjectIds.includes(m.project_id)) : milestones;
 
   const filterFields = [
     { key: 'project_id', label: 'Project', type: 'select' as const, options: visibleProjects.map((p) => ({ value: p.id, label: p.name })) },
@@ -327,17 +332,17 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
 
             {/* New task row */}
             {addingTask && (
-              <NewRow nf={nf} setNf={setNf} projects={visibleProjects} departments={deptOpts} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} onSave={() => handleCreate()} onCancel={() => { setAddingTask(false); setNf({}); }} isSubtask={false} />
+              <NewRow nf={nf} setNf={setNf} projects={visibleProjects} departments={deptOpts} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={visibleMilestones} onSave={() => handleCreate()} onCancel={() => { setAddingTask(false); setNf({}); }} isSubtask={false} />
             )}
             {/* Task rows */}
             {paginated.map((task) => (
               <React.Fragment key={task.id}>
-                <TaskRow task={task} projectMembers={projectMembers} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} departments={visibleDepartments} projects={visibleProjects} expanded={expandedTasks.has(task.id)} subtaskCount={getSubtasks(task.id).length} onToggle={() => toggleTask(task.id)} onUpdate={updateField} onAddSubtask={() => { setAddingSubtaskTo(task.id); setNf({ project_id: task.project_id, department_id: task.department_id, category_id: task.category_id || '', milestone_id: (task as any).milestone_id || '' }); setExpandedTasks(new Set([...expandedTasks, task.id])); }} onCancel={() => cancelTask(task.id)} onDelete={() => deleteTask(task.id)} overdue={getOverdue(task)} selected={selectedTasks.has(task.id)} onSelect={toggleSelect} getTaskCompletion={getTaskCompletion} />
+                <TaskRow task={task} projectMembers={projectMembers} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={visibleMilestones} departments={visibleDepartments} projects={visibleProjects} expanded={expandedTasks.has(task.id)} subtaskCount={getSubtasks(task.id).length} onToggle={() => toggleTask(task.id)} onUpdate={updateField} onAddSubtask={() => { setAddingSubtaskTo(task.id); setNf({ project_id: task.project_id, department_id: task.department_id, category_id: task.category_id || '', milestone_id: (task as any).milestone_id || '' }); setExpandedTasks(new Set([...expandedTasks, task.id])); }} onCancel={() => cancelTask(task.id)} onDelete={() => deleteTask(task.id)} overdue={getOverdue(task)} selected={selectedTasks.has(task.id)} onSelect={toggleSelect} getTaskCompletion={getTaskCompletion} canDelete={canDeleteTask} canCancel={canCancelTask} />
                 {expandedTasks.has(task.id) && addingSubtaskTo === task.id && (
-                  <NewRow nf={nf} setNf={setNf} projects={visibleProjects} departments={deptOpts} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} onSave={() => handleCreate(task)} onCancel={() => { setAddingSubtaskTo(null); setNf({}); }} isSubtask={true} />
+                  <NewRow nf={nf} setNf={setNf} projects={visibleProjects} departments={deptOpts} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={visibleMilestones} onSave={() => handleCreate(task)} onCancel={() => { setAddingSubtaskTo(null); setNf({}); }} isSubtask={true} />
                 )}
                 {expandedTasks.has(task.id) && getSubtasks(task.id).map((sub) => (
-                  <TaskRow key={sub.id} task={sub} projectMembers={projectMembers} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={milestones} departments={visibleDepartments} projects={visibleProjects} expanded={false} subtaskCount={0} onToggle={() => {}} onUpdate={updateField} onAddSubtask={() => {}} onCancel={() => cancelTask(sub.id)} onDelete={() => deleteTask(sub.id)} overdue={getOverdue(sub)} isSubtask selected={selectedTasks.has(sub.id)} onSelect={toggleSelect} getTaskCompletion={getTaskCompletion} />
+                  <TaskRow key={sub.id} task={sub} projectMembers={projectMembers} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={visibleMilestones} departments={visibleDepartments} projects={visibleProjects} expanded={false} subtaskCount={0} onToggle={() => {}} onUpdate={updateField} onAddSubtask={() => {}} onCancel={() => cancelTask(sub.id)} onDelete={() => deleteTask(sub.id)} overdue={getOverdue(sub)} isSubtask selected={selectedTasks.has(sub.id)} onSelect={toggleSelect} getTaskCompletion={getTaskCompletion} canDelete={canDeleteTask} canCancel={canCancelTask} />
                 ))}
               </React.Fragment>
             ))}
@@ -370,7 +375,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
 // New Task/Subtask inline row
 function NewRow({ nf, setNf, projects, departments, statuses, priorities, members, taskTypes, categories, taskSections, macroProjects, milestones, onSave, onCancel, isSubtask }: any) {
   const macroName = (() => { const proj = projects.find((p:any) => p.id === nf.project_id); if (!proj) return ''; const mp = macroProjects.find((m:any) => m.id === proj.macro_project_id); return mp?.name || ''; })();
-  const projMilestones = nf.project_id ? milestones.filter((m:any) => m.project_id === nf.project_id) : milestones;
+  const projMilestones = nf.project_id ? milestones.filter((m:any) => m.project_id === nf.project_id) : [];
   return (
     <tr className={`border-b ${isSubtask ? 'bg-green-50/50 dark:bg-green-950/10' : 'bg-primary/5'}`}>
       <td className="py-1 px-1"></td>
@@ -402,7 +407,7 @@ function NewRow({ nf, setNf, projects, departments, statuses, priorities, member
 }
 
 // Inline editable task row with ALL fields
-function TaskRow({ task, statuses, priorities, members, taskTypes, categories, taskSections, macroProjects, milestones, departments, projects, projectMembers, expanded, subtaskCount, onToggle, onUpdate, onAddSubtask, onCancel, onDelete, overdue, isSubtask, selected, onSelect, getTaskCompletion }: any) {
+function TaskRow({ task, statuses, priorities, members, taskTypes, categories, taskSections, macroProjects, milestones, departments, projects, projectMembers, expanded, subtaskCount, onToggle, onUpdate, onAddSubtask, onCancel, onDelete, overdue, isSubtask, selected, onSelect, getTaskCompletion, canDelete, canCancel }: any) {
   const status = statuses.find((s: any) => s.id === task.status_id);
   const proj = projects?.find?.((p:any) => p.id === task.project_id);
   const macroName = proj?.macro_project_id ? macroProjects?.find?.((m:any) => m.id === proj.macro_project_id)?.name || '' : '';
@@ -440,8 +445,8 @@ function TaskRow({ task, statuses, priorities, members, taskTypes, categories, t
       <td className="py-1 px-0.5">
         <div className="flex items-center gap-0.5">
           {!isSubtask && <button onClick={onAddSubtask} className="h-4 w-4 flex items-center justify-center rounded hover:bg-primary/10 text-muted-foreground hover:text-primary" title="Add subtask"><Plus className="h-2.5 w-2.5" /></button>}
-          <button onClick={onCancel} className="h-4 w-4 flex items-center justify-center rounded hover:bg-orange-100 text-muted-foreground hover:text-orange-600 text-[8px]" title="Cancel">✕</button>
-          <button onClick={onDelete} className="h-4 w-4 flex items-center justify-center rounded hover:bg-red-100 text-muted-foreground hover:text-red-600 text-[8px]" title="Delete">🗑</button>
+          {canCancel && <button onClick={onCancel} className="h-4 w-4 flex items-center justify-center rounded hover:bg-orange-100 text-muted-foreground hover:text-orange-600 text-[8px]" title="Cancel">✕</button>}
+          {canDelete && <button onClick={onDelete} className="h-4 w-4 flex items-center justify-center rounded hover:bg-red-100 text-muted-foreground hover:text-red-600 text-[8px]" title="Delete">🗑</button>}
         </div>
       </td>
     </tr>

@@ -314,7 +314,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <select value={nf.section_id || ''} onChange={(e) => setNf({ ...nf, section_id: e.target.value })} className="h-9 text-xs border rounded px-2 bg-background"><option value="">Section</option>{taskSections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
-                <select value={nf.milestone_id || ''} onChange={(e) => setNf({ ...nf, milestone_id: e.target.value })} className="h-9 text-xs border rounded px-2 bg-background"><option value="">Milestone</option>{milestones.filter((m) => !nf.project_id || m.project_id === nf.project_id).map((m) => <option key={m.id} value={m.id}>{m.description}</option>)}</select>
+                <select value={nf.milestone_id || ''} onChange={(e) => setNf({ ...nf, milestone_id: e.target.value })} className="h-9 text-xs border rounded px-2 bg-background"><option value="">Milestone</option>{(nf.project_id ? milestones.filter((m) => m.project_id === nf.project_id) : []).map((m) => <option key={m.id} value={m.id}>{m.description}</option>)}</select>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <select value={nf.recurrence_type || ''} onChange={(e) => setNf({ ...nf, recurrence_type: e.target.value })} className="h-9 text-xs border rounded px-2 bg-background"><option value="">Recurring</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select>
