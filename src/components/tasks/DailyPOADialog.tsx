@@ -61,6 +61,12 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
 
   const totalPlannedMins = Array.from(selectedTasks).reduce((sum, id) => sum + (poaMins[id] || 0), 0);
 
+  // Filtered options for non-admin
+  const visibleProjects = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
+  const visibleDepartments = userProjectIds ? departments.filter((d: any) => userProjectIds.includes(d.project_id)) : departments;
+  const { projectMembers: pmData } = useAccessControl();
+  const visibleMembers = userProjectIds ? members.filter((m) => pmData.some((pm) => userProjectIds.includes(pm.project_id) && pm.member_id === m.id)) : members;
+
   function toggleSelect(id: string) { const n = new Set(selectedTasks); if (n.has(id)) n.delete(id); else n.add(id); setSelectedTasks(n); }
 
   async function handleSubmitPOA() {
@@ -96,8 +102,6 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
       onSuccess: () => { setNewTitle(''); setNewProject(''); setNewDept(''); setNewStatus(''); setNewPriority(''); setNewAssignee(''); setNewDueDate(''); setNewType(''); setNewSection(''); setNewMilestone(''); setNewStartDate(''); setNewPlannedMins(''); setNewRemarks(''); setShowAddTask(false); setAddingSubTo(null); queryClient.invalidateQueries({ queryKey: ['all-tasks'] }); toast({ title: addingSubTo ? 'Subtask added' : 'Task added' }); },
     });
   }
-
-  const deptOpts = departments;
 
   if (todayPoa) {
     return (
@@ -143,11 +147,11 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
             <span className="text-[10px] font-semibold">{addingSubTo ? 'Add Subtask' : 'Add Task'} — All Fields</span>
             <div className="grid grid-cols-4 gap-1.5">
               <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Title *" className="h-7 text-[10px] col-span-2" autoFocus />
-              <select value={newProject} onChange={(e) => { setNewProject(e.target.value); setNewDept(''); }} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Project *</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-              <select value={newDept} onChange={(e) => setNewDept(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Dept *</option>{deptOpts.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
+              <select value={newProject} onChange={(e) => { setNewProject(e.target.value); setNewDept(''); }} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Project *</option>{visibleProjects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+              <select value={newDept} onChange={(e) => setNewDept(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Dept *</option>{visibleDepartments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
               <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Status</option>{statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
               <select value={newPriority} onChange={(e) => setNewPriority(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Priority</option>{priorities.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-              <select value={newAssignee} onChange={(e) => setNewAssignee(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Assignee</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
+              <select value={newAssignee} onChange={(e) => setNewAssignee(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Assignee</option>{visibleMembers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
               <select value={newType} onChange={(e) => setNewType(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Type</option>{taskTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
               <select value={newSection} onChange={(e) => setNewSection(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Section</option>{taskSections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
               <select value={newMilestone} onChange={(e) => setNewMilestone(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Milestone</option>{milestones.filter((m) => !newProject || m.project_id === newProject).map((m) => <option key={m.id} value={m.id}>{m.description}</option>)}</select>
