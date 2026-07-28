@@ -129,7 +129,14 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
 
   async function updateField(taskId: string, field: string, value: any) {
     if (field === 'planned_end_date' && value) { const task = allTasks.find((t) => t.id === taskId); if (task?.parent_id) { const parent = allTasks.find((t) => t.id === task.parent_id); if (parent?.planned_end_date && value > parent.planned_end_date) { toast({ variant: 'destructive', title: 'Validation Error', description: "Subtask due date can't be greater than task due date" }); return; } } }
+    const task = allTasks.find((t) => t.id === taskId);
+    const oldValue = task ? String((task as any)[field] ?? '') : '';
     await supabase.from('tasks').update({ [field]: value || null }).eq('id', taskId);
+    // Log edit
+    if (task && user) {
+      const memberName = members.find((m) => m.id === currentMember?.id)?.name || user.email || 'Unknown';
+      supabase.from('task_edit_log').insert({ task_id: taskId, task_no: task.task_no, field_name: field, old_value: oldValue || null, new_value: String(value ?? '') || null, edited_by: user.id, edited_by_name: memberName }).then(() => {});
+    }
     queryClient.invalidateQueries({ queryKey: ['all-tasks'] });
   }
   async function cancelTask(id: string) { const s = statuses.find((st) => st.name === 'Cancel' || st.name === 'Dropped'); if (s) await updateField(id, 'status_id', s.id); }

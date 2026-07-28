@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAccessControl } from '@/hooks/use-access-control';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,7 @@ import type { Task, MasterStatus, Project, Department } from '@/types/database';
 
 export default function POAPage() {
   const { user } = useAuth();
+  const { userProjectIds } = useAccessControl();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -51,6 +53,9 @@ export default function POAPage() {
   });
 
   const { data: allTasks = [] } = useQuery({ queryKey: ['all-tasks'], queryFn: async () => { const { data } = await supabase.from('tasks').select('*'); return (data || []) as Task[]; } });
+
+  // Access control: non-admin only sees tasks from assigned projects
+  const visibleTasks = userProjectIds ? allTasks.filter((t) => userProjectIds.includes(t.project_id)) : allTasks;
   const { data: statuses = [] } = useQuery({ queryKey: ['master_statuses'], queryFn: async () => { const { data } = await supabase.from('master_statuses').select('*').eq('is_active', true).order('position'); return (data || []) as MasterStatus[]; } });
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).order('position'); return (data || []) as Project[]; } });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
@@ -60,7 +65,7 @@ export default function POAPage() {
   function getTasksForPoa(poaId: string) {
     const items = poaItems.filter((i) => i.poa_id === poaId);
     return items.map((item) => {
-      const task = allTasks.find((t) => t.id === item.task_id);
+      const task = visibleTasks.find((t) => t.id === item.task_id);
       return { ...item, task };
     });
   }

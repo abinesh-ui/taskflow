@@ -69,7 +69,13 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
   }
 
   async function saveField(taskId: string, field: string, value: any) {
+    const task = allTasks.find((t) => t.id === taskId);
+    const oldValue = task ? String((task as any)[field] ?? '') : '';
     await supabase.from('tasks').update({ [field]: value || null }).eq('id', taskId);
+    // Log edit
+    if (task && user) {
+      supabase.from('task_edit_log').insert({ task_id: taskId, task_no: task.task_no, field_name: field, old_value: oldValue || null, new_value: String(value ?? '') || null, edited_by: user.id, edited_by_name: user.email || 'Unknown' }).then(() => {});
+    }
     queryClient.invalidateQueries({ queryKey: ['all-tasks'] });
   }
 
@@ -78,6 +84,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
   }
 
   async function saveAll(taskId: string) {
+    const task = allTasks.find((t) => t.id === taskId);
     const updates: Record<string, any> = {};
     if (editingFields.title) updates.title = editingFields.title;
     if (editingFields.status_id) updates.status_id = editingFields.status_id;
@@ -96,6 +103,11 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
     updates.recurrence_trigger = editingFields.recurrence_type ? 'on_status_closed' : null;
     updates.recur_forever = !!editingFields.recurrence_type;
     await supabase.from('tasks').update(updates).eq('id', taskId);
+    // Log edits for changed fields
+    if (task && user) {
+      const logs = Object.entries(updates).filter(([k, v]) => String(v ?? '') !== String((task as any)[k] ?? '')).map(([k, v]) => ({ task_id: taskId, task_no: task.task_no, field_name: k, old_value: String((task as any)[k] ?? '') || null, new_value: String(v ?? '') || null, edited_by: user.id, edited_by_name: user.email || 'Unknown' }));
+      if (logs.length > 0) supabase.from('task_edit_log').insert(logs).then(() => {});
+    }
     queryClient.invalidateQueries({ queryKey: ['all-tasks'] });
     toast({ title: 'Saved' });
   }

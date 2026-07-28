@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAccessControl } from '@/hooks/use-access-control';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +12,7 @@ import type { Task, MasterStatus, Project } from '@/types/database';
 
 export default function AnalyticsDashboard() {
   const { user } = useAuth();
+  const { isAdmin, userProjectIds } = useAccessControl();
   const [dateRange, setDateRange] = useState('30'); // days
 
   const { data: allTasks = [] } = useQuery({ queryKey: ['all-tasks'], queryFn: async () => { const { data } = await supabase.from('tasks').select('*'); return (data || []) as Task[]; } });
@@ -24,7 +26,12 @@ export default function AnalyticsDashboard() {
   const today = new Date().toISOString().split('T')[0];
   const closedStatusIds = statuses.filter((s) => s.is_closed).map((s) => s.id);
   const doneStatusIds = statuses.filter((s) => s.is_done).map((s) => s.id);
-  const topTasks = allTasks.filter((t) => !t.parent_id);
+
+  // Access control: non-admin only sees assigned projects
+  const visibleTasks = userProjectIds ? allTasks.filter((t) => userProjectIds.includes(t.project_id)) : allTasks;
+  const visibleProjects = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
+
+  const topTasks = visibleTasks.filter((t) => !t.parent_id);
   const openTasks = topTasks.filter((t) => !closedStatusIds.includes(t.status_id));
   const overdueTasks = openTasks.filter((t) => t.planned_end_date && t.planned_end_date < today);
   const completedTasks = topTasks.filter((t) => doneStatusIds.includes(t.status_id));
@@ -43,7 +50,7 @@ export default function AnalyticsDashboard() {
   });
 
   // Project health
-  const projectHealth = projects.map((p) => {
+  const projectHealth = visibleProjects.map((p) => {
     const pTasks = topTasks.filter((t) => t.project_id === p.id);
     const done = pTasks.filter((t) => closedStatusIds.includes(t.status_id)).length;
     const pct = pTasks.length > 0 ? Math.round((done / pTasks.length) * 100) : 0;
