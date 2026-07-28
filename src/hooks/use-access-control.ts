@@ -9,18 +9,20 @@ import { useAuth } from '@/contexts/AuthContext';
 export function useAccessControl() {
   const { user } = useAuth();
 
-  const { data: currentMember } = useQuery({
+  const { data: currentMember, isLoading: memberLoading } = useQuery({
     queryKey: ['current-member', user?.id],
     queryFn: async () => {
       const { data: profile } = await supabase.from('profiles').select('email').eq('id', user!.id).single();
       if (!profile) return null;
-      const { data } = await supabase.from('master_members').select('id, role').eq('email', profile.email).single();
+      // Case-insensitive email match
+      const email = profile.email.toLowerCase();
+      const { data } = await supabase.from('master_members').select('id, role').ilike('email', email).single();
       return data as { id?: string; role?: string } | null;
     },
     enabled: !!user,
   });
 
-  const { data: projectMembers = [] } = useQuery({
+  const { data: projectMembers = [], isLoading: pmLoading } = useQuery({
     queryKey: ['project_members'],
     queryFn: async () => {
       const { data } = await supabase.from('project_members').select('*');
@@ -28,13 +30,18 @@ export function useAccessControl() {
     },
   });
 
+  const isLoading = memberLoading || pmLoading;
   const isAdmin = currentMember?.role === 'admin';
   const memberId = currentMember?.id || null;
 
-  // null means "see all" (admin); array means restricted to these project IDs
-  const userProjectIds: string[] | null = isAdmin
-    ? null
-    : projectMembers.filter((pm) => pm.member_id === memberId).map((pm) => pm.project_id);
+  // null means "see all" (admin or still loading); array means restricted to these project IDs
+  const userProjectIds: string[] | null = isLoading
+    ? null // Still loading, don't filter yet
+    : isAdmin
+      ? null // Admin sees all
+      : memberId
+        ? projectMembers.filter((pm) => pm.member_id === memberId).map((pm) => pm.project_id)
+        : []; // No member match = see nothing (unrecognized user)
 
-  return { currentMember, isAdmin, memberId, userProjectIds, projectMembers };
+  return { currentMember, isAdmin, memberId, userProjectIds, projectMembers, isLoading };
 }

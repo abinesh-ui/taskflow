@@ -67,11 +67,11 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   const { data: macroProjects = [] } = useQuery({ queryKey: ['master_macro_projects'], queryFn: async () => { const { data } = await supabase.from('master_macro_projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
   const { data: milestones = [] } = useQuery({ queryKey: ['milestones'], queryFn: async () => { const { data } = await supabase.from('milestones').select('*').order('created_at'); return (data || []) as Array<{ id: string; milestone_no: string; project_id: string; description: string }>; } });
   const { data: projectMembers = [] } = useQuery({ queryKey: ['project_members'], queryFn: async () => { const { data } = await supabase.from('project_members').select('*'); return (data || []) as Array<{ id: string; project_id: string; member_id: string }>; } });
-  const { data: currentMember } = useQuery({ queryKey: ['current-member', user?.id], queryFn: async () => { const { data: profile } = await supabase.from('profiles').select('email').eq('id', user!.id).single(); if (!profile) return null; const { data } = await supabase.from('master_members').select('id, role').eq('email', profile.email).single(); return data as { id?: string; role?: string } | null; }, enabled: !!user });
+  const { data: currentMember } = useQuery({ queryKey: ['current-member', user?.id], queryFn: async () => { const { data: profile } = await supabase.from('profiles').select('email').eq('id', user!.id).single(); if (!profile) return null; const { data } = await supabase.from('master_members').select('id, role').ilike('email', profile.email.toLowerCase()).single(); return data as { id?: string; role?: string } | null; }, enabled: !!user });
   const isAdmin = currentMember?.role === 'admin';
   const canBulk = (currentMember?.role === 'admin' || currentMember?.role === 'manager');
-  // Get user's assigned project IDs (admin sees all)
-  const userProjectIds = isAdmin ? null : projectMembers.filter((pm: any) => pm.member_id === currentMember?.id).map((pm: any) => pm.project_id);
+  // Get user's assigned project IDs (admin sees all, null = still loading/admin)
+  const userProjectIds = !currentMember ? null : isAdmin ? null : projectMembers.filter((pm: any) => pm.member_id === currentMember?.id).map((pm: any) => pm.project_id);
 
   function getOverdue(task: Task) { const s = statuses.find((st) => st.id === task.status_id); return getOverdueDays(task.planned_end_date, s?.is_closed ?? false); }
 

@@ -20,7 +20,7 @@ export default function POAPage() {
   const today = new Date().toISOString().split('T')[0];
 
   // Check edit_poa permission
-  const { data: currentMember } = useQuery({ queryKey: ['current-member', user?.id], queryFn: async () => { const { data: profile } = await supabase.from('profiles').select('email').eq('id', user!.id).single(); if (!profile) return null; const { data } = await supabase.from('master_members').select('role').eq('email', profile.email).single(); return data as { role?: string } | null; }, enabled: !!user });
+  const { data: currentMember } = useQuery({ queryKey: ['current-member', user?.id], queryFn: async () => { const { data: profile } = await supabase.from('profiles').select('email').eq('id', user!.id).single(); if (!profile) return null; const { data } = await supabase.from('master_members').select('role').ilike('email', profile.email.toLowerCase()).single(); return data as { role?: string } | null; }, enabled: !!user });
   const { data: permissions = [] } = useQuery({ queryKey: ['role_permissions'], queryFn: async () => { const { data } = await supabase.from('role_permissions').select('*'); return (data || []) as Array<{ role: string; permission: string; allowed: boolean }>; } });
   const canEditPoa = (() => { const role = currentMember?.role || 'team_member'; if (role === 'admin') return true; const perm = permissions.find((p) => p.role === role && p.permission === 'edit_poa'); return perm?.allowed ?? false; })();
   const canDeletePoa = (() => { const role = currentMember?.role || 'team_member'; if (role === 'admin') return true; const perm = permissions.find((p) => p.role === role && p.permission === 'delete_poa'); return perm?.allowed ?? false; })();

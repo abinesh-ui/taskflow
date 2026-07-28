@@ -20,7 +20,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<Project & { macro_project_id?: string }>; } });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
   const { data: projectMembersData = [] } = useQuery({ queryKey: ['project_members'], queryFn: async () => { const { data } = await supabase.from('project_members').select('*'); return (data || []) as Array<{ project_id: string; member_id: string }>; } });
-  const { data: currentMemberSidebar } = useQuery({ queryKey: ['current-member-sidebar', profile?.email], queryFn: async () => { if (!profile?.email) return null; const { data } = await supabase.from('master_members').select('id, role').eq('email', profile.email).single(); return data as { id?: string; role?: string } | null; }, enabled: !!profile?.email });
+  const { data: currentMemberSidebar } = useQuery({ queryKey: ['current-member-sidebar', profile?.email], queryFn: async () => { if (!profile?.email) return null; const { data } = await supabase.from('master_members').select('id, role').ilike('email', profile.email.toLowerCase()).single(); return data as { id?: string; role?: string } | null; }, enabled: !!profile?.email });
 
   // Filter projects for non-admin users
   const visibleProjects = (currentMemberSidebar?.role === 'admin' || !currentMemberSidebar?.id)
