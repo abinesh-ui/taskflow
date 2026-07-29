@@ -49,7 +49,7 @@ export default function DepartmentPage() {
   const { data: department } = useQuery({
     queryKey: ['department', departmentId],
     queryFn: async () => {
-      const { data } = await supabase.from('departments').select('*').eq('id', departmentId!).single();
+      const { data } = await supabase.from('master_departments').select('*').eq('id', departmentId!).single();
       return data;
     },
     enabled: !!departmentId,
