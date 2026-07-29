@@ -17,7 +17,7 @@ interface DailyPOADialogProps { open: boolean; onOpenChange: (open: boolean) => 
 
 export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogProps) {
   const { user } = useAuth();
-  const { userProjectIds } = useAccessControl();
+  const { userProjectIds, memberId, projectMembers: pmData } = useAccessControl();
   const queryClient = useQueryClient();
   const createTask = useCreateTask();
   const { toast } = useToast();
@@ -65,7 +65,6 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
   // Filtered options for non-admin
   const visibleProjects = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
   const visibleDepartments = userProjectIds ? departments.filter((d: any) => userProjectIds.includes(d.project_id)) : departments;
-  const { projectMembers: pmData } = useAccessControl();
   const visibleMembers = userProjectIds ? members.filter((m) => pmData.some((pm) => userProjectIds.includes(pm.project_id) && pm.member_id === m.id)) : members;
 
   function toggleSelect(id: string) { const n = new Set(selectedTasks); if (n.has(id)) n.delete(id); else n.add(id); setSelectedTasks(n); }
@@ -99,7 +98,7 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
   async function handleAddTask() {
     if (!newTitle.trim() || !newProject || !newDept) return;
     const defStatus = statuses.find((s) => s.position === 1) || statuses[0];
-    createTask.mutate({ title: newTitle.trim(), project_id: newProject, department_id: newDept, status_id: newStatus || defStatus?.id || '', priority_id: newPriority || null, assignee_id: newAssignee || null, assigner_id: newAssigner || null, task_type_id: newType || null, section_id: newSection || null, milestone_id: newMilestone || null, planned_start_date: newStartDate || null, planned_end_date: newDueDate || null, planned_mins: newPlannedMins ? Number(newPlannedMins) : null, description: newRemarks || null, position: 0, parent_id: addingSubTo || null } as any, {
+    createTask.mutate({ title: newTitle.trim(), project_id: newProject, department_id: newDept, status_id: newStatus || defStatus?.id || '', priority_id: newPriority || null, assignee_id: newAssignee || null, assigner_id: memberId || null, task_type_id: newType || null, section_id: newSection || null, milestone_id: newMilestone || null, planned_start_date: newStartDate || null, planned_end_date: newDueDate || null, planned_mins: newPlannedMins ? Number(newPlannedMins) : null, description: newRemarks || null, position: 0, parent_id: addingSubTo || null } as any, {
       onSuccess: () => { setNewTitle(''); setNewProject(''); setNewDept(''); setNewStatus(''); setNewPriority(''); setNewAssignee(''); setNewAssigner(''); setNewDueDate(''); setNewType(''); setNewSection(''); setNewMilestone(''); setNewStartDate(''); setNewPlannedMins(''); setNewRemarks(''); setShowAddTask(false); setAddingSubTo(null); queryClient.invalidateQueries({ queryKey: ['all-tasks'] }); toast({ title: addingSubTo ? 'Subtask added' : 'Task added' }); },
     });
   }
@@ -153,7 +152,6 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
               <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Status</option>{statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
               <select value={newPriority} onChange={(e) => setNewPriority(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Priority</option>{priorities.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
               <select value={newAssignee} onChange={(e) => setNewAssignee(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Assignee</option>{visibleMembers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
-              <select value={newAssigner} onChange={(e) => setNewAssigner(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Assigner</option>{visibleMembers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
               <select value={newType} onChange={(e) => setNewType(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Type</option>{taskTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
               <select value={newSection} onChange={(e) => setNewSection(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Section</option>{taskSections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
               <select value={newMilestone} onChange={(e) => setNewMilestone(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Milestone</option>{(newProject ? milestones.filter((m) => m.project_id === newProject) : []).map((m) => <option key={m.id} value={m.id}>{m.description}</option>)}</select>

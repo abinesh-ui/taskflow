@@ -17,7 +17,7 @@ interface Props { open: boolean; onOpenChange: (open: boolean) => void; }
 
 export default function DailyWorkDoneDialog({ open, onOpenChange }: Props) {
   const { user } = useAuth();
-  const { userProjectIds } = useAccessControl();
+  const { userProjectIds, memberId, projectMembers } = useAccessControl();
   const queryClient = useQueryClient();
   const createTask = useCreateTask();
   const { toast } = useToast();
@@ -103,7 +103,7 @@ export default function DailyWorkDoneDialog({ open, onOpenChange }: Props) {
   async function handleAddTask() {
     if (!newTitle.trim() || !newProject || !newDept) return;
     const defStatus = statuses.find((s) => s.position === 1) || statuses[0];
-    createTask.mutate({ title: newTitle.trim(), project_id: newProject, department_id: newDept, status_id: newStatus || defStatus?.id || '', priority_id: newPriority || null, assignee_id: newAssignee || null, assigner_id: newAssigner || null, task_type_id: newType || null, section_id: newSection || null, milestone_id: newMilestone || null, planned_start_date: null, planned_end_date: newDueDate || null, planned_mins: 0, actual_mins: newActualMins ? Number(newActualMins) : null, description: newRemarks || null, position: 0, parent_id: addingSubTo || null, poa_planned_mins: 0 } as any, {
+    createTask.mutate({ title: newTitle.trim(), project_id: newProject, department_id: newDept, status_id: newStatus || defStatus?.id || '', priority_id: newPriority || null, assignee_id: newAssignee || null, assigner_id: memberId || null, task_type_id: newType || null, section_id: newSection || null, milestone_id: newMilestone || null, planned_start_date: null, planned_end_date: newDueDate || null, planned_mins: 0, actual_mins: newActualMins ? Number(newActualMins) : null, description: newRemarks || null, position: 0, parent_id: addingSubTo || null, poa_planned_mins: 0 } as any, {
       onSuccess: (data: any) => {
         // Add to today's POA if exists
         if (todayPoa && data) { supabase.from('poa_items').insert({ poa_id: todayPoa.id, task_id: data.id, planned_mins: 0, actual_mins: newActualMins ? Number(newActualMins) : 0 }).then(() => queryClient.invalidateQueries({ queryKey: ['poa_items'] })); }
@@ -117,8 +117,7 @@ export default function DailyWorkDoneDialog({ open, onOpenChange }: Props) {
   // Filtered options for non-admin
   const visibleProjects = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
   const visibleDepartments = userProjectIds ? departments.filter((d: any) => userProjectIds.includes(d.project_id)) : departments;
-  const { projectMembers: pmData } = useAccessControl();
-  const visibleMembers = userProjectIds ? members.filter((m) => pmData.some((pm) => userProjectIds.includes(pm.project_id) && pm.member_id === m.id)) : members;
+  const visibleMembers = userProjectIds ? members.filter((m) => projectMembers.some((pm: any) => userProjectIds.includes(pm.project_id) && pm.member_id === m.id)) : members;
 
   if (!todayPoa) {
     return (
@@ -164,7 +163,6 @@ export default function DailyWorkDoneDialog({ open, onOpenChange }: Props) {
               <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Status</option>{statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
               <select value={newPriority} onChange={(e) => setNewPriority(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Priority</option>{priorities.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
               <select value={newAssignee} onChange={(e) => setNewAssignee(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Assignee</option>{visibleMembers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
-              <select value={newAssigner} onChange={(e) => setNewAssigner(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Assigner</option>{visibleMembers.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
               <select value={newType} onChange={(e) => setNewType(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Type</option>{taskTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>
               <select value={newSection} onChange={(e) => setNewSection(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Section</option>{taskSections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
               <select value={newMilestone} onChange={(e) => setNewMilestone(e.target.value)} className="h-7 text-[9px] border rounded px-1 bg-background"><option value="">Milestone</option>{(newProject ? milestones.filter((m) => m.project_id === newProject) : []).map((m) => <option key={m.id} value={m.id}>{m.description}</option>)}</select>
