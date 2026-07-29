@@ -116,7 +116,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
     toast({ title: 'Saved' });
   }
 
-  const deptOpts = userProjectIds ? departments.filter((d: any) => userProjectIds.includes(d.project_id)) : departments;
+  const deptOpts = departments; // Departments are open - visible to all users
   const projectOpts = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
 
   function renderEditableCard(task: Task, isSubtask: boolean) {
@@ -241,7 +241,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
           <NestedFilterBuilder
             fields={[
               { key: 'project_id', label: 'Project', type: 'select' as const, options: (userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects).map((p) => ({ value: p.id, label: p.name })) },
-              { key: 'department_id', label: 'Department', type: 'select' as const, options: (userProjectIds ? departments.filter((d) => (projects.find((p) => p.id === d.project_id) && userProjectIds.includes(d.project_id))) : departments).map((d) => ({ value: d.id, label: d.name })) },
+              { key: 'department_id', label: 'Department', type: 'select' as const, options: departments.map((d) => ({ value: d.id, label: d.name })) },
               { key: 'status_id', label: 'Status', type: 'select' as const, options: statuses.map((s) => ({ value: s.id, label: s.name, color: s.color })) },
               { key: 'priority_id', label: 'Priority', type: 'select' as const, options: priorities.map((p) => ({ value: p.id, label: p.name, color: p.color })) },
               { key: 'assignee_id', label: 'Assignee', type: 'select' as const, options: (userProjectIds ? members.filter((m) => projectMembers.some((pm) => userProjectIds.includes(pm.project_id) && pm.member_id === m.id)) : members).map((m) => ({ value: m.id, label: m.name })) },

@@ -173,7 +173,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
 
   // Filter dropdown options: non-admin sees only their projects' data
   const visibleProjects = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
-  const visibleDepartments = userProjectIds ? departments.filter((d) => visibleProjects.some((p) => p.id === d.project_id)) : departments;
+  const visibleDepartments = departments; // Departments are open - visible to all users
   const visibleMemberIds = userProjectIds ? [...new Set(projectMembers.filter((pm: any) => userProjectIds.includes(pm.project_id)).map((pm: any) => pm.member_id))] : null;
   const visibleMembers = visibleMemberIds ? members.filter((m) => visibleMemberIds.includes(m.id)) : members;
   const visibleMilestones = userProjectIds ? milestones.filter((m: any) => userProjectIds.includes(m.project_id)) : milestones;
