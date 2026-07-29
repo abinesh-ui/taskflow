@@ -95,7 +95,7 @@ export function useMasterData() {
   const departments = useQuery({
     queryKey: ['departments'],
     queryFn: async () => {
-      const { data } = await supabase.from('master_departments').select('*').eq('is_active', true).order('position');
+      const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position');
       return data || [];
     },
   });

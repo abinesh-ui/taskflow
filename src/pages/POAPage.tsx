@@ -58,7 +58,7 @@ export default function POAPage() {
   const visibleTasks = userProjectIds ? allTasks.filter((t) => userProjectIds.includes(t.project_id)) : allTasks;
   const { data: statuses = [] } = useQuery({ queryKey: ['master_statuses'], queryFn: async () => { const { data } = await supabase.from('master_statuses').select('*').eq('is_active', true).order('position'); return (data || []) as MasterStatus[]; } });
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).order('position'); return (data || []) as Project[]; } });
-  const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('master_departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
+  const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
 
   const todaySubmitted = poaSubmissions.find((p) => p.submitted_date === today);
 
