@@ -45,8 +45,8 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   const [nf, setNf] = useState<Record<string, string>>({});
 
   // Column configuration
-  const COL_NAMES = ['☑','▾','Project','Milestone','Task #','%','Title','Dept','Status','Priority','Assignee','Type','Section','Macro','Recur','Start','Due','P.Mins','A.Start','A.End','A.Mins','Overdue','Remarks','Actions'];
-  const { widths, onMouseDown } = useResizableColumns({ initialWidths: [28,24,80,100,75,40,280,80,70,70,80,70,70,80,65,90,90,55,90,90,55,50,160,55] });
+  const COL_NAMES = ['☑','▾','Project','Milestone','Task #','%','Title','Dept','Status','Priority','Assignee','Assigner','Type','Section','Macro','Recur','Start','Due','P.Mins','A.Start','A.End','A.Mins','Overdue','Remarks','Actions'];
+  const { widths, onMouseDown } = useResizableColumns({ initialWidths: [28,24,80,100,75,40,280,80,70,70,80,80,70,70,80,65,90,90,55,90,90,55,50,160,55] });
   const [freezeCount, setFreezeCount] = useState(7); // Freeze up to Title (index 6 = 7 columns)
   const [hiddenCols, setHiddenCols] = useState<Set<number>>(new Set());
   const [showColMenu, setShowColMenu] = useState(false);
@@ -126,7 +126,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
     if (parentTask && nf.planned_end_date && parentTask.planned_end_date && nf.planned_end_date > parentTask.planned_end_date) {
       toast({ variant: 'destructive', title: 'Validation Error', description: "Subtask due date can't be greater than task due date" }); return;
     }
-    createTask.mutate({ title: nf.title.trim(), project_id: projId, department_id: deptId, status_id: nf.status_id || defStatus?.id || '', priority_id: nf.priority_id || null, assignee_id: nf.assignee_id || null, task_type_id: nf.task_type_id || null, category_id: nf.category_id || parentTask?.category_id || null, section_id: nf.section_id || null, milestone_id: milestoneId || null, planned_start_date: nf.planned_start_date || null, planned_end_date: nf.planned_end_date || null, planned_mins: nf.planned_mins ? Number(nf.planned_mins) : null, actual_mins: nf.actual_mins ? Number(nf.actual_mins) : null, description: nf.remarks || null, parent_id: parentTask?.id || null, position: 0, is_recurring: !!nf.recurrence_type, recurrence_type: nf.recurrence_type || null, recurrence_trigger: nf.recurrence_type ? 'on_status_closed' : null, recur_forever: !!nf.recurrence_type } as any, {
+    createTask.mutate({ title: nf.title.trim(), project_id: projId, department_id: deptId, status_id: nf.status_id || defStatus?.id || '', priority_id: nf.priority_id || null, assignee_id: nf.assignee_id || null, assigner_id: nf.assigner_id || null, task_type_id: nf.task_type_id || null, category_id: nf.category_id || parentTask?.category_id || null, section_id: nf.section_id || null, milestone_id: milestoneId || null, planned_start_date: nf.planned_start_date || null, planned_end_date: nf.planned_end_date || null, planned_mins: nf.planned_mins ? Number(nf.planned_mins) : null, actual_mins: nf.actual_mins ? Number(nf.actual_mins) : null, description: nf.remarks || null, parent_id: parentTask?.id || null, position: 0, is_recurring: !!nf.recurrence_type, recurrence_type: nf.recurrence_type || null, recurrence_trigger: nf.recurrence_type ? 'on_status_closed' : null, recur_forever: !!nf.recurrence_type } as any, {
       onSuccess: () => { setNf({}); setAddingTask(false); setAddingSubtaskTo(null); if (parentTask) setExpandedTasks(new Set([...expandedTasks, parentTask.id])); queryClient.invalidateQueries({ queryKey: ['all-tasks'] }); },
     });
   }
@@ -313,19 +313,20 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
               <th className="py-2 px-1 text-left relative">Status<ResizeHandle onMouseDown={(e) => onMouseDown(8, e)} /></th>
               <th className="py-2 px-1 text-left relative">Priority<ResizeHandle onMouseDown={(e) => onMouseDown(9, e)} /></th>
               <th className="py-2 px-1 text-left relative">Assignee<ResizeHandle onMouseDown={(e) => onMouseDown(10, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Type<ResizeHandle onMouseDown={(e) => onMouseDown(11, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Section<ResizeHandle onMouseDown={(e) => onMouseDown(12, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Macro<ResizeHandle onMouseDown={(e) => onMouseDown(13, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Recur<ResizeHandle onMouseDown={(e) => onMouseDown(14, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Start<ResizeHandle onMouseDown={(e) => onMouseDown(15, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Due<ResizeHandle onMouseDown={(e) => onMouseDown(16, e)} /></th>
-              <th className="py-2 px-1 text-left relative">P.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(17, e)} /></th>
-              <th className="py-2 px-1 text-left relative">A.Start<ResizeHandle onMouseDown={(e) => onMouseDown(18, e)} /></th>
-              <th className="py-2 px-1 text-left relative">A.End<ResizeHandle onMouseDown={(e) => onMouseDown(19, e)} /></th>
-              <th className="py-2 px-1 text-left relative">A.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(20, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Overdue<ResizeHandle onMouseDown={(e) => onMouseDown(21, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Remarks<ResizeHandle onMouseDown={(e) => onMouseDown(22, e)} /></th>
-              <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(23, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Assigner<ResizeHandle onMouseDown={(e) => onMouseDown(11, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Type<ResizeHandle onMouseDown={(e) => onMouseDown(12, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Section<ResizeHandle onMouseDown={(e) => onMouseDown(13, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Macro<ResizeHandle onMouseDown={(e) => onMouseDown(14, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Recur<ResizeHandle onMouseDown={(e) => onMouseDown(15, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Start<ResizeHandle onMouseDown={(e) => onMouseDown(16, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Due<ResizeHandle onMouseDown={(e) => onMouseDown(17, e)} /></th>
+              <th className="py-2 px-1 text-left relative">P.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(18, e)} /></th>
+              <th className="py-2 px-1 text-left relative">A.Start<ResizeHandle onMouseDown={(e) => onMouseDown(19, e)} /></th>
+              <th className="py-2 px-1 text-left relative">A.End<ResizeHandle onMouseDown={(e) => onMouseDown(20, e)} /></th>
+              <th className="py-2 px-1 text-left relative">A.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(21, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Overdue<ResizeHandle onMouseDown={(e) => onMouseDown(22, e)} /></th>
+              <th className="py-2 px-1 text-left relative">Remarks<ResizeHandle onMouseDown={(e) => onMouseDown(23, e)} /></th>
+              <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(24, e)} /></th>
             </tr>
           </thead>
           <tbody>
@@ -389,6 +390,7 @@ function NewRow({ nf, setNf, projects, departments, statuses, priorities, member
       <td className="py-1 px-0.5"><select value={nf.status_id||''} onChange={(e) => setNf({...nf, status_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Status</option>{statuses.map((s:any) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></td>
       <td className="py-1 px-0.5"><select value={nf.priority_id||''} onChange={(e) => setNf({...nf, priority_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Priority</option>{priorities.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></td>
       <td className="py-1 px-0.5"><select value={nf.assignee_id||''} onChange={(e) => setNf({...nf, assignee_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Assignee</option>{members.map((m:any) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></td>
+      <td className="py-1 px-0.5"><select value={nf.assigner_id||''} onChange={(e) => setNf({...nf, assigner_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Assigner</option>{members.map((m:any) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></td>
       <td className="py-1 px-0.5"><select value={nf.task_type_id||''} onChange={(e) => setNf({...nf, task_type_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Type</option>{taskTypes.map((t:any) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></td>
       <td className="py-1 px-0.5"><select value={nf.section_id||''} onChange={(e) => setNf({...nf, section_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Section</option>{taskSections.map((s:any) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></td>
       <td className="py-1 px-0.5 text-[9px] text-muted-foreground">{macroName || '-'}</td>
@@ -430,6 +432,7 @@ function TaskRow({ task, statuses, priorities, members, taskTypes, categories, t
       <td className="py-1 px-0.5"><select value={task.status_id} onChange={(e) => onUpdate(task.id,'status_id',e.target.value)} className="text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium text-white" style={{backgroundColor: status?.color || '#6b7280'}}>{statuses.map((s:any)=><option key={s.id} value={s.id}>{s.name}</option>)}</select></td>
       <td className="py-1 px-0.5">{(() => { const p = priorities.find((pr:any)=>pr.id===task.priority_id); return <select value={task.priority_id||''} onChange={(e) => onUpdate(task.id,'priority_id',e.target.value)} className="text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium" style={{backgroundColor: p ? p.color+'20' : 'transparent', color: p?.color || 'inherit'}}><option value="">-</option>{priorities.map((pr:any)=><option key={pr.id} value={pr.id}>{pr.name}</option>)}</select>; })()}</td>
       <td className="py-1 px-0.5">{(() => { const m = filteredMembers.find((mb:any)=>mb.id===task.assignee_id); return <select value={task.assignee_id||''} onChange={(e) => onUpdate(task.id,'assignee_id',e.target.value)} className="text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium" style={{backgroundColor: m ? m.color+'20' : 'transparent', color: m?.color || 'inherit'}}><option value="">-</option>{filteredMembers.map((mb:any)=><option key={mb.id} value={mb.id}>{mb.name}</option>)}</select>; })()}</td>
+      <td className="py-1 px-0.5">{(() => { const m = filteredMembers.find((mb:any)=>mb.id===(task as any).assigner_id); return <select value={(task as any).assigner_id||''} onChange={(e) => onUpdate(task.id,'assigner_id',e.target.value)} className="text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium" style={{backgroundColor: m ? m.color+'20' : 'transparent', color: m?.color || 'inherit'}}><option value="">-</option>{filteredMembers.map((mb:any)=><option key={mb.id} value={mb.id}>{mb.name}</option>)}</select>; })()}</td>
       <td className="py-1 px-0.5">{(() => { const t = taskTypes.find((tt:any)=>tt.id===task.task_type_id); return <select value={task.task_type_id||''} onChange={(e) => onUpdate(task.id,'task_type_id',e.target.value)} className="text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium" style={{backgroundColor: t?.color ? t.color+'20' : 'transparent', color: t?.color || 'inherit'}}><option value="">-</option>{taskTypes.map((tt:any)=><option key={tt.id} value={tt.id}>{tt.name}</option>)}</select>; })()}</td>
       <td className="py-1 px-0.5">{(() => { const s = taskSections.find((sc:any)=>sc.id===(task as any).section_id); return <select value={(task as any).section_id||''} onChange={(e) => onUpdate(task.id,'section_id',e.target.value)} className="text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium" style={{backgroundColor: s?.color ? s.color+'20' : 'transparent', color: s?.color || 'inherit'}}><option value="">-</option>{taskSections.map((sc:any)=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select>; })()}</td>
       <td className="py-1 px-0.5 text-[9px]">{(() => { const mp = macroProjects?.find?.((m:any)=>m.id===proj?.macro_project_id); return mp ? <span className="px-1.5 py-0.5 rounded text-[8px] font-medium" style={{backgroundColor: mp.color+'25', color: mp.color}}>{mp.name}</span> : <span className="text-muted-foreground">-</span>; })()}</td>
