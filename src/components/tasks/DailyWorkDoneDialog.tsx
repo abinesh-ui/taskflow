@@ -116,7 +116,7 @@ export default function DailyWorkDoneDialog({ open, onOpenChange }: Props) {
 
   // Filtered options for non-admin
   const visibleProjects = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
-  const visibleDepartments = userProjectIds ? departments.filter((d: any) => userProjectIds.includes(d.project_id)) : departments;
+  const visibleDepartments = departments; // Departments are open - visible to all
   const visibleMembers = userProjectIds ? members.filter((m) => projectMembers.some((pm: any) => userProjectIds.includes(pm.project_id) && pm.member_id === m.id)) : members;
 
   if (!todayPoa) {

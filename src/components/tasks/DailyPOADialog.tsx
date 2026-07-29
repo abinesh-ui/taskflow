@@ -64,7 +64,7 @@ export default function DailyPOADialog({ open, onOpenChange }: DailyPOADialogPro
 
   // Filtered options for non-admin
   const visibleProjects = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
-  const visibleDepartments = userProjectIds ? departments.filter((d: any) => userProjectIds.includes(d.project_id)) : departments;
+  const visibleDepartments = departments; // Departments are open - visible to all
   const visibleMembers = userProjectIds ? members.filter((m) => pmData.some((pm) => userProjectIds.includes(pm.project_id) && pm.member_id === m.id)) : members;
 
   function toggleSelect(id: string) { const n = new Set(selectedTasks); if (n.has(id)) n.delete(id); else n.add(id); setSelectedTasks(n); }
