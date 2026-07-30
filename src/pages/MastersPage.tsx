@@ -105,11 +105,17 @@ function MasterSection({
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // Unlink tasks referencing this item before deleting
+      if (table === 'master_task_types') await supabase.from('tasks').update({ task_type_id: null }).eq('task_type_id', id);
+      if (table === 'master_priorities') await supabase.from('tasks').update({ priority_id: null }).eq('priority_id', id);
+      if (table === 'master_task_sections') await supabase.from('tasks').update({ section_id: null }).eq('section_id', id);
+      if (table === 'departments') await supabase.from('tasks').update({ department_id: null }).eq('department_id', id);
       const { error } = await supabase.from(table).delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [table] });
+      queryClient.invalidateQueries({ queryKey: ['all-tasks'] });
       toast({ title: 'Deleted successfully' });
     },
     onError: (err: Error) => {
