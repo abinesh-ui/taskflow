@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaskFlow - Complete Technical Documentation</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; line-height: 1.7; color: #1a1a2e; background: #f8f9fa; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+h1 { font-size: 2.5rem; color: #2563eb; margin-bottom: 10px; border-bottom: 4px solid #2563eb; padding-bottom: 10px; }
+h2 { font-size: 1.8rem; color: #1e40af; margin: 40px 0 15px; border-left: 5px solid #2563eb; padding-left: 15px; }
+h3 { font-size: 1.3rem; color: #374151; margin: 25px 0 10px; }
+h4 { font-size: 1.1rem; color: #4b5563; margin: 15px 0 8px; }
+p { margin: 8px 0; color: #374151; }
+code { background: #e5e7eb; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; color: #dc2626; }
+pre { background: #1f2937; color: #e5e7eb; padding: 16px; border-radius: 8px; overflow-x: auto; margin: 12px 0; font-size: 0.85em; }
+table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 0.9em; }
+th, td { border: 1px solid #d1d5db; padding: 10px 12px; text-align: left; }
+th { background: #2563eb; color: white; font-weight: 600; }
+tr:nth-child(even) { background: #f3f4f6; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600; margin: 2px; }
+.badge-blue { background: #dbeafe; color: #1d4ed8; }
+.badge-green { background: #d1fae5; color: #065f46; }
+.badge-purple { background: #ede9fe; color: #5b21b6; }
+.badge-orange { background: #ffedd5; color: #c2410c; }
+.badge-red { background: #fee2e2; color: #991b1b; }
+.section { background: white; border-radius: 12px; padding: 30px; margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.flow-box { background: #eff6ff; border: 2px solid #bfdbfe; border-radius: 8px; padding: 15px; margin: 10px 0; }
+.tree { font-family: monospace; font-size: 0.85em; background: #f9fafb; padding: 15px; border-radius: 8px; border: 1px solid #e5e7eb; white-space: pre; overflow-x: auto; }
+.highlight { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px 30px; border-radius: 12px; margin: 20px 0; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+.toc { background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 20px; margin: 20px 0; }
+.toc a { color: #2563eb; text-decoration: none; display: block; padding: 4px 0; }
+.toc a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>TaskFlow - Complete Technical Documentation</h1>
+<p style="font-size:1.1em; color:#6b7280;">ClickUp-style Project & Task Management Application</p>
+<p><strong>Version:</strong> 1.0.0 | <strong>Last Updated:</strong> July 2026 | <strong>Platform:</strong> Web + Mobile PWA</p>
+
+<div class="toc">
+<h3>Table of Contents</h3>
+<a href="#overview">1. Application Overview</a>
+<a href="#tech-stack">2. Technology Stack</a>
+<a href="#architecture">3. Architecture & File Structure</a>
+<a href="#database">4. Database Schema</a>
+<a href="#features">5. Feature Details</a>
+<a href="#access-control">6. Access Control & Roles</a>
+<a href="#api">7. API & Data Flow</a>
+<a href="#deployment">8. Deployment Guide</a>
+<a href="#setup">9. Local Setup Instructions</a>
+<a href="#env">10. Environment Variables</a>
+<a href="#sql-migrations">11. SQL Migrations</a>
+</div>
+
+<div class="section" id="overview">
+<h2>1. Application Overview</h2>
+<p>TaskFlow is a comprehensive project and task management application designed for team collaboration. It features a spreadsheet-style UI for task management, milestones tracking, daily POA (Plan of Action), work done logging, analytics dashboard, AI chatbot, and full role-based access control.</p>
+<div class="highlight">
+<h3 style="color:white">Key Capabilities</h3>
+<p>Spreadsheet inline editing | Milestones | POA & Work Done | Recurring Tasks | Nested AND/OR Filters | Multi-sort | Pagination | Column Resize/Freeze/Show-Hide | Mobile Card UI | Project-User Mapping | Role-Based Access Control | Groq AI Chatbot | Analytics Dashboard | Completion % Hierarchy | Color-coded Fields | Auto Actual Dates | Subtask Validation | Task Edit Log</p>
+</div>
+</div>
+
+<div class="section" id="tech-stack">
+<h2>2. Technology Stack</h2>
+<div class="grid-2">
+<div>
+<h3>Frontend</h3>
+<table>
+<tr><th>Technology</th><th>Version</th><th>Purpose</th></tr>
+<tr><td>React</td><td>18.3</td><td>UI Framework</td></tr>
+<tr><td>TypeScript</td><td>5.6</td><td>Type Safety</td></tr>
+<tr><td>Vite</td><td>5.4</td><td>Build Tool & Dev Server</td></tr>
+<tr><td>TailwindCSS</td><td>3.4</td><td>Styling</td></tr>
+<tr><td>React Router</td><td>6.26</td><td>Client-side Routing</td></tr>
+<tr><td>TanStack React Query</td><td>5.56</td><td>Data Fetching & Caching</td></tr>
+<tr><td>Radix UI</td><td>Various</td><td>Headless UI Components</td></tr>
+<tr><td>Lucide React</td><td>0.441</td><td>Icons</td></tr>
+<tr><td>Vite PWA Plugin</td><td>0.20</td><td>Progressive Web App</td></tr>
+</table>
+</div>
+<div>
+<h3>Backend & Infrastructure</h3>
+<table>
+<tr><th>Technology</th><th>Purpose</th></tr>
+<tr><td>Supabase</td><td>Database (PostgreSQL), Auth, Real-time, Storage</td></tr>
+<tr><td>Vercel</td><td>Frontend Hosting & Deployment</td></tr>
+<tr><td>GitHub</td><td>Source Control</td></tr>
+<tr><td>Groq API</td><td>AI Chat (LLaMA 3.3 70B)</td></tr>
+</table>
+<h3>Key Libraries</h3>
+<table>
+<tr><th>Package</th><th>Purpose</th></tr>
+<tr><td>@supabase/supabase-js</td><td>Supabase Client</td></tr>
+<tr><td>date-fns</td><td>Date Formatting</td></tr>
+<tr><td>class-variance-authority</td><td>Variant Styles</td></tr>
+<tr><td>@dnd-kit</td><td>Drag & Drop (sorting)</td></tr>
+</table>
+</div>
+</div>
+</div>
+
+<div class="section" id="architecture">
+<h2>3. Architecture & File Structure</h2>
+<h3>Project Root</h3>
+<div class="tree">
+taskflow/
+├── public/                    # Static assets
+├── src/
+│   ├── App.tsx               # Root component, routes
+│   ├── main.tsx              # Entry point
+│   ├── index.css             # Global styles (Tailwind)
+│   ├── vite-env.d.ts         # Vite type declarations
+│   ├── components/
+│   │   ├── ai/
+│   │   │   └── AIChatPanel.tsx           # Groq AI chatbot
+│   │   ├── layout/
+│   │   │   ├── DashboardLayout.tsx       # Main app layout
+│   │   │   ├── Sidebar.tsx               # Navigation sidebar
+│   │   │   ├── TopBar.tsx                # Top navigation bar
+│   │   │   └── MobileBottomNav.tsx       # Mobile bottom navigation
+│   │   ├── mobile/
+│   │   │   └── MobileTaskView.tsx        # Mobile card-based task UI
+│   │   ├── notifications/
+│   │   │   └── AlertRulesPage.tsx        # Alert rules configuration
+│   │   ├── tasks/
+│   │   │   ├── DailyPOADialog.tsx        # Daily Plan of Action
+│   │   │   ├── DailyWorkDoneDialog.tsx   # Daily Work Done entry
+│   │   │   ├── NestedFilter.tsx          # AND/OR nested filter builder
+│   │   │   ├── SortBuilder.tsx           # Multi-level sort
+│   │   │   ├── TaskDialog.tsx            # Task detail dialog
+│   │   │   ├── TaskFilters.tsx           # Quick filters
+│   │   │   └── ...
+│   │   └── ui/                           # Reusable UI components (shadcn/ui)
+│   │       ├── button.tsx, input.tsx, badge.tsx, card.tsx
+│   │       ├── dialog.tsx, select.tsx, toast.tsx
+│   │       ├── multi-select.tsx, resizable-table.tsx
+│   │       └── ...
+│   ├── contexts/
+│   │   └── AuthContext.tsx               # Authentication state
+│   ├── hooks/
+│   │   ├── use-access-control.ts         # Project-based access control
+│   │   ├── use-tasks.ts                  # Task CRUD mutations
+│   │   └── use-toast.ts                  # Toast notifications
+│   ├── lib/
+│   │   ├── supabase.ts                   # Supabase client instance
+│   │   ├── utils.ts                      # Utility functions
+│   │   └── csv-export.ts                 # CSV export logic
+│   ├── pages/
+│   │   ├── AnalyticsDashboard.tsx        # Landing page - KPIs & charts
+│   │   ├── DashboardPage.tsx             # All Tasks spreadsheet view
+│   │   ├── DepartmentPage.tsx            # Department-filtered tasks
+│   │   ├── MilestonesPage.tsx            # Milestones management
+│   │   ├── POAPage.tsx                   # POA history
+│   │   ├── MastersPage.tsx               # Settings / Master data
+│   │   ├── UserManagementPage.tsx        # User invites & permissions
+│   │   ├── LoginPage.tsx                 # Login
+│   │   ├── SignupPage.tsx                # Signup
+│   │   ├── ForgotPasswordPage.tsx        # Password reset
+│   │   └── MobileProjectsPage.tsx        # Mobile project view
+│   └── types/
+│       └── database.ts                   # TypeScript type definitions
+├── supabase/
+│   ├── schema.sql                        # Base database schema
+│   ├── add_milestones.sql                # Milestones table
+│   ├── add_poa.sql                       # POA tables
+│   ├── add_recurring.sql                 # Recurring task fields
+│   ├── add_recurring_trigger.sql         # Auto-create recurring tasks
+│   ├── add_sections_tags.sql             # Sections & tags
+│   ├── add_macro_projects.sql            # Macro project grouping
+│   ├── add_project_users.sql             # Project member mapping
+│   ├── add_roles_and_cancel.sql          # Roles & permissions
+│   ├── add_user_management.sql           # User management fields
+│   ├── add_completion_weight.sql         # Status completion weights
+│   ├── add_auto_actual_dates.sql         # Auto actual dates trigger
+│   ├── add_master_members.sql            # Master members table
+│   ├── add_dept_color.sql                # Department colors
+│   ├── add_assigner.sql                  # Assigner field
+│   ├── add_task_edit_log.sql             # Edit audit log
+│   ├── fix_departments.sql              # Department FK fix
+│   └── update_assignee_fk.sql           # Assignee FK update
+├── package.json                          # Dependencies & scripts
+├── vercel.json                           # Vercel SPA rewrite config
+├── tsconfig.json                         # TypeScript config
+├── tailwind.config.js                    # Tailwind configuration
+├── vite.config.ts                        # Vite configuration
+├── .env                                  # Environment variables (local)
+└── TASKFLOW_FRD.md                       # Functional Requirements Document
+</div>
+</div>
+
+<div class="section" id="database">
+<h2>4. Database Schema</h2>
+<h3>Core Tables</h3>
+<table>
+<tr><th>Table</th><th>Purpose</th><th>Key Fields</th></tr>
+<tr><td><code>profiles</code></td><td>User profiles (auto-created on signup)</td><td>id (=auth.users.id), full_name, email, role</td></tr>
+<tr><td><code>tasks</code></td><td>All tasks and subtasks</td><td>id, task_no, parent_id, project_id, department_id, status_id, priority_id, assignee_id, assigner_id, milestone_id, title, planned_start_date, planned_end_date, actual_start_date, actual_end_date, planned_mins, actual_mins, is_recurring, recurrence_type</td></tr>
+<tr><td><code>projects</code></td><td>Projects</td><td>id, name, macro_project_id, is_live, is_active, color</td></tr>
+<tr><td><code>departments</code></td><td>Departments (open, not locked to project)</td><td>id, name, project_id (nullable), is_active, color</td></tr>
+<tr><td><code>milestones</code></td><td>Project milestones</td><td>id, milestone_no, project_id, description, planned_start_date, planned_end_date, status</td></tr>
+<tr><td><code>master_statuses</code></td><td>Task statuses</td><td>id, name, color, position, is_closed, is_done, completion_weight</td></tr>
+<tr><td><code>master_priorities</code></td><td>Priority levels</td><td>id, name, color, sort_weight</td></tr>
+<tr><td><code>master_members</code></td><td>Team members</td><td>id, name, email, role, color, is_active, is_live</td></tr>
+<tr><td><code>master_task_types</code></td><td>Task types</td><td>id, name, color</td></tr>
+<tr><td><code>master_task_sections</code></td><td>Task sections</td><td>id, name, color</td></tr>
+<tr><td><code>master_macro_projects</code></td><td>Macro project groups</td><td>id, name, color</td></tr>
+<tr><td><code>project_members</code></td><td>User-Project mapping</td><td>id, project_id, member_id</td></tr>
+<tr><td><code>poa_submissions</code></td><td>Daily POA submissions</td><td>id, user_id, submitted_date, total_planned_mins, total_actual_mins</td></tr>
+<tr><td><code>poa_items</code></td><td>POA line items</td><td>id, poa_id, task_id, planned_mins, actual_mins</td></tr>
+<tr><td><code>task_status_history</code></td><td>Status change audit trail</td><td>id, task_id, task_no, from_status_id, to_status_id, changed_by, changed_at</td></tr>
+<tr><td><code>task_edit_log</code></td><td>Edit audit trail</td><td>id, task_id, task_no, field_name, old_value, new_value, edited_by, edited_by_name, edited_at</td></tr>
+<tr><td><code>role_permissions</code></td><td>Role-based permissions</td><td>id, role, permission, allowed</td></tr>
+</table>
+
+<h3>Database Triggers</h3>
+<table>
+<tr><th>Trigger</th><th>Event</th><th>Action</th></tr>
+<tr><td><code>on_auth_user_created</code></td><td>AFTER INSERT on auth.users</td><td>Creates profile row automatically</td></tr>
+<tr><td><code>auto_actual_dates</code></td><td>AFTER UPDATE on tasks (status change)</td><td>Sets actual_start_date on first non-YTI status, actual_end_date on closed status</td></tr>
+<tr><td><code>handle_recurring_task</code></td><td>AFTER UPDATE on tasks (status change)</td><td>Creates next recurring task instance when status changes to closed/done</td></tr>
+</table>
+
+<h3>Row Level Security (RLS)</h3>
+<p>All tables have RLS enabled. Policies allow authenticated users to SELECT all data and INSERT/UPDATE/DELETE with appropriate checks. Project-level filtering is handled at the application layer via the <code>useAccessControl</code> hook.</p>
+</div>
+
+<div class="section" id="features">
+<h2>5. Feature Details</h2>
+
+<h3>5.1 All Tasks (Spreadsheet View)</h3>
+<div class="flow-box">
+<p><strong>File:</strong> <code>src/pages/DashboardPage.tsx</code></p>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Inline editable spreadsheet UI (no popups)</li>
+<li>Columns: Project, Milestone, Task#, %, Title, Dept, Status, Priority, Assignee, Assigner, Type, Section, Macro, Recur, Start, Due, P.Mins, A.Start, A.End, A.Mins, Overdue, Remarks</li>
+<li>Column resize (drag handles), freeze columns, show/hide columns</li>
+<li>Nested AND/OR filter builder with multi-value selection</li>
+<li>Multi-level sort (ascending/descending on any field)</li>
+<li>Pagination (200 tasks per page)</li>
+<li>Expand/collapse subtasks inline</li>
+<li>Bulk select, bulk update, bulk delete (admin/manager only)</li>
+<li>Add task/subtask inline row</li>
+<li>Color-coded fields (status, priority, assignee, department, project)</li>
+<li>Overdue highlighting (red background, overdue days badge)</li>
+<li>Completion % based on subtask status weights</li>
+<li>CSV export</li>
+<li>Daily POA and Work Done buttons</li>
+</ul>
+</div>
+
+<h3>5.2 Analytics Dashboard (Landing Page)</h3>
+<div class="flow-box">
+<p><strong>File:</strong> <code>src/pages/AnalyticsDashboard.tsx</code></p>
+<p><strong>Metrics:</strong> Total Tasks, Open Tasks, Overdue Tasks, Completion %, Tasks by Status, Overdue Aging (1-3d, 3-7d, 7d+), Project Health, Team Workload, POA Adherence, Alerts/Exceptions</p>
+</div>
+
+<h3>5.3 Milestones</h3>
+<div class="flow-box">
+<p><strong>File:</strong> <code>src/pages/MilestonesPage.tsx</code></p>
+<p>Project-level milestones. Auto-computed status from linked tasks. Completion % = average of linked task weights. Auto actual dates from task dates.</p>
+</div>
+
+<h3>5.4 POA (Plan of Action)</h3>
+<div class="flow-box">
+<p><strong>Files:</strong> <code>src/pages/POAPage.tsx</code>, <code>src/components/tasks/DailyPOADialog.tsx</code></p>
+<p>Once per day per user. Select tasks, set planned minutes. History view with expandable details.</p>
+</div>
+
+<h3>5.5 Work Done</h3>
+<div class="flow-box">
+<p><strong>File:</strong> <code>src/components/tasks/DailyWorkDoneDialog.tsx</code></p>
+<p>Enter actual minutes against POA tasks. Add unplanned tasks. Updates task actual_mins.</p>
+</div>
+
+<h3>5.6 Recurring Tasks</h3>
+<div class="flow-box">
+<p>Options: Daily, Weekly, Monthly, Yearly, Days After. Trigger: on_status_closed or on_status_done. DB trigger auto-creates next task instance.</p>
+</div>
+
+<h3>5.7 AI Chatbot</h3>
+<div class="flow-box">
+<p><strong>File:</strong> <code>src/components/ai/AIChatPanel.tsx</code></p>
+<p>Uses Groq API (LLaMA 3.3 70B Versatile). Context-aware answers about tasks, projects, deadlines.</p>
+</div>
+
+<h3>5.8 Mobile PWA</h3>
+<div class="flow-box">
+<p><strong>File:</strong> <code>src/components/mobile/MobileTaskView.tsx</code></p>
+<p>Card-based UI. Tap to expand. All fields editable. Create task bottom sheet. Search, filter, sort. Color-coded badges. Floating action button.</p>
+</div>
+
+<h3>5.9 Settings</h3>
+<div class="flow-box">
+<p><strong>File:</strong> <code>src/pages/MastersPage.tsx</code></p>
+<p>Manage: Macro Projects, Projects, Departments, Task Types, Sections, Tags, Priorities, Statuses, Project Members mapping, Alert Rules. Admin only.</p>
+</div>
+</div>
+
+<div class="section" id="access-control">
+<h2>6. Access Control & Roles</h2>
+<h3>Roles</h3>
+<table>
+<tr><th>Role</th><th>Access Level</th></tr>
+<tr><td>Admin</td><td>Full access to everything. All projects, all data, settings, user management.</td></tr>
+<tr><td>Manager</td><td>Assigned projects only. Can bulk update. Can manage milestones.</td></tr>
+<tr><td>Team Leader</td><td>Assigned projects only. Standard task operations.</td></tr>
+<tr><td>Team Member</td><td>Assigned projects only. Limited by role_permissions table.</td></tr>
+</table>
+
+<h3>Access Control Flow</h3>
+<div class="flow-box">
+<pre>
+1. User logs in → profiles.id = auth.users.id
+2. useAccessControl() hook:
+   a. Looks up master_members by matching profiles.email (case-insensitive)
+   b. Gets member's role (admin/manager/team_leader/team_member)
+   c. Queries project_members to get user's assigned project IDs
+   d. Returns: { isAdmin, memberId, userProjectIds, projectMembers }
+3. If admin → userProjectIds = null (sees all)
+4. If non-admin → userProjectIds = [list of assigned project IDs]
+5. Every page filters: tasks, milestones, POA, filter dropdowns, create forms
+</pre>
+</div>
+
+<h3>Permissions (role_permissions table)</h3>
+<table>
+<tr><th>Permission Key</th><th>Description</th></tr>
+<tr><td>create_task</td><td>Can create tasks</td></tr>
+<tr><td>edit_task</td><td>Can edit tasks</td></tr>
+<tr><td>delete_task</td><td>Can delete tasks (hides delete button if false)</td></tr>
+<tr><td>cancel_task</td><td>Can cancel tasks (hides cancel button if false)</td></tr>
+<tr><td>change_status</td><td>Can change task status</td></tr>
+<tr><td>edit_poa</td><td>Can edit submitted POA</td></tr>
+<tr><td>delete_poa</td><td>Can delete POA submissions</td></tr>
+<tr><td>manage_masters</td><td>Can access Settings</td></tr>
+<tr><td>manage_users</td><td>Can manage users</td></tr>
+<tr><td>export_data</td><td>Can export data</td></tr>
+</table>
+
+<h3>What's Filtered for Non-Admin Users</h3>
+<table>
+<tr><th>Element</th><th>Filter</th></tr>
+<tr><td>Task list (web + mobile)</td><td>Only assigned project tasks</td></tr>
+<tr><td>Project dropdown (filters/create)</td><td>Only assigned projects</td></tr>
+<tr><td>Department dropdown</td><td>Open - ALL departments visible to all</td></tr>
+<tr><td>Assignee/Assigner dropdown</td><td>Only members assigned to that project</td></tr>
+<tr><td>Milestone dropdown</td><td>Only milestones for selected project (empty if no project selected)</td></tr>
+<tr><td>Milestones page</td><td>Only milestones from assigned projects</td></tr>
+<tr><td>POA/Work Done dialogs</td><td>Only tasks from assigned projects</td></tr>
+<tr><td>Dashboard metrics</td><td>Only stats for assigned projects</td></tr>
+<tr><td>Sidebar navigation</td><td>Only assigned project groups</td></tr>
+<tr><td>Settings page</td><td>Hidden (admin only)</td></tr>
+</table>
+</div>
+
+<div class="section" id="api">
+<h2>7. API & Data Flow</h2>
+<h3>Authentication Flow</h3>
+<div class="flow-box">
+<pre>
+Login: supabase.auth.signInWithPassword({ email, password })
+Signup: supabase.auth.signUp({ email, password, options: { data: { full_name } } })
+Magic Link Invite: supabase.auth.signInWithOtp({ email, options: { emailRedirectTo, shouldCreateUser: true } })
+Password Reset: supabase.auth.resetPasswordForEmail(email)
+Logout: supabase.auth.signOut()
+
+On signup → DB trigger creates profiles row → AuthContext fetches profile
+</pre>
+</div>
+
+<h3>Data Fetching Pattern</h3>
+<div class="flow-box">
+<pre>
+All data fetching uses TanStack React Query:
+- queryKey: unique cache key (e.g., ['all-tasks'], ['projects'])
+- queryFn: async function calling supabase.from(table).select(...)
+- Automatic cache invalidation after mutations
+- Stale-while-revalidate for smooth UX
+
+Example:
+const { data: tasks = [] } = useQuery({
+  queryKey: ['all-tasks'],
+  queryFn: async () => {
+    const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
+    return (data || []) as Task[];
+  }
+});
+</pre>
+</div>
+
+<h3>Mutation Pattern</h3>
+<div class="flow-box">
+<pre>
+Task Create: useCreateTask() hook → supabase.from('tasks').insert(...)
+Task Update: supabase.from('tasks').update({ field: value }).eq('id', taskId)
+Task Delete: supabase.from('tasks').delete().eq('id', taskId)
+
+After each mutation:
+  queryClient.invalidateQueries({ queryKey: ['all-tasks'] })
+  → React Query refetches → UI updates automatically
+</pre>
+</div>
+
+<h3>Completion % Algorithm</h3>
+<div class="flow-box">
+<pre>
+Status completion_weight values:
+  YTI (Yet to Initiate) = 0
+  WIP = 0.5
+  PMO Review = 0.5
+  Client Pending = 0.5
+  ERP Pending = 0.5
+  Hold = 0.5
+  Done = 1
+  Dropped = 1
+  Future = 1
+
+Task % = If has subtasks: average(subtask weights) * 100
+         If no subtasks: own status weight * 100
+Milestone % = average(linked task weights) * 100
+Department % = average(milestone %)
+Project % = average(department %)
+</pre>
+</div>
+</div>
+
+<div class="section" id="deployment">
+<h2>8. Deployment Guide</h2>
+<h3>Current Deployment</h3>
+<table>
+<tr><th>Service</th><th>URL</th></tr>
+<tr><td>Frontend (Vercel)</td><td>https://taskflow-blond-chi.vercel.app</td></tr>
+<tr><td>Backend (Supabase)</td><td>https://nyiclppnfayvbkxbaspw.supabase.co</td></tr>
+<tr><td>Source Code (GitHub)</td><td>https://github.com/abinesh-ui/taskflow</td></tr>
+</table>
+
+<h3>Vercel Deployment</h3>
+<div class="flow-box">
+<pre>
+1. Push to GitHub main branch
+2. Vercel auto-deploys from GitHub
+3. vercel.json handles SPA routing:
+   { "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
+4. Environment variables configured in Vercel dashboard
+</pre>
+</div>
+
+<h3>Supabase Configuration</h3>
+<div class="flow-box">
+<pre>
+Authentication → URL Configuration:
+  Site URL: https://taskflow-blond-chi.vercel.app
+  Redirect URLs: https://taskflow-blond-chi.vercel.app/**
+
+Authentication → Providers → Email:
+  Confirm email: DISABLED (for internal team use)
+  
+Email rate limit: 4 emails/hour (free tier)
+</pre>
+</div>
+</div>
+
+<div class="section" id="setup">
+<h2>9. Local Setup Instructions</h2>
+<h3>Prerequisites</h3>
+<ul>
+<li>Node.js 18+ (with npm)</li>
+<li>Git</li>
+<li>A Supabase account (free tier works)</li>
+</ul>
+
+<h3>Step-by-Step Setup</h3>
+<div class="flow-box">
+<pre>
+# 1. Clone the repository
+git clone https://github.com/abinesh-ui/taskflow.git
+cd taskflow
+
+# 2. Install dependencies
+npm install
+
+# 3. Create .env file with your Supabase credentials
+# (see Environment Variables section below)
+
+# 4. Run Supabase migrations
+# Go to Supabase SQL Editor and run schema.sql first
+# Then run each add_*.sql file in order
+
+# 5. Start development server
+npm run dev
+
+# 6. Build for production
+npm run build
+
+# 7. Preview production build locally
+npm run preview
+</pre>
+</div>
+
+<h3>Deploy to Any Platform</h3>
+<div class="flow-box">
+<pre>
+# Build produces static files in dist/ folder
+npm run build
+
+# Deploy dist/ folder to:
+# - Vercel: vercel deploy
+# - Netlify: drag & drop dist/ or CLI
+# - AWS S3 + CloudFront
+# - Any static hosting (Nginx, Apache)
+# 
+# IMPORTANT: Configure SPA fallback (all routes → index.html)
+# For Nginx: try_files $uri $uri/ /index.html;
+</pre>
+</div>
+</div>
+
+<div class="section" id="env">
+<h2>10. Environment Variables</h2>
+<h3>Required (.env file)</h3>
+<table>
+<tr><th>Variable</th><th>Description</th><th>Where to Get</th></tr>
+<tr><td><code>VITE_SUPABASE_URL</code></td><td>Supabase project URL</td><td>Supabase Dashboard → Settings → API</td></tr>
+<tr><td><code>VITE_SUPABASE_ANON_KEY</code></td><td>Supabase anonymous key</td><td>Supabase Dashboard → Settings → API</td></tr>
+<tr><td><code>VITE_GROQ_API_KEY</code></td><td>Groq API key for AI chat</td><td>https://console.groq.com/keys</td></tr>
+</table>
+<h3>Example .env</h3>
+<pre>
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIs...
+VITE_GROQ_API_KEY=gsk_your_groq_key_here
+</pre>
+<p><strong>For Vercel:</strong> Add these same variables in Vercel Dashboard → Settings → Environment Variables</p>
+</div>
+
+<div class="section" id="sql-migrations">
+<h2>11. SQL Migrations (Run in Order)</h2>
+<p>Go to <strong>Supabase Dashboard → SQL Editor</strong> and run these files in order:</p>
+<table>
+<tr><th>#</th><th>File</th><th>Purpose</th></tr>
+<tr><td>1</td><td>schema.sql</td><td>Base tables: profiles, projects, departments, tasks, statuses, priorities, task_types, task_categories, status_history</td></tr>
+<tr><td>2</td><td>add_master_members.sql</td><td>Master members table with email, role, color</td></tr>
+<tr><td>3</td><td>add_macro_projects.sql</td><td>Macro project groups + project.macro_project_id</td></tr>
+<tr><td>4</td><td>add_milestones.sql</td><td>Milestones table + tasks.milestone_id</td></tr>
+<tr><td>5</td><td>add_sections_tags.sql</td><td>Task sections, tags, project_tags</td></tr>
+<tr><td>6</td><td>add_poa.sql</td><td>POA submissions and items tables</td></tr>
+<tr><td>7</td><td>add_recurring.sql</td><td>Recurring task fields on tasks table</td></tr>
+<tr><td>8</td><td>add_recurring_trigger.sql</td><td>DB trigger for auto-creating recurring tasks</td></tr>
+<tr><td>9</td><td>add_completion_weight.sql</td><td>completion_weight column on master_statuses</td></tr>
+<tr><td>10</td><td>add_auto_actual_dates.sql</td><td>Trigger for auto actual start/end dates</td></tr>
+<tr><td>11</td><td>add_project_users.sql</td><td>project_members table for access control</td></tr>
+<tr><td>12</td><td>add_roles_and_cancel.sql</td><td>role_permissions table</td></tr>
+<tr><td>13</td><td>add_user_management.sql</td><td>User management fields (invited_at, accepted_at)</td></tr>
+<tr><td>14</td><td>add_poa_permission.sql</td><td>POA edit/delete permissions</td></tr>
+<tr><td>15</td><td>add_dept_color.sql</td><td>Color column on departments</td></tr>
+<tr><td>16</td><td>fix_departments.sql</td><td>Make departments.project_id nullable</td></tr>
+<tr><td>17</td><td>add_assigner.sql</td><td>Assigner field on tasks (drop old FK, recreate clean)</td></tr>
+<tr><td>18</td><td>add_task_edit_log.sql</td><td>Task edit audit log table</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>12. Routing</h2>
+<table>
+<tr><th>Path</th><th>Component</th><th>Access</th></tr>
+<tr><td>/</td><td>AnalyticsDashboard</td><td>Authenticated</td></tr>
+<tr><td>/tasks</td><td>DashboardPage (All Tasks)</td><td>Authenticated</td></tr>
+<tr><td>/milestones</td><td>MilestonesPage</td><td>Authenticated</td></tr>
+<tr><td>/poa</td><td>POAPage</td><td>Authenticated</td></tr>
+<tr><td>/settings</td><td>MastersPage</td><td>Admin only</td></tr>
+<tr><td>/project/:id</td><td>DashboardPage (filtered)</td><td>Authenticated</td></tr>
+<tr><td>/project/:id/department/:id</td><td>DepartmentPage</td><td>Authenticated</td></tr>
+<tr><td>/login</td><td>LoginPage</td><td>Public</td></tr>
+<tr><td>/signup</td><td>SignupPage</td><td>Public</td></tr>
+<tr><td>/forgot-password</td><td>ForgotPasswordPage</td><td>Public</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>13. Key Design Decisions</h2>
+<table>
+<tr><th>Decision</th><th>Rationale</th></tr>
+<tr><td>Spreadsheet UI over popups</td><td>User explicitly requested inline editing, no dialogs for task editing</td></tr>
+<tr><td>Departments open (not locked to projects)</td><td>One department can be used across multiple projects</td></tr>
+<tr><td>Milestones project-level only (no dept)</td><td>One milestone can cut across different departments in a project</td></tr>
+<tr><td>Groq over Gemini</td><td>Gemini free tier had quota=0 without billing; Groq works free</td></tr>
+<tr><td>Recurring via DB trigger (not cron)</td><td>Auto-creates next task when status changes to closed/done</td></tr>
+<tr><td>POA once per day per user</td><td>Unique constraint on (user_id, submitted_date)</td></tr>
+<tr><td>Access control at app layer</td><td>More flexible than RLS for complex multi-table filtering</td></tr>
+<tr><td>Single page app with Vercel rewrites</td><td>React Router handles all routing client-side</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h2>14. Troubleshooting</h2>
+<table>
+<tr><th>Issue</th><th>Solution</th></tr>
+<tr><td>404 on direct URL access</td><td>Ensure vercel.json has SPA rewrite rule</td></tr>
+<tr><td>Foreign key constraint error</td><td>Check that referenced IDs match the correct table (profiles vs master_members)</td></tr>
+<tr><td>Departments not showing</td><td>Run fix_departments.sql to make project_id nullable</td></tr>
+<tr><td>Email rate limit exceeded</td><td>Supabase free tier: 4 emails/hour. Wait or use manual signup.</td></tr>
+<tr><td>User sees no data</td><td>Check: 1) master_members.email matches login email (case-insensitive), 2) project_members has mapping</td></tr>
+<tr><td>AI chat not working</td><td>Add VITE_GROQ_API_KEY to Vercel env vars and redeploy</td></tr>
+<tr><td>Milestone dropdown empty</td><td>Select a project first - milestones show only for the selected project</td></tr>
+</table>
+</div>
+
+<div class="highlight" style="margin-top:40px; text-align:center;">
+<h2 style="color:white; margin:0;">TaskFlow - Built with React + TypeScript + Supabase</h2>
+<p style="margin-top:10px; opacity:0.9;">Source: github.com/abinesh-ui/taskflow | Deployed: taskflow-blond-chi.vercel.app</p>
+</div>
+
+</div>
+</body>
+</html>
