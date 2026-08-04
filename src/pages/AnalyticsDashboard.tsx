@@ -51,10 +51,10 @@ export default function AnalyticsDashboard() {
 
   // Status count for tasks AND subtasks
   const allVisibleTasks = userProjectIds ? allTasks.filter((t) => userProjectIds.includes(t.project_id)) : allTasks;
-  const tasksByStatusDetailed = statuses.map((s) => {
-    const tasks = allVisibleTasks.filter((t) => !t.parent_id && t.status_id === s.id);
-    const subtasks = allVisibleTasks.filter((t) => !!t.parent_id && t.status_id === s.id);
-    return { ...s, tasks: tasks.length, subtasks: subtasks.length, total: tasks.length + subtasks.length };
+  const tasksByStatusDetailed = statuses.map((s: any) => {
+    const tCount = allVisibleTasks.filter((t) => !t.parent_id && t.status_id === s.id).length;
+    const sCount = allVisibleTasks.filter((t) => !!t.parent_id && t.status_id === s.id).length;
+    return { id: s.id, name: s.name, color: s.color, tasks: tCount, subtasks: sCount, total: tCount + sCount };
   }).filter((s) => s.total > 0);
     const pTasks = topTasks.filter((t) => t.project_id === p.id);
     const done = pTasks.filter((t) => closedStatusIds.includes(t.status_id)).length;
