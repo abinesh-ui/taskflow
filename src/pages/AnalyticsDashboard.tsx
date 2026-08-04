@@ -56,12 +56,15 @@ export default function AnalyticsDashboard() {
     const sCount = allVisibleTasks.filter((t) => !!t.parent_id && t.status_id === s.id).length;
     return { id: s.id, name: s.name, color: s.color, tasks: tCount, subtasks: sCount, total: tCount + sCount };
   }).filter((s) => s.total > 0);
+
+  // Project health
+  const projectHealth = visibleProjects.map((p: any) => {
     const pTasks = topTasks.filter((t) => t.project_id === p.id);
     const done = pTasks.filter((t) => closedStatusIds.includes(t.status_id)).length;
     const pct = pTasks.length > 0 ? Math.round((done / pTasks.length) * 100) : 0;
     const overdue = pTasks.filter((t) => !closedStatusIds.includes(t.status_id) && t.planned_end_date && t.planned_end_date < today).length;
-    return { ...p, total: pTasks.length, done, pct, overdue };
-  }).filter((p) => p.total > 0).sort((a, b) => b.total - a.total);
+    return { id: p.id, name: p.name, color: p.color, total: pTasks.length, done, pct, overdue };
+  }).filter((p: any) => p.total > 0).sort((a: any, b: any) => b.total - a.total);
 
   // Team workload
   const teamWorkload = members.map((m) => {
