@@ -49,8 +49,13 @@ export default function AnalyticsDashboard() {
     else overdueAging.critical++;
   });
 
-  // Project health
-  const projectHealth = visibleProjects.map((p) => {
+  // Status count for tasks AND subtasks
+  const allVisibleTasks = userProjectIds ? allTasks.filter((t) => userProjectIds.includes(t.project_id)) : allTasks;
+  const tasksByStatusDetailed = statuses.map((s) => {
+    const tasks = allVisibleTasks.filter((t) => !t.parent_id && t.status_id === s.id);
+    const subtasks = allVisibleTasks.filter((t) => !!t.parent_id && t.status_id === s.id);
+    return { ...s, tasks: tasks.length, subtasks: subtasks.length, total: tasks.length + subtasks.length };
+  }).filter((s) => s.total > 0);
     const pTasks = topTasks.filter((t) => t.project_id === p.id);
     const done = pTasks.filter((t) => closedStatusIds.includes(t.status_id)).length;
     const pct = pTasks.length > 0 ? Math.round((done / pTasks.length) * 100) : 0;
@@ -108,6 +113,32 @@ export default function AnalyticsDashboard() {
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5 text-green-500" />Completed</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-green-600">{totalCompletion}%</div><span className="text-[10px] text-muted-foreground">{completedTasks.length} of {topTasks.length}</span></CardContent></Card>
         <Card className={overdueTasks.length > 0 ? 'border-red-200 bg-red-50/30' : ''}><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5 text-red-500" />Overdue</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold text-red-600">{overdueTasks.length}</div><span className="text-[10px] text-muted-foreground">{overdueAging.critical} critical (7d+)</span></CardContent></Card>
         <Card><CardHeader className="pb-2"><CardTitle className="text-xs text-muted-foreground flex items-center gap-1"><Zap className="h-3.5 w-3.5 text-primary" />POA Score</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{poaAdherence}%</div><span className="text-[10px] text-muted-foreground">Plan vs Actual adherence</span></CardContent></Card>
+      </div>
+
+      {/* Status Count - Tasks & Subtasks */}
+      <div>
+        <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wide">Status Overview — Tasks & Subtasks</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+          {tasksByStatusDetailed.map((s) => (
+            <div key={s.id} className="rounded-xl border p-3 space-y-1.5 shadow-sm" style={{ borderLeftWidth: 4, borderLeftColor: s.color }}>
+              <div className="flex items-center gap-1.5">
+                <div className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                <span className="text-[10px] font-bold uppercase tracking-wide truncate" style={{ color: s.color }}>{s.name}</span>
+              </div>
+              <div className="text-2xl font-extrabold" style={{ color: s.color }}>{s.total}</div>
+              <div className="flex gap-2 text-[9px] text-muted-foreground">
+                <span className="bg-muted/60 px-1.5 py-0.5 rounded">Tasks: <strong>{s.tasks}</strong></span>
+                <span className="bg-muted/60 px-1.5 py-0.5 rounded">Sub: <strong>{s.subtasks}</strong></span>
+              </div>
+              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all" style={{ width: `${allVisibleTasks.length > 0 ? (s.total / allVisibleTasks.length) * 100 : 0}%`, backgroundColor: s.color }} />
+              </div>
+            </div>
+          ))}
+          {tasksByStatusDetailed.length === 0 && (
+            <div className="col-span-5 text-center py-6 text-sm text-muted-foreground">No tasks found for your assigned projects.</div>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
