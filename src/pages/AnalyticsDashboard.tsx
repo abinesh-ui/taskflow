@@ -34,8 +34,11 @@ export default function AnalyticsDashboard() {
   const topTasks = visibleTasks.filter((t) => !t.parent_id);
   const openTasks = topTasks.filter((t) => !closedStatusIds.includes(t.status_id));
   const overdueTasks = openTasks.filter((t) => t.planned_end_date && t.planned_end_date < today);
+  // Weight-based completion across all visible tasks (tasks + subtasks)
+  const totalCompletion = visibleTasks.length > 0
+    ? Math.round(visibleTasks.reduce((sum, t) => { const s = statuses.find((st) => st.id === t.status_id); return sum + ((s as any)?.completion_weight ?? 0); }, 0) / visibleTasks.length * 100)
+    : 0;
   const completedTasks = topTasks.filter((t) => doneStatusIds.includes(t.status_id));
-  const totalCompletion = topTasks.length > 0 ? Math.round((completedTasks.length / topTasks.length) * 100) : 0;
 
   // Tasks by status
   const tasksByStatus = statuses.map((s) => ({ ...s, count: topTasks.filter((t) => t.status_id === s.id).length }));
@@ -60,10 +63,10 @@ export default function AnalyticsDashboard() {
   // Project health
   const projectHealth = visibleProjects.map((p: any) => {
     const pTasks = topTasks.filter((t) => t.project_id === p.id);
-    const done = pTasks.filter((t) => closedStatusIds.includes(t.status_id)).length;
-    const pct = pTasks.length > 0 ? Math.round((done / pTasks.length) * 100) : 0;
+    const pAll = allVisibleTasks.filter((t) => t.project_id === p.id);
+    const pct = pAll.length > 0 ? Math.round(pAll.reduce((sum, t) => { const s = statuses.find((st) => st.id === t.status_id); return sum + ((s as any)?.completion_weight ?? 0); }, 0) / pAll.length * 100) : 0;
     const overdue = pTasks.filter((t) => !closedStatusIds.includes(t.status_id) && t.planned_end_date && t.planned_end_date < today).length;
-    return { id: p.id, name: p.name, color: p.color, total: pTasks.length, done, pct, overdue };
+    return { id: p.id, name: p.name, color: p.color, total: pTasks.length, done: pTasks.filter((t: any) => doneStatusIds.includes(t.status_id)).length, pct, overdue };
   }).filter((p: any) => p.total > 0).sort((a: any, b: any) => b.total - a.total);
 
   // Team workload
