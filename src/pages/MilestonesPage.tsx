@@ -36,8 +36,20 @@ export default function MilestonesPage() {
     },
     enabled: !!user,
   });
+  const { data: permissions = [] } = useQuery({ queryKey: ['role_permissions'], queryFn: async () => { const { data } = await supabase.from('role_permissions').select('*'); return (data || []) as Array<{ role: string; permission: string; allowed: boolean }>; } });
   const userRole = currentMember?.role || 'team_member';
-  const canManage = userRole === 'admin' || userRole === 'manager';
+  const canManage = userRole === 'admin' || userRole === 'manager'; // kept for backward compat
+
+  function hasPerm(perm: string) {
+    if (userRole === 'admin') return true;
+    const p = permissions.find((x) => x.role === userRole && x.permission === perm);
+    return p?.allowed ?? false;
+  }
+
+  const canCreate = hasPerm('create_milestone');
+  const canEdit = hasPerm('edit_milestone');
+  const canDelete = hasPerm('delete_milestone');
+  const canClose = hasPerm('close_milestone');
 
   const { data: milestones = [] } = useQuery({
     queryKey: ['milestones'],
@@ -181,7 +193,7 @@ export default function MilestonesPage() {
     <div className="space-y-3">
       {/* Header + Filter + Add */}
       <div className="flex flex-wrap items-center gap-2">
-        {canManage && (
+        {canCreate && (
           <Button size="sm" className="h-8 text-xs font-medium" onClick={() => setAdding(true)}>
             <Plus className="h-3.5 w-3.5 mr-1" /> Add Milestone
           </Button>
@@ -240,9 +252,9 @@ export default function MilestonesPage() {
                 <tr key={ms.id} className="border-b hover:bg-accent/20">
                   <td className="py-1.5 px-2 font-mono text-[9px] text-muted-foreground">{ms.milestone_no}</td>
                   <td className="py-1.5 px-2 text-[9px]">{projName}</td>
-                  <td className="py-1.5 px-1"><input defaultValue={ms.description} onBlur={(e) => { if (e.target.value !== ms.description) updateField(ms.id, 'description', e.target.value); }} className="w-full text-[10px] font-medium bg-transparent border-0 outline-none hover:bg-muted/50 rounded px-1" /></td>
-                  <td className="py-1.5 px-1"><input type="date" defaultValue={ms.planned_start_date || ''} onBlur={(e) => { if (e.target.value !== (ms.planned_start_date || '')) updateField(ms.id, 'planned_start_date', e.target.value); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" /></td>
-                  <td className="py-1.5 px-1"><input type="date" defaultValue={ms.planned_end_date || ''} onBlur={(e) => { if (e.target.value !== (ms.planned_end_date || '')) updateField(ms.id, 'planned_end_date', e.target.value); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" /></td>
+                  <td className="py-1.5 px-1"><input defaultValue={ms.description} onBlur={(e) => { if (canEdit && e.target.value !== ms.description) updateField(ms.id, 'description', e.target.value); }} readOnly={!canEdit} className={`w-full text-[10px] font-medium bg-transparent border-0 outline-none rounded px-1 ${canEdit ? 'hover:bg-muted/50' : 'cursor-default'}`} /></td>
+                  <td className="py-1.5 px-1"><input type="date" defaultValue={ms.planned_start_date || ''} onBlur={(e) => { if (canEdit && e.target.value !== (ms.planned_start_date || '')) updateField(ms.id, 'planned_start_date', e.target.value); }} readOnly={!canEdit} className={`text-[9px] bg-transparent border-0 outline-none w-full rounded ${canEdit ? 'hover:bg-muted/50' : 'cursor-default'}`} /></td>
+                  <td className="py-1.5 px-1"><input type="date" defaultValue={ms.planned_end_date || ''} onBlur={(e) => { if (canEdit && e.target.value !== (ms.planned_end_date || '')) updateField(ms.id, 'planned_end_date', e.target.value); }} readOnly={!canEdit} className={`text-[9px] bg-transparent border-0 outline-none w-full rounded ${canEdit ? 'hover:bg-muted/50' : 'cursor-default'}`} /></td>
                   <td className="py-1.5 px-2 text-[9px] text-muted-foreground">{computed.actualStart ? formatDate(computed.actualStart) : '-'}</td>
                   <td className="py-1.5 px-2 text-[9px] text-muted-foreground">{computed.actualEnd ? formatDate(computed.actualEnd) : '-'}</td>
                   <td className="py-1.5 px-2 text-[9px]">{taskCount}</td>
@@ -250,10 +262,10 @@ export default function MilestonesPage() {
                   <td className="py-1.5 px-2"><Badge style={{ backgroundColor: STATUS_COLORS[computed.status], color: '#fff' }} className="text-[8px]">{STATUS_LABELS[computed.status]}</Badge></td>
                   <td className="py-1.5 px-1">
                     <div className="flex items-center gap-0.5">
-                      {computed.status === 'done' && canManage && (
+                      {computed.status === 'done' && canClose && (
                         <Button size="sm" variant="outline" className="h-5 text-[8px] px-1.5" onClick={() => closeManually(ms.id)}>Close</Button>
                       )}
-                      {canManage && (
+                      {canDelete && (
                         <button onClick={() => deleteMilestone(ms.id)} className="h-4 w-4 flex items-center justify-center rounded hover:bg-red-100 text-muted-foreground hover:text-red-600 text-[8px]" title="Delete milestone">🗑</button>
                       )}
                     </div>
