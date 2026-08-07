@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,13 +7,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDate, getOverdueDays } from '@/lib/utils';
-import { AlertTriangle, CheckCircle, Clock, TrendingUp, Users, FolderOpen, Target, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Target, Zap, Filter, X, FolderOpen, Users, Clock, TrendingUp } from 'lucide-react';
+import { NestedFilterBuilder, applyFilters, type FilterCondition } from '@/components/tasks/NestedFilter';
 import type { Task, MasterStatus, Project } from '@/types/database';
 
 export default function AnalyticsDashboard() {
   const { user } = useAuth();
   const { isAdmin, userProjectIds } = useAccessControl();
-  const [dateRange, setDateRange] = useState('30'); // days
+  const [dateRange, setDateRange] = useState('all');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterConditions, setFilterConditions] = useState<FilterCondition[]>([]);
 
   const { data: allTasks = [] } = useQuery({ queryKey: ['all-tasks'], queryFn: async () => { const { data } = await supabase.from('tasks').select('*'); return (data || []) as Task[]; } });
   const { data: statuses = [] } = useQuery({ queryKey: ['master_statuses'], queryFn: async () => { const { data } = await supabase.from('master_statuses').select('*').eq('is_active', true).order('position'); return (data || []) as Array<MasterStatus & { completion_weight?: number }>; } });
@@ -28,17 +31,51 @@ export default function AnalyticsDashboard() {
   const doneStatusIds = statuses.filter((s) => s.is_done).map((s) => s.id);
 
   // Access control: non-admin only sees assigned projects
-  const visibleTasks = userProjectIds ? allTasks.filter((t) => userProjectIds.includes(t.project_id)) : allTasks;
+  const accessFiltered = userProjectIds ? allTasks.filter((t) => userProjectIds.includes(t.project_id)) : allTasks;
   const visibleProjects = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
+
+  // Date range filter
+  const dateFiltered = dateRange === 'all' ? accessFiltered : accessFiltered.filter((t) => {
+    const d = t.planned_end_date || t.created_at?.split('T')[0];
+    if (!d) return false;
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - Number(dateRange));
+    return d >= cutoff.toISOString().split('T')[0];
+  });
+
+  // Helper to get overdue days for filter
+  function getOverdueDaysForTask(t: Task) { const s = statuses.find((st) => st.id === t.status_id); return getOverdueDays(t.planned_end_date, s?.is_closed ?? false); }
+
+  // Apply nested filter conditions — this is the master filter that drives ALL metrics
+  const visibleTasks = filterConditions.length > 0
+    ? applyFilters(dateFiltered, filterConditions, getOverdueDaysForTask)
+    : dateFiltered;
+
+  // All visible (tasks + subtasks) scoped to the filter
+  const allVisibleTasks = visibleTasks;
 
   const topTasks = visibleTasks.filter((t) => !t.parent_id);
   const openTasks = topTasks.filter((t) => !closedStatusIds.includes(t.status_id));
   const overdueTasks = openTasks.filter((t) => t.planned_end_date && t.planned_end_date < today);
-  // Weight-based completion across all visible tasks (tasks + subtasks)
+
+  // Weight-based completion
   const totalCompletion = visibleTasks.length > 0
     ? Math.round(visibleTasks.reduce((sum, t) => { const s = statuses.find((st) => st.id === t.status_id); return sum + ((s as any)?.completion_weight ?? 0); }, 0) / visibleTasks.length * 100)
     : 0;
   const completedTasks = topTasks.filter((t) => doneStatusIds.includes(t.status_id));
+
+  // Filter field options (scoped to user's projects)
+  const visibleMembers = userProjectIds
+    ? members.filter((m) => (projects as any[]).some((p) => userProjectIds.includes(p.id)))
+    : members;
+
+  const filterFields = [
+    { key: 'project_id', label: 'Project', type: 'select' as const, options: visibleProjects.map((p) => ({ value: p.id, label: (p as any).name })) },
+    { key: 'department_id', label: 'Department', type: 'select' as const, options: departments.map((d) => ({ value: d.id, label: d.name })) },
+    { key: 'status_id', label: 'Status', type: 'select' as const, options: statuses.map((s) => ({ value: s.id, label: s.name, color: s.color })) },
+    { key: 'assignee_id', label: 'Assignee', type: 'select' as const, options: members.map((m) => ({ value: m.id, label: m.name })) },
+    { key: 'overdue_days', label: 'Overdue Days', type: 'number' as const },
+    { key: 'due_date', label: 'Due Date', type: 'date' as const },
+  ];
 
   // Tasks by status
   const tasksByStatus = statuses.map((s) => ({ ...s, count: topTasks.filter((t) => t.status_id === s.id).length }));
@@ -53,7 +90,6 @@ export default function AnalyticsDashboard() {
   });
 
   // Status count for tasks AND subtasks
-  const allVisibleTasks = userProjectIds ? allTasks.filter((t) => userProjectIds.includes(t.project_id)) : allTasks;
   const tasksByStatusDetailed = statuses.map((s: any) => {
     const tCount = allVisibleTasks.filter((t) => !t.parent_id && t.status_id === s.id).length;
     const sCount = allVisibleTasks.filter((t) => !!t.parent_id && t.status_id === s.id).length;
@@ -89,17 +125,56 @@ export default function AnalyticsDashboard() {
 
   return (
     <div className="space-y-4">
-      {/* Date range */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold">Dashboard</h2>
-        <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="h-8 text-xs border rounded px-2 bg-background">
-          <option value="7">Last 7 days</option>
-          <option value="14">Last 14 days</option>
-          <option value="30">Last 30 days</option>
-          <option value="90">Last 90 days</option>
-          <option value="all">All time</option>
-        </select>
+      {/* Header row */}
+      <div className="flex flex-wrap items-center gap-2 justify-between">
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-bold">Dashboard</h2>
+          {filterConditions.length > 0 && (
+            <Badge className="bg-primary/10 text-primary text-[10px]">{filterConditions.length} filter{filterConditions.length > 1 ? 's' : ''} active</Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <select value={dateRange} onChange={(e) => setDateRange(e.target.value)} className="h-8 text-xs border rounded px-2 bg-background">
+            <option value="7">Last 7 days</option>
+            <option value="14">Last 14 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="all">All time</option>
+          </select>
+          <Button variant={showFilters ? 'default' : 'outline'} size="sm" className="h-8 text-xs gap-1" onClick={() => setShowFilters(!showFilters)}>
+            <Filter className="h-3.5 w-3.5" /> Filter {filterConditions.length > 0 ? `(${filterConditions.length})` : ''}
+          </Button>
+          {filterConditions.length > 0 && (
+            <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 text-muted-foreground" onClick={() => setFilterConditions([])}>
+              <X className="h-3 w-3" /> Clear
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Nested filter panel */}
+      {showFilters && (
+        <div className="border rounded-lg p-3 bg-muted/20">
+          <NestedFilterBuilder fields={filterFields} conditions={filterConditions} onChange={setFilterConditions} />
+        </div>
+      )}
+
+      {/* Active filter chips */}
+      {filterConditions.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 items-center text-[10px]">
+          <span className="text-muted-foreground font-medium">Filtered by:</span>
+          {filterConditions.map((c, i) => {
+            const field = filterFields.find((f) => f.key === c.field);
+            const valLabels = c.values.map((v) => (field as any)?.options?.find((o: any) => o.value === v)?.label || v).join(', ');
+            return (
+              <span key={i} className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                {i > 0 && <span className="text-muted-foreground mr-1">{c.connector}</span>}
+                {field?.label}: {valLabels}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {/* Alerts / Exceptions */}
       {alerts.length > 0 && (
