@@ -319,13 +319,17 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
           let left = 0;
           for (let i = 0; i < freezeCount; i++) {
             if (hiddenCols.has(i)) continue;
-            // Solid opaque background so scrolling content goes cleanly underneath
-            css += `table thead th:nth-child(${i+1}) { position: sticky; left: ${left}px; z-index: 3; background: hsl(var(--muted)); }\n`;
-            css += `table tbody td:nth-child(${i+1}) { position: sticky; left: ${left}px; z-index: 2; background: hsl(var(--card)); }\n`;
+            const n = i + 1;
+            // !important ensures no semi-transparent row-state class overrides the frozen cell background
+            css += `table thead th:nth-child(${n}) { position: sticky; left: ${left}px; z-index: 3; background: hsl(var(--muted)) !important; }\n`;
+            css += `table tbody td:nth-child(${n}) { position: sticky; left: ${left}px; z-index: 2; background: hsl(var(--card)) !important; }\n`;
+            // Hover and selected states still work — they just use opaque colours
+            css += `table tbody tr:hover td:nth-child(${n}) { background: hsl(var(--accent)) !important; }\n`;
+            css += `table tbody tr.bg-primary\\/10 td:nth-child(${n}) { background: hsl(var(--primary) / 0.15) !important; }\n`;
             left += widths[i];
           }
-          // Last frozen column gets the solid vertical divider line (Google Sheets style)
-          if (freezeCount > 0) css += `table thead th:nth-child(${freezeCount}), table tbody td:nth-child(${freezeCount}) { border-right: 2px solid #94a3b8; }\n`;
+          // Google Sheets-style solid vertical divider on the last frozen column
+          if (freezeCount > 0) css += `table thead th:nth-child(${freezeCount}), table tbody td:nth-child(${freezeCount}) { border-right: 2px solid #94a3b8 !important; }\n`;
           return css;
         })()}</style>
         <table className="text-[10px]" style={{ width: widths.reduce((a, b) => a + b, 0) + 'px' }}>

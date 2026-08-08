@@ -111,13 +111,18 @@ table td select {
 table td input:focus, table td select:focus, table td textarea:focus {
   scroll-margin-inline: 100px;
 }
-/* Frozen columns - applied dynamically via inline styles */
-table thead th.frozen, table tbody td.frozen { position: sticky; z-index: 2; background: inherit; }
-table thead th.frozen { z-index: 3; }
-table thead th.freeze-edge, table tbody td.freeze-edge { border-right: 2px solid #cbd5e1; }
-table tbody tr:hover td.frozen { background: hsl(var(--accent)); }
+/* Frozen columns – solid opaque backgrounds so scrolled content hides completely behind them (Google Sheets style) */
+table thead th.frozen { position: sticky; z-index: 3; background: hsl(var(--muted)) !important; }
+table tbody td.frozen  { position: sticky; z-index: 2; background: hsl(var(--card))  !important; }
+/* Solid divider line on the last frozen column */
+table thead th.freeze-edge, table tbody td.freeze-edge { border-right: 2px solid #94a3b8 !important; }
+/* Hover on frozen row cells — still shows, but as an opaque tint */
+table tbody tr:hover td.frozen { background: hsl(var(--accent)) !important; }
+/* All td cells get the card background by default (keeps rows opaque even when tr has a transparent class) */
 table tbody tr td { background: hsl(var(--card)); }
-table tbody tr.bg-muted\/10 td { background: hsl(var(--muted) / 0.1); }
-table tbody tr.bg-primary\/5 td { background: hsl(var(--primary) / 0.05); }
-table tbody tr.bg-red-50\/30 td { background: rgb(254 242 242 / 0.3); }
-table tbody tr.bg-primary\/10 td { background: hsl(var(--primary) / 0.1); }
+/* Row-state tints for non-frozen cells — kept as-is for visual differentiation */
+table tbody tr.bg-muted\/10 td      { background: hsl(var(--muted) / 0.1); }
+table tbody tr.bg-primary\/5 td     { background: hsl(var(--primary) / 0.05); }
+table tbody tr.bg-red-50\/30 td     { background: rgb(254 242 242 / 0.3); }
+table tbody tr.bg-primary\/10 td    { background: hsl(var(--primary) / 0.1); }
+
