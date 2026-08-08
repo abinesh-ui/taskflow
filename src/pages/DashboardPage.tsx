@@ -323,7 +323,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
             css += `table thead th:nth-child(${i+1}) { z-index: 3; }\n`;
             left += widths[i];
           }
-          if (freezeCount > 0) css += `table thead th:nth-child(${freezeCount}), table tbody td:nth-child(${freezeCount}) { box-shadow: 2px 0 4px -2px rgba(0,0,0,0.1); }\n`;
+          if (freezeCount > 0) css += `table thead th:nth-child(${freezeCount}), table tbody td:nth-child(${freezeCount}) { border-right: 2px solid #cbd5e1; }\n`;
           return css;
         })()}</style>
         <table className="text-[10px]" style={{ width: widths.reduce((a, b) => a + b, 0) + 'px' }}>
