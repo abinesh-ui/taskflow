@@ -63,7 +63,15 @@ export default function MilestonesPage() {
     queryKey: ['projects'],
     queryFn: async () => {
       const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position');
-      return (data || []) as Project[];
+      return (data || []) as Array<Project & { macro_project_id?: string }>;
+    },
+  });
+
+  const { data: macroProjects = [] } = useQuery({
+    queryKey: ['master_macro_projects'],
+    queryFn: async () => {
+      const { data } = await supabase.from('master_macro_projects').select('*').eq('is_active', true).order('position');
+      return (data || []) as Array<{ id: string; name: string; color: string }>;
     },
   });
 
@@ -149,6 +157,7 @@ export default function MilestonesPage() {
   // Filter milestones
   const visibleProjects = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
   const msFilterFields = [
+    { key: 'macro_project_id', label: 'Macro Project', type: 'select' as const, options: macroProjects.map((m) => ({ value: m.id, label: m.name, color: m.color })) },
     { key: 'project_id', label: 'Project', type: 'select' as const, options: visibleProjects.map((p) => ({ value: p.id, label: p.name })) },
     { key: 'status', label: 'Status', type: 'select' as const, options: [{ value: 'yet_to_initiate', label: 'Yet to Initiate' }, { value: 'wip', label: 'WIP' }, { value: 'done', label: 'Done' }, { value: 'closed', label: 'Closed' }] },
     { key: 'due_date', label: 'Due Date', type: 'date' as const },
@@ -156,7 +165,12 @@ export default function MilestonesPage() {
 
   function applyMsFilters(list: any[]): any[] {
     if (filterConditions.length === 0) return list;
-    return list.filter((ms) => {
+    const projectMap = new Map((projects as any[]).map((p) => [p.id, p]));
+    const listWithMacro = list.map((ms) => ({
+      ...ms,
+      macro_project_id: projectMap.get(ms.project_id)?.macro_project_id || null,
+    }));
+    return listWithMacro.filter((ms) => {
       let result = true;
       for (let i = 0; i < filterConditions.length; i++) {
         const cond = filterConditions[i];

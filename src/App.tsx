@@ -18,6 +18,10 @@ import { useParams } from 'react-router-dom';
 import type { ReactNode } from 'react';
 
 function AllTasksPage() { return <DashboardPage />; }
+function MacroProjectPage() {
+  const { macroProjectId } = useParams();
+  return <DashboardPage filterMacroProjectId={macroProjectId} />;
+}
 function ProjectPage() {
   const { projectId } = useParams();
   return <DashboardPage filterProjectId={projectId} />;
@@ -82,6 +86,7 @@ function App() {
           <Route path="poa" element={<POAPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="projects-mobile" element={<MobileProjectsPage />} />
+          <Route path="macro/:macroProjectId" element={<MacroProjectPage />} />
           <Route path="project/:projectId" element={<ProjectPage />} />
           <Route path="project/:projectId/department/:departmentId" element={<DeptPage />} />
         </Route>

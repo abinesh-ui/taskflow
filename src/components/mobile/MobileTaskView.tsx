@@ -14,9 +14,9 @@ import { formatDate, getOverdueDays } from '@/lib/utils';
 import { Plus, ChevronDown, ChevronRight, Filter, SlidersHorizontal, X, Search, Save, ChevronsDown, ChevronsUp } from 'lucide-react';
 import type { Task, MasterStatus, MasterPriority, Project, Department } from '@/types/database';
 
-interface MobileProps { filterProjectId?: string; filterDepartmentId?: string; }
+interface MobileProps { filterProjectId?: string; filterDepartmentId?: string; filterMacroProjectId?: string; }
 
-export default function MobileTaskView({ filterProjectId, filterDepartmentId }: MobileProps = {}) {
+export default function MobileTaskView({ filterProjectId, filterDepartmentId, filterMacroProjectId }: MobileProps = {}) {
   const { user } = useAuth();
   const { userProjectIds, memberId } = useAccessControl();
   const queryClient = useQueryClient();
@@ -40,10 +40,11 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
   const { data: statuses = [] } = useQuery({ queryKey: ['master_statuses'], queryFn: async () => { const { data } = await supabase.from('master_statuses').select('*').eq('is_active', true).order('position'); return (data || []) as MasterStatus[]; } });
   const { data: priorities = [] } = useQuery({ queryKey: ['master_priorities'], queryFn: async () => { const { data } = await supabase.from('master_priorities').select('*').eq('is_active', true).order('position'); return (data || []) as MasterPriority[]; } });
   const { data: members = [] } = useQuery({ queryKey: ['master_members'], queryFn: async () => { const { data } = await supabase.from('master_members').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Array<Project & { color?: string }>; } });
+  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Array<Project & { color?: string; macro_project_id?: string }>; } });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Array<Department & { color?: string }>; } });
   const { data: taskTypes = [] } = useQuery({ queryKey: ['master_task_types'], queryFn: async () => { const { data } = await supabase.from('master_task_types').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color?: string }>; } });
   const { data: taskSections = [] } = useQuery({ queryKey: ['master_task_sections'], queryFn: async () => { const { data } = await supabase.from('master_task_sections').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color?: string }>; } });
+  const { data: macroProjects = [] } = useQuery({ queryKey: ['master_macro_projects'], queryFn: async () => { const { data } = await supabase.from('master_macro_projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
   const { data: milestones = [] } = useQuery({ queryKey: ['milestones'], queryFn: async () => { const { data } = await supabase.from('milestones').select('*').order('created_at'); return (data || []) as Array<{ id: string; milestone_no: string; project_id: string; description: string }>; } });
   const { data: projectMembers = [] } = useQuery({ queryKey: ['project_members'], queryFn: async () => { const { data } = await supabase.from('project_members').select('*'); return (data || []) as Array<{ id: string; project_id: string; member_id: string }>; } });
 
@@ -51,10 +52,20 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
   let topTasks = allTasks.filter((t) => !t.parent_id);
   // Access control: non-admin only sees assigned projects
   if (userProjectIds) topTasks = topTasks.filter((t) => userProjectIds.includes(t.project_id));
+  if (filterMacroProjectId) {
+    const macroProjIds = new Set(projects.filter((p: any) => p.macro_project_id === filterMacroProjectId).map((p: any) => p.id));
+    topTasks = topTasks.filter((t) => macroProjIds.has(t.project_id));
+  }
   if (filterProjectId) topTasks = topTasks.filter((t) => t.project_id === filterProjectId);
   if (filterDepartmentId) topTasks = topTasks.filter((t) => t.department_id === filterDepartmentId);
   if (searchQuery) { const q = searchQuery.toLowerCase(); topTasks = topTasks.filter((t) => t.title.toLowerCase().includes(q) || t.task_no.toLowerCase().includes(q)); }
-  topTasks = applyFilters(topTasks, filterConditions, getOverdue);
+
+  const projectMap = new Map(projects.map((p: any) => [p.id, p]));
+  const topTasksWithMacro = topTasks.map((t) => ({
+    ...t,
+    macro_project_id: (projectMap.get(t.project_id) as any)?.macro_project_id || null,
+  }));
+  topTasks = applyFilters(topTasksWithMacro, filterConditions, getOverdue);
   topTasks.sort((a, b) => { for (const l of sortLevels) { const av = (a as any)[l.field] || ''; const bv = (b as any)[l.field] || ''; if (av < bv) return l.direction === 'asc' ? -1 : 1; if (av > bv) return l.direction === 'asc' ? 1 : -1; } return 0; });
 
   function getSubtasks(id: string) { return allTasks.filter((t) => t.parent_id === id); }
@@ -242,6 +253,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId }: 
         {showFilters && (
           <NestedFilterBuilder
             fields={[
+              { key: 'macro_project_id', label: 'Macro Project', type: 'select' as const, options: macroProjects.map((m) => ({ value: m.id, label: m.name, color: m.color })) },
               { key: 'project_id', label: 'Project', type: 'select' as const, options: (userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects).map((p) => ({ value: p.id, label: p.name })) },
               { key: 'department_id', label: 'Department', type: 'select' as const, options: departments.map((d) => ({ value: d.id, label: d.name })) },
               { key: 'status_id', label: 'Status', type: 'select' as const, options: statuses.map((s) => ({ value: s.id, label: s.name, color: s.color })) },

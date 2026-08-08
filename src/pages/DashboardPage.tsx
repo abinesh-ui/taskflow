@@ -18,9 +18,9 @@ import DailyPOADialog from '@/components/tasks/DailyPOADialog';
 import DailyWorkDoneDialog from '@/components/tasks/DailyWorkDoneDialog';
 import type { Task, MasterStatus, MasterPriority, Project, Department } from '@/types/database';
 
-interface DashboardProps { filterProjectId?: string; filterDepartmentId?: string; }
+interface DashboardProps { filterProjectId?: string; filterDepartmentId?: string; filterMacroProjectId?: string; }
 
-export default function DashboardPage({ filterProjectId, filterDepartmentId }: DashboardProps = {}) {
+export default function DashboardPage({ filterProjectId, filterDepartmentId, filterMacroProjectId }: DashboardProps = {}) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const createTask = useCreateTask();
@@ -94,9 +94,19 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   let contextFiltered = allTasks.filter((t) => !t.parent_id);
   // Access control: non-admin only sees their assigned projects
   if (userProjectIds) contextFiltered = contextFiltered.filter((t) => userProjectIds.includes(t.project_id));
+  if (filterMacroProjectId) {
+    const macroProjIds = new Set(projects.filter((p: any) => p.macro_project_id === filterMacroProjectId).map((p: any) => p.id));
+    contextFiltered = contextFiltered.filter((t) => macroProjIds.has(t.project_id));
+  }
   if (filterProjectId) contextFiltered = contextFiltered.filter((t) => t.project_id === filterProjectId);
   if (filterDepartmentId) contextFiltered = contextFiltered.filter((t) => t.department_id === filterDepartmentId);
-  const filtered = applyFilters(contextFiltered, filterConditions, getOverdue);
+
+  const projectMap = new Map(projects.map((p: any) => [p.id, p]));
+  const contextWithMacro = contextFiltered.map((t) => ({
+    ...t,
+    macro_project_id: (projectMap.get(t.project_id) as any)?.macro_project_id || null,
+  }));
+  const filtered = applyFilters(contextWithMacro, filterConditions, getOverdue);
 
   const sorted = [...filtered].sort((a, b) => { for (const l of sortLevels) { const c = cmpField(a, b, l.field, l.direction); if (c !== 0) return c; } return 0; });
   function cmpField(a: Task, b: Task, field: string, dir: 'asc' | 'desc'): number {
@@ -183,6 +193,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   const visibleMilestones = userProjectIds ? milestones.filter((m: any) => userProjectIds.includes(m.project_id)) : milestones;
 
   const filterFields = [
+    { key: 'macro_project_id', label: 'Macro Project', type: 'select' as const, options: macroProjects.map((m) => ({ value: m.id, label: m.name, color: m.color })) },
     { key: 'project_id', label: 'Project', type: 'select' as const, options: visibleProjects.map((p) => ({ value: p.id, label: p.name })) },
     { key: 'department_id', label: 'Department', type: 'select' as const, options: visibleDepartments.map((d) => ({ value: d.id, label: d.name })) },
     { key: 'status_id', label: 'Status', type: 'select' as const, options: statuses.map((s) => ({ value: s.id, label: s.name, color: s.color })) },
@@ -198,9 +209,24 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId }: D
   return (
     <>
       {/* Mobile View */}
-      <MobileTaskView filterProjectId={filterProjectId} filterDepartmentId={filterDepartmentId} />
+      <MobileTaskView filterProjectId={filterProjectId} filterDepartmentId={filterDepartmentId} filterMacroProjectId={filterMacroProjectId} />
       {/* Desktop View */}
       <div className="space-y-2 hidden md:block">
+      {filterMacroProjectId && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/40 rounded-md border text-xs mb-1">
+          <span className="text-muted-foreground font-medium">Macro Project View:</span>
+          {(() => {
+            const mp = macroProjects.find((m) => m.id === filterMacroProjectId);
+            return mp ? (
+              <span className="px-2 py-0.5 rounded font-semibold text-xs" style={{ backgroundColor: mp.color + '25', color: mp.color }}>
+                {mp.name}
+              </span>
+            ) : (
+              <span className="font-semibold">{filterMacroProjectId}</span>
+            );
+          })()}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" className="h-8 text-xs font-medium" onClick={() => { setAddingTask(true); setNf({ project_id: filterProjectId || '', department_id: filterDepartmentId || '' }); }}>
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Task

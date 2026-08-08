@@ -23,6 +23,7 @@ export default function AnalyticsDashboard() {
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).order('position'); return (data || []) as Project[]; } });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; project_id: string; color?: string }>; } });
   const { data: members = [] } = useQuery({ queryKey: ['master_members'], queryFn: async () => { const { data } = await supabase.from('master_members').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
+  const { data: macroProjects = [] } = useQuery({ queryKey: ['master_macro_projects'], queryFn: async () => { const { data } = await supabase.from('master_macro_projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
   const { data: milestones = [] } = useQuery({ queryKey: ['milestones'], queryFn: async () => { const { data } = await supabase.from('milestones').select('*'); return (data || []) as Array<{ id: string; description: string; project_id: string }>; } });
   const { data: poaSubmissions = [] } = useQuery({ queryKey: ['poa_submissions', user?.id], queryFn: async () => { const { data } = await supabase.from('poa_submissions').select('*').eq('user_id', user!.id).order('submitted_date', { ascending: false }).limit(30); return (data || []) as Array<{ id: string; submitted_date: string; total_planned_mins: number; total_actual_mins: number }>; }, enabled: !!user });
 
@@ -46,8 +47,13 @@ export default function AnalyticsDashboard() {
   function getOverdueDaysForTask(t: Task) { const s = statuses.find((st) => st.id === t.status_id); return getOverdueDays(t.planned_end_date, s?.is_closed ?? false); }
 
   // Apply nested filter conditions — this is the master filter that drives ALL metrics
+  const projectMap = new Map(projects.map((p: any) => [p.id, p]));
+  const dateFilteredWithMacro = dateFiltered.map((t) => ({
+    ...t,
+    macro_project_id: (projectMap.get(t.project_id) as any)?.macro_project_id || null,
+  }));
   const visibleTasks = filterConditions.length > 0
-    ? applyFilters(dateFiltered, filterConditions, getOverdueDaysForTask)
+    ? applyFilters(dateFilteredWithMacro, filterConditions, getOverdueDaysForTask)
     : dateFiltered;
 
   // All visible (tasks + subtasks) scoped to the filter
@@ -69,6 +75,7 @@ export default function AnalyticsDashboard() {
     : members;
 
   const filterFields = [
+    { key: 'macro_project_id', label: 'Macro Project', type: 'select' as const, options: macroProjects.map((m) => ({ value: m.id, label: m.name, color: m.color })) },
     { key: 'project_id', label: 'Project', type: 'select' as const, options: visibleProjects.map((p) => ({ value: p.id, label: (p as any).name })) },
     { key: 'department_id', label: 'Department', type: 'select' as const, options: departments.map((d) => ({ value: d.id, label: d.name })) },
     { key: 'status_id', label: 'Status', type: 'select' as const, options: statuses.map((s) => ({ value: s.id, label: s.name, color: s.color })) },

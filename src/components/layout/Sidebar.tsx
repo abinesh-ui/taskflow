@@ -55,12 +55,27 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           {macroProjects.map((macro) => {
             const macroProjs = getProjectsForMacro(macro.id);
             if (macroProjs.length === 0) return null;
+            const isMacroActive = isActive(`/macro/${macro.id}`);
             return (
               <div key={macro.id}>
-                <div className="flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer hover:bg-accent" onClick={() => toggle(expandedMacros, setExpandedMacros, macro.id)}>
-                  {expandedMacros.has(macro.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                  <Briefcase className="h-3 w-3" style={{ color: macro.color }} />
-                  <span className="font-semibold truncate">{macro.name}</span>
+                <div
+                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs cursor-pointer hover:bg-accent ${isMacroActive ? 'bg-accent font-bold text-primary' : ''}`}
+                  onClick={() => {
+                    navigate(`/macro/${macro.id}`);
+                    onNavigate?.();
+                  }}
+                >
+                  <span
+                    className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded flex items-center justify-center"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggle(expandedMacros, setExpandedMacros, macro.id);
+                    }}
+                  >
+                    {expandedMacros.has(macro.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  </span>
+                  <Briefcase className="h-3 w-3 flex-shrink-0" style={{ color: macro.color }} />
+                  <span className="font-semibold truncate flex-1">{macro.name}</span>
                 </div>
                 {expandedMacros.has(macro.id) && macroProjs.map((proj) => {
                   const projDepts = departments.filter((d) => d.project_id === proj.id);
