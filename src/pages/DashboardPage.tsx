@@ -319,11 +319,13 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
           let left = 0;
           for (let i = 0; i < freezeCount; i++) {
             if (hiddenCols.has(i)) continue;
-            css += `table thead th:nth-child(${i+1}), table tbody td:nth-child(${i+1}) { position: sticky; left: ${left}px; z-index: 2; background: inherit; }\n`;
-            css += `table thead th:nth-child(${i+1}) { z-index: 3; }\n`;
+            // Solid opaque background so scrolling content goes cleanly underneath
+            css += `table thead th:nth-child(${i+1}) { position: sticky; left: ${left}px; z-index: 3; background: hsl(var(--muted)); }\n`;
+            css += `table tbody td:nth-child(${i+1}) { position: sticky; left: ${left}px; z-index: 2; background: hsl(var(--card)); }\n`;
             left += widths[i];
           }
-          if (freezeCount > 0) css += `table thead th:nth-child(${freezeCount}), table tbody td:nth-child(${freezeCount}) { border-right: 2px solid #cbd5e1; }\n`;
+          // Last frozen column gets the solid vertical divider line (Google Sheets style)
+          if (freezeCount > 0) css += `table thead th:nth-child(${freezeCount}), table tbody td:nth-child(${freezeCount}) { border-right: 2px solid #94a3b8; }\n`;
           return css;
         })()}</style>
         <table className="text-[10px]" style={{ width: widths.reduce((a, b) => a + b, 0) + 'px' }}>

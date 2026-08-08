@@ -114,7 +114,7 @@ table td input:focus, table td select:focus, table td textarea:focus {
 /* Frozen columns - applied dynamically via inline styles */
 table thead th.frozen, table tbody td.frozen { position: sticky; z-index: 2; background: inherit; }
 table thead th.frozen { z-index: 3; }
-table thead th.freeze-edge, table tbody td.freeze-edge { box-shadow: 2px 0 4px -2px rgba(0,0,0,0.1); }
+table thead th.freeze-edge, table tbody td.freeze-edge { border-right: 2px solid #cbd5e1; }
 table tbody tr:hover td.frozen { background: hsl(var(--accent)); }
 table tbody tr td { background: hsl(var(--card)); }
 table tbody tr.bg-muted\/10 td { background: hsl(var(--muted) / 0.1); }
