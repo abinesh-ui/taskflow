@@ -80,6 +80,12 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
 
   function getOverdue(task: Task) { const s = statuses.find((st) => st.id === task.status_id); return getOverdueDays(task.planned_end_date, s?.is_closed ?? false); }
 
+  // Returns true if the given status name requires actual_mins to be filled
+  function statusRequiresActualMins(statusId: string): boolean {
+    const name = (statuses.find((s) => s.id === statusId)?.name || '').trim().toLowerCase();
+    return ['done', 'dropped', 'hold'].includes(name);
+  }
+
   // Completion % calculation
   function getTaskCompletion(task: Task): number {
     const subtasks = allTasks.filter((t) => t.parent_id === task.id);
@@ -144,6 +150,15 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
 
   async function updateField(taskId: string, field: string, value: any) {
     if (field === 'planned_end_date' && value) { const task = allTasks.find((t) => t.id === taskId); if (task?.parent_id) { const parent = allTasks.find((t) => t.id === task.parent_id); if (parent?.planned_end_date && value > parent.planned_end_date) { toast({ variant: 'destructive', title: 'Validation Error', description: "Subtask due date can't be greater than task due date" }); return; } } }
+    // Actual mins mandatory when status is Done/Dropped/Hold
+    if (field === 'status_id' && statusRequiresActualMins(value)) {
+      const task = allTasks.find((t) => t.id === taskId);
+      const taskActualMins = task ? (task as any).actual_mins : null;
+      if (!taskActualMins || Number(taskActualMins) <= 0) {
+        toast({ variant: 'destructive', title: 'Actual Mins Required', description: `Please fill Actual Mins before setting status to "${statuses.find((s) => s.id === value)?.name}"` });
+        return;
+      }
+    }
     const task = allTasks.find((t) => t.id === taskId);
     const oldValue = task ? String((task as any)[field] ?? '') : '';
     await supabase.from('tasks').update({ [field]: value || null }).eq('id', taskId);
@@ -519,6 +534,14 @@ function TaskRow({ task, statuses, priorities, members, taskTypes, categories, t
     if (String(ef.actual_mins) !== String(task.actual_mins||'')) updates.actual_mins = ef.actual_mins ? Number(ef.actual_mins) : null;
     if (ef.description !== (task.description||'')) updates.description = ef.description || null;
     if (ef.recurrence_type !== ((task as any).recurrence_type||'')) { updates.recurrence_type = ef.recurrence_type || null; updates.is_recurring = !!ef.recurrence_type; updates.recurrence_trigger = ef.recurrence_type ? 'on_status_closed' : null; updates.recur_forever = !!ef.recurrence_type; }
+    // Validate actual_mins mandatory for Done/Dropped/Hold
+    const newStatusId = updates.status_id ?? task.status_id;
+    const newActualMins = updates.actual_mins ?? task.actual_mins;
+    const statusName = (statuses.find((s: any) => s.id === newStatusId)?.name || '').trim().toLowerCase();
+    if (['done', 'dropped', 'hold'].includes(statusName) && (!newActualMins || Number(newActualMins) <= 0)) {
+      toast({ variant: 'destructive', title: 'Actual Mins Required', description: `Please fill Actual Mins before setting status to "${statuses.find((s: any) => s.id === newStatusId)?.name}"` });
+      return;
+    }
     if (Object.keys(updates).length > 0) { for (const [k, v] of Object.entries(updates)) { onUpdate(task.id, k, v); } }
     setEditing(false);
   }

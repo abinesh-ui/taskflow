@@ -67,6 +67,20 @@ export default function DailyWorkDoneDialog({ open, onOpenChange }: Props) {
   async function handleSubmitWorkDone() {
     if (Object.keys(actualMins).length === 0 && Object.keys(remarks).length === 0) { toast({ variant: 'destructive', title: 'Nothing to submit', description: 'Enter actual minutes for at least one task' }); return; }
 
+    // Validate: tasks with Done/Dropped/Hold status must have actual_mins filled
+    const requiresMinsStatusNames = ['done', 'dropped', 'hold'];
+    for (const task of poaTasks) {
+      const statusName = (statuses.find((s) => s.id === task.status_id)?.name || '').trim().toLowerCase();
+      if (requiresMinsStatusNames.includes(statusName)) {
+        const existingMins = task.actual_mins || 0;
+        const enteredMins = actualMins[task.id] || 0;
+        if (existingMins <= 0 && enteredMins <= 0) {
+          toast({ variant: 'destructive', title: 'Actual Mins Required', description: `Task "${task.task_no}" has status "${statuses.find((s) => s.id === task.status_id)?.name}" — please enter Actual Mins for it.` });
+          return;
+        }
+      }
+    }
+
     // Update POA items with actual mins and remarks
     for (const [taskId, mins] of Object.entries(actualMins)) {
       const poaItem = poaItems.find((i) => i.task_id === taskId);

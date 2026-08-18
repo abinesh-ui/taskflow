@@ -75,6 +75,12 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId, fi
   function getOverdue(t: Task) { const s = getStatus(t.status_id); return getOverdueDays(t.planned_end_date, s?.is_closed ?? false); }
   function getFilteredMembers(projectId: string | null | undefined) { if (!projectId) return members; const pmIds = projectMembers.filter((pm) => pm.project_id === projectId).map((pm) => pm.member_id); return pmIds.length > 0 ? members.filter((m) => pmIds.includes(m.id)) : members; }
 
+  // Returns true if status name requires actual_mins
+  function statusRequiresActualMins(statusId: string): boolean {
+    const name = (statuses.find((s) => s.id === statusId)?.name || '').trim().toLowerCase();
+    return ['done', 'dropped', 'hold'].includes(name);
+  }
+
   async function handleCreate() {
     if (!nf.title?.trim() || !nf.project_id || !nf.department_id) { toast({ variant: 'destructive', title: 'Required', description: 'Title, Project, Department needed' }); return; }
     const defStatus = statuses.find((s) => s.position === 1) || statuses[0];
@@ -84,6 +90,15 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId, fi
   }
 
   async function saveField(taskId: string, field: string, value: any) {
+    // Actual mins mandatory when status is Done/Dropped/Hold
+    if (field === 'status_id' && statusRequiresActualMins(value)) {
+      const task = allTasks.find((t) => t.id === taskId);
+      const taskActualMins = task ? (task as any).actual_mins : null;
+      if (!taskActualMins || Number(taskActualMins) <= 0) {
+        toast({ variant: 'destructive', title: 'Actual Mins Required', description: `Please fill Actual Mins before setting status to "${statuses.find((s) => s.id === value)?.name}"` });
+        return;
+      }
+    }
     const task = allTasks.find((t) => t.id === taskId);
     const oldValue = task ? String((task as any)[field] ?? '') : '';
     await supabase.from('tasks').update({ [field]: value || null }).eq('id', taskId);
@@ -118,6 +133,13 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId, fi
     updates.recurrence_type = editingFields.recurrence_type || null;
     updates.recurrence_trigger = editingFields.recurrence_type ? 'on_status_closed' : null;
     updates.recur_forever = !!editingFields.recurrence_type;
+    // Validate: actual_mins mandatory for Done/Dropped/Hold
+    const finalStatusId = updates.status_id ?? task?.status_id;
+    const finalActualMins = updates.actual_mins ?? task?.actual_mins;
+    if (finalStatusId && statusRequiresActualMins(finalStatusId) && (!finalActualMins || Number(finalActualMins) <= 0)) {
+      toast({ variant: 'destructive', title: 'Actual Mins Required', description: `Please fill Actual Mins before setting status to "${statuses.find((s) => s.id === finalStatusId)?.name}"` });
+      return;
+    }
     await supabase.from('tasks').update(updates).eq('id', taskId);
     // Log edits for changed fields
     if (task && user) {
