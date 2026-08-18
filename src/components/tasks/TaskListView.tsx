@@ -209,7 +209,7 @@ export default function TaskListView({
   return (
     <div className="rounded-md border overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="bg-muted/50 border-b">
+        <thead className="sticky top-0 z-10 bg-muted/50 border-b">
           <tr>
             <SortHeader field="task_no" label="Task #" />
             <SortHeader field="title" label="Title" />

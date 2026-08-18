@@ -201,6 +201,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
     { key: 'assignee_id', label: 'Assignee', type: 'select' as const, options: visibleMembers.map((m) => ({ value: m.id, label: m.name })) },
     { key: 'task_type_id', label: 'Type', type: 'select' as const, options: taskTypes.map((t) => ({ value: t.id, label: t.name })) },
     { key: 'section_id', label: 'Section', type: 'select' as const, options: taskSections.map((s) => ({ value: s.id, label: s.name })) },
+    { key: 'milestone_id', label: 'Milestone', type: 'select' as const, options: visibleMilestones.map((m: any) => ({ value: m.id, label: m.milestone_no ? `${m.milestone_no}: ${m.description}` : m.description })) },
     { key: 'overdue_days', label: 'Overdue Days', type: 'number' as const },
     { key: 'due_date', label: 'Due Date', type: 'date' as const },
   ];
@@ -321,7 +322,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
             if (hiddenCols.has(i)) continue;
             const n = i + 1;
             // !important ensures no semi-transparent row-state class overrides the frozen cell background
-            css += `table thead th:nth-child(${n}) { position: sticky; left: ${left}px; z-index: 3; background: hsl(var(--muted)) !important; }\n`;
+            css += `table thead th:nth-child(${n}) { position: sticky; left: ${left}px; top: 0; z-index: 4; background: hsl(var(--muted)) !important; }\n`;
             css += `table tbody td:nth-child(${n}) { position: sticky; left: ${left}px; z-index: 2; background: hsl(var(--card)) !important; }\n`;
             // Hover and selected states still work — they just use opaque colours
             css += `table tbody tr:hover td:nth-child(${n}) { background: hsl(var(--accent)) !important; }\n`;
@@ -336,7 +337,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
           <colgroup>
             {widths.map((w, i) => <col key={i} style={{ width: w + 'px' }} />)}
           </colgroup>
-          <thead>
+          <thead className="sticky top-0 z-10">
             <tr className="bg-muted/60 border-b font-semibold text-muted-foreground uppercase tracking-wider">
               <th className="py-2 px-1 relative"><input type="checkbox" checked={selectedTasks.size > 0 && selectedTasks.size >= paginated.length} onChange={(e) => { if (e.target.checked) selectAll(); else deselectAll(); }} className="h-3 w-3 rounded" /><ResizeHandle onMouseDown={(e) => onMouseDown(0, e)} /></th>
               <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(1, e)} /></th>

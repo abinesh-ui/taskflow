@@ -261,6 +261,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId, fi
               { key: 'assignee_id', label: 'Assignee', type: 'select' as const, options: (userProjectIds ? members.filter((m) => projectMembers.some((pm) => userProjectIds.includes(pm.project_id) && pm.member_id === m.id)) : members).map((m) => ({ value: m.id, label: m.name })) },
               { key: 'task_type_id', label: 'Type', type: 'select' as const, options: taskTypes.map((t) => ({ value: t.id, label: t.name })) },
               { key: 'section_id', label: 'Section', type: 'select' as const, options: taskSections.map((s) => ({ value: s.id, label: s.name })) },
+              { key: 'milestone_id', label: 'Milestone', type: 'select' as const, options: (userProjectIds ? milestones.filter((m) => userProjectIds.includes(m.project_id)) : milestones).map((m) => ({ value: m.id, label: (m as any).milestone_no ? `${(m as any).milestone_no}: ${m.description}` : m.description })) },
               { key: 'overdue_days', label: 'Overdue Days', type: 'number' as const },
               { key: 'due_date', label: 'Due Date', type: 'date' as const },
             ]}

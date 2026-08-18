@@ -246,6 +246,8 @@ function evaluateCondition(task: any, cond: FilterCondition, getOverdueDays: (t:
   // Multi-select field (in)
   const fieldValue = cond.field === 'macro_project_id'
     ? (task.macro_project_id || task.project?.macro_project_id || task._macro_project_id)
+    : cond.field === 'milestone_id'
+    ? (task.milestone_id || task._milestone_id)
     : task[cond.field];
   if (!fieldValue) return false;
   return cond.values.includes(fieldValue);

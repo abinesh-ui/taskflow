@@ -80,6 +80,7 @@ export default function AnalyticsDashboard() {
     { key: 'department_id', label: 'Department', type: 'select' as const, options: departments.map((d) => ({ value: d.id, label: d.name })) },
     { key: 'status_id', label: 'Status', type: 'select' as const, options: statuses.map((s) => ({ value: s.id, label: s.name, color: s.color })) },
     { key: 'assignee_id', label: 'Assignee', type: 'select' as const, options: members.map((m) => ({ value: m.id, label: m.name })) },
+    { key: 'milestone_id', label: 'Milestone', type: 'select' as const, options: (userProjectIds ? milestones.filter((m) => userProjectIds.includes(m.project_id)) : milestones).map((m) => ({ value: m.id, label: (m as any).milestone_no ? `${(m as any).milestone_no}: ${m.description}` : m.description })) },
     { key: 'overdue_days', label: 'Overdue Days', type: 'number' as const },
     { key: 'due_date', label: 'Due Date', type: 'date' as const },
   ];
