@@ -185,22 +185,64 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
     setSelectedTasks(new Set()); setShowBulkUpdate(false);
   }
 
-  // Filter dropdown options: non-admin sees only their projects' data
-  const visibleProjects = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
-  const visibleDepartments = departments; // Departments are open - visible to all users
-  const visibleMemberIds = userProjectIds ? [...new Set(projectMembers.filter((pm: any) => userProjectIds.includes(pm.project_id)).map((pm: any) => pm.member_id))] : null;
-  const visibleMembers = visibleMemberIds ? members.filter((m) => visibleMemberIds.includes(m.id)) : members;
-  const visibleMilestones = userProjectIds ? milestones.filter((m: any) => userProjectIds.includes(m.project_id)) : milestones;
+  // Filter dropdown options — scoped to the current context (project/dept/macro) when applicable
+  // Determine the effective project ID set for scoping filter options
+  const contextProjectIds: string[] | null = (() => {
+    if (filterProjectId) return [filterProjectId];
+    if (filterDepartmentId && filterProjectId) return [filterProjectId];
+    if (filterMacroProjectId) {
+      const ids = projects.filter((p: any) => p.macro_project_id === filterMacroProjectId).map((p: any) => p.id);
+      return ids.length > 0 ? ids : null;
+    }
+    return userProjectIds; // fall back to access-control scoping
+  })();
+
+  const visibleProjects = contextProjectIds ? projects.filter((p) => contextProjectIds.includes(p.id)) : projects;
+  // Departments: scoped to context project(s)
+  const visibleDepartments = contextProjectIds
+    ? departments.filter((d: any) => contextProjectIds.includes(d.project_id))
+    : departments;
+  // Members: scoped to project members of context project(s)
+  const contextMemberIds = contextProjectIds
+    ? [...new Set(projectMembers.filter((pm: any) => contextProjectIds.includes(pm.project_id)).map((pm: any) => pm.member_id))]
+    : null;
+  const visibleMembers = contextMemberIds ? members.filter((m) => contextMemberIds.includes(m.id)) : members;
+  // Milestones: scoped to context project(s)
+  const visibleMilestones = contextProjectIds
+    ? milestones.filter((m: any) => contextProjectIds.includes(m.project_id))
+    : milestones;
+  // Task types and sections: scoped to tasks within the current context
+  const contextUsedTypeIds = contextProjectIds
+    ? new Set(contextFiltered.map((t) => t.task_type_id).filter(Boolean))
+    : null;
+  const contextUsedSectionIds = contextProjectIds
+    ? new Set(contextFiltered.map((t) => (t as any).section_id).filter(Boolean))
+    : null;
+  const visibleTaskTypes = contextUsedTypeIds
+    ? taskTypes.filter((t) => contextUsedTypeIds.has(t.id))
+    : taskTypes;
+  const visibleTaskSections = contextUsedSectionIds
+    ? taskSections.filter((s) => contextUsedSectionIds.has(s.id))
+    : taskSections;
+  // Macro projects: if in a project view, only show that project's macro project
+  const visibleMacroProjects = filterProjectId
+    ? macroProjects.filter((m) => {
+        const proj = projects.find((p: any) => p.id === filterProjectId);
+        return proj && (proj as any).macro_project_id === m.id;
+      })
+    : filterMacroProjectId
+    ? macroProjects.filter((m) => m.id === filterMacroProjectId)
+    : macroProjects;
 
   const filterFields = [
-    { key: 'macro_project_id', label: 'Macro Project', type: 'select' as const, options: macroProjects.map((m) => ({ value: m.id, label: m.name, color: m.color })) },
+    { key: 'macro_project_id', label: 'Macro Project', type: 'select' as const, options: visibleMacroProjects.map((m) => ({ value: m.id, label: m.name, color: m.color })) },
     { key: 'project_id', label: 'Project', type: 'select' as const, options: visibleProjects.map((p) => ({ value: p.id, label: p.name })) },
     { key: 'department_id', label: 'Department', type: 'select' as const, options: visibleDepartments.map((d) => ({ value: d.id, label: d.name })) },
     { key: 'status_id', label: 'Status', type: 'select' as const, options: statuses.map((s) => ({ value: s.id, label: s.name, color: s.color })) },
     { key: 'priority_id', label: 'Priority', type: 'select' as const, options: priorities.map((p) => ({ value: p.id, label: p.name, color: p.color })) },
     { key: 'assignee_id', label: 'Assignee', type: 'select' as const, options: visibleMembers.map((m) => ({ value: m.id, label: m.name })) },
-    { key: 'task_type_id', label: 'Type', type: 'select' as const, options: taskTypes.map((t) => ({ value: t.id, label: t.name })) },
-    { key: 'section_id', label: 'Section', type: 'select' as const, options: taskSections.map((s) => ({ value: s.id, label: s.name })) },
+    { key: 'task_type_id', label: 'Type', type: 'select' as const, options: visibleTaskTypes.map((t) => ({ value: t.id, label: t.name })) },
+    { key: 'section_id', label: 'Section', type: 'select' as const, options: visibleTaskSections.map((s) => ({ value: s.id, label: s.name })) },
     { key: 'milestone_id', label: 'Milestone', type: 'select' as const, options: visibleMilestones.map((m: any) => ({ value: m.id, label: m.milestone_no ? `${m.milestone_no}: ${m.description}` : m.description })) },
     { key: 'overdue_days', label: 'Overdue Days', type: 'number' as const },
     { key: 'due_date', label: 'Due Date', type: 'date' as const },

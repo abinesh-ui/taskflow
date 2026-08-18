@@ -250,25 +250,60 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId, fi
         </div>
 
         {/* Nested filter builder (same as web) */}
-        {showFilters && (
-          <NestedFilterBuilder
-            fields={[
-              { key: 'macro_project_id', label: 'Macro Project', type: 'select' as const, options: macroProjects.map((m) => ({ value: m.id, label: m.name, color: m.color })) },
-              { key: 'project_id', label: 'Project', type: 'select' as const, options: (userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects).map((p) => ({ value: p.id, label: p.name })) },
-              { key: 'department_id', label: 'Department', type: 'select' as const, options: departments.map((d) => ({ value: d.id, label: d.name })) },
-              { key: 'status_id', label: 'Status', type: 'select' as const, options: statuses.map((s) => ({ value: s.id, label: s.name, color: s.color })) },
-              { key: 'priority_id', label: 'Priority', type: 'select' as const, options: priorities.map((p) => ({ value: p.id, label: p.name, color: p.color })) },
-              { key: 'assignee_id', label: 'Assignee', type: 'select' as const, options: (userProjectIds ? members.filter((m) => projectMembers.some((pm) => userProjectIds.includes(pm.project_id) && pm.member_id === m.id)) : members).map((m) => ({ value: m.id, label: m.name })) },
-              { key: 'task_type_id', label: 'Type', type: 'select' as const, options: taskTypes.map((t) => ({ value: t.id, label: t.name })) },
-              { key: 'section_id', label: 'Section', type: 'select' as const, options: taskSections.map((s) => ({ value: s.id, label: s.name })) },
-              { key: 'milestone_id', label: 'Milestone', type: 'select' as const, options: (userProjectIds ? milestones.filter((m) => userProjectIds.includes(m.project_id)) : milestones).map((m) => ({ value: m.id, label: (m as any).milestone_no ? `${(m as any).milestone_no}: ${m.description}` : m.description })) },
-              { key: 'overdue_days', label: 'Overdue Days', type: 'number' as const },
-              { key: 'due_date', label: 'Due Date', type: 'date' as const },
-            ]}
-            conditions={filterConditions}
-            onChange={setFilterConditions}
-          />
-        )}
+        {showFilters && (() => {
+          // Scope filter options to current context (project/dept/macro)
+          const ctxProjectIds: string[] | null = (() => {
+            if (filterProjectId) return [filterProjectId];
+            if (filterMacroProjectId) {
+              const ids = projects.filter((p: any) => p.macro_project_id === filterMacroProjectId).map((p: any) => p.id);
+              return ids.length > 0 ? ids : null;
+            }
+            return userProjectIds;
+          })();
+          const ctxProjects = ctxProjectIds ? projects.filter((p) => ctxProjectIds.includes(p.id)) : projects;
+          const ctxDepts = ctxProjectIds ? departments.filter((d: any) => ctxProjectIds.includes(d.project_id)) : departments;
+          const ctxMemberIds = ctxProjectIds
+            ? [...new Set(projectMembers.filter((pm) => ctxProjectIds.includes(pm.project_id)).map((pm) => pm.member_id))]
+            : null;
+          const ctxMembers = ctxMemberIds ? members.filter((m) => ctxMemberIds.includes(m.id)) : members;
+          const ctxMilestones = ctxProjectIds ? milestones.filter((m) => ctxProjectIds.includes(m.project_id)) : milestones;
+          // Task types & sections: only those used by tasks in this context
+          const ctxTasks = (() => {
+            let t = allTasks.filter((t) => !t.parent_id);
+            if (ctxProjectIds) t = t.filter((t) => ctxProjectIds.includes(t.project_id));
+            if (filterDepartmentId) t = t.filter((t) => t.department_id === filterDepartmentId);
+            return t;
+          })();
+          const ctxUsedTypeIds = ctxProjectIds ? new Set(ctxTasks.map((t) => t.task_type_id).filter(Boolean)) : null;
+          const ctxUsedSectionIds = ctxProjectIds ? new Set(ctxTasks.map((t) => (t as any).section_id).filter(Boolean)) : null;
+          const ctxTypes = ctxUsedTypeIds ? taskTypes.filter((t) => ctxUsedTypeIds.has(t.id)) : taskTypes;
+          const ctxSections = ctxUsedSectionIds ? taskSections.filter((s) => ctxUsedSectionIds.has(s.id)) : taskSections;
+          const ctxMacroProjects = filterProjectId
+            ? macroProjects.filter((m) => { const proj = projects.find((p: any) => p.id === filterProjectId); return proj && (proj as any).macro_project_id === m.id; })
+            : filterMacroProjectId
+            ? macroProjects.filter((m) => m.id === filterMacroProjectId)
+            : macroProjects;
+
+          return (
+            <NestedFilterBuilder
+              fields={[
+                { key: 'macro_project_id', label: 'Macro Project', type: 'select' as const, options: ctxMacroProjects.map((m) => ({ value: m.id, label: m.name, color: m.color })) },
+                { key: 'project_id', label: 'Project', type: 'select' as const, options: ctxProjects.map((p) => ({ value: p.id, label: p.name })) },
+                { key: 'department_id', label: 'Department', type: 'select' as const, options: ctxDepts.map((d) => ({ value: d.id, label: d.name })) },
+                { key: 'status_id', label: 'Status', type: 'select' as const, options: statuses.map((s) => ({ value: s.id, label: s.name, color: s.color })) },
+                { key: 'priority_id', label: 'Priority', type: 'select' as const, options: priorities.map((p) => ({ value: p.id, label: p.name, color: p.color })) },
+                { key: 'assignee_id', label: 'Assignee', type: 'select' as const, options: ctxMembers.map((m) => ({ value: m.id, label: m.name })) },
+                { key: 'task_type_id', label: 'Type', type: 'select' as const, options: ctxTypes.map((t) => ({ value: t.id, label: t.name })) },
+                { key: 'section_id', label: 'Section', type: 'select' as const, options: ctxSections.map((s) => ({ value: s.id, label: s.name })) },
+                { key: 'milestone_id', label: 'Milestone', type: 'select' as const, options: ctxMilestones.map((m) => ({ value: m.id, label: (m as any).milestone_no ? `${(m as any).milestone_no}: ${m.description}` : m.description })) },
+                { key: 'overdue_days', label: 'Overdue Days', type: 'number' as const },
+                { key: 'due_date', label: 'Due Date', type: 'date' as const },
+              ]}
+              conditions={filterConditions}
+              onChange={setFilterConditions}
+            />
+          );
+        })()}
 
         {/* Multi-level Sort (same as web) */}
         {showSort && (
