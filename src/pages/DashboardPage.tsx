@@ -45,8 +45,8 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
   const [nf, setNf] = useState<Record<string, string>>({});
 
   // Column configuration
-  const COL_NAMES = ['☑','▾','Project','Milestone','Task #','%','Title','Dept','Status','Priority','Assignee','Assigner','Type','Section','Macro','Recur','Start','Due','P.Mins','A.Start','A.End','A.Mins','Overdue','Remarks','Actions'];
-  const { widths, onMouseDown } = useResizableColumns({ initialWidths: [28,24,80,100,75,40,280,80,70,70,80,80,70,70,80,65,90,90,55,90,90,55,50,160,55] });
+  const COL_NAMES = ['☑', '▾', 'Project', 'Milestone', 'Task #', '%', 'Title', 'Dept', 'Status', 'Priority', 'Assignee', 'Assigner', 'Type', 'Section', 'Macro', 'Recur', 'Start', 'Due', 'P.Mins', 'A.Start', 'A.End', 'A.Mins', 'Overdue', 'Remarks', 'Actions'];
+  const { widths, onMouseDown } = useResizableColumns({ initialWidths: [28, 24, 80, 100, 75, 40, 280, 80, 70, 70, 80, 80, 70, 70, 80, 65, 90, 90, 55, 90, 90, 55, 50, 160, 55] });
   const [freezeCount, setFreezeCount] = useState(7); // Freeze up to Title (index 6 = 7 columns)
   const [hiddenCols, setHiddenCols] = useState<Set<number>>(new Set());
   const [showColMenu, setShowColMenu] = useState(false);
@@ -165,7 +165,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
     // Log edit
     if (task && user) {
       const memberName = members.find((m) => m.id === currentMember?.id)?.name || user.email || 'Unknown';
-      supabase.from('task_edit_log').insert({ task_id: taskId, task_no: task.task_no, field_name: field, old_value: oldValue || null, new_value: String(value ?? '') || null, edited_by: user.id, edited_by_name: memberName }).then(() => {});
+      supabase.from('task_edit_log').insert({ task_id: taskId, task_no: task.task_no, field_name: field, old_value: oldValue || null, new_value: String(value ?? '') || null, edited_by: user.id, edited_by_name: memberName }).then(() => { });
     }
     // Update cache in-place — NO refetch, NO resort
     queryClient.setQueryData(['all-tasks'], (old: any[]) =>
@@ -242,12 +242,12 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
   // Macro projects: if in a project view, only show that project's macro project
   const visibleMacroProjects = filterProjectId
     ? macroProjects.filter((m) => {
-        const proj = projects.find((p: any) => p.id === filterProjectId);
-        return proj && (proj as any).macro_project_id === m.id;
-      })
+      const proj = projects.find((p: any) => p.id === filterProjectId);
+      return proj && (proj as any).macro_project_id === m.id;
+    })
     : filterMacroProjectId
-    ? macroProjects.filter((m) => m.id === filterMacroProjectId)
-    : macroProjects;
+      ? macroProjects.filter((m) => m.id === filterMacroProjectId)
+      : macroProjects;
 
   const filterFields = [
     { key: 'macro_project_id', label: 'Macro Project', type: 'select' as const, options: visibleMacroProjects.map((m) => ({ value: m.id, label: m.name, color: m.color })) },
@@ -270,234 +270,233 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
       <MobileTaskView filterProjectId={filterProjectId} filterDepartmentId={filterDepartmentId} filterMacroProjectId={filterMacroProjectId} />
       {/* Desktop View */}
       <div className="space-y-2 hidden md:block">
-      {filterMacroProjectId && (
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/40 rounded-md border text-xs mb-1">
-          <span className="text-muted-foreground font-medium">Macro Project View:</span>
-          {(() => {
-            const mp = macroProjects.find((m) => m.id === filterMacroProjectId);
-            return mp ? (
-              <span className="px-2 py-0.5 rounded font-semibold text-xs" style={{ backgroundColor: mp.color + '25', color: mp.color }}>
-                {mp.name}
-              </span>
-            ) : (
-              <span className="font-semibold">{filterMacroProjectId}</span>
-            );
-          })()}
-        </div>
-      )}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" className="h-8 text-xs font-medium" onClick={() => { setAddingTask(true); setNf({ project_id: filterProjectId || '', department_id: filterDepartmentId || '' }); }}>
-          <Plus className="h-3.5 w-3.5 mr-1" /> Add Task
-        </Button>
-        <Button variant={showFilters ? 'secondary' : 'outline'} size="sm" className="h-8 text-xs" onClick={() => setShowFilters(!showFilters)}>
-          <Plus className="h-3 w-3 mr-1" /> Filter {filterConditions.length > 0 && `(${filterConditions.length})`}
-        </Button>
-        <SortBuilderInline sortLevels={sortLevels} onSortChange={setSortLevels} />
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={toggleAll}>
-          {allExpanded ? <ChevronsUp className="h-3.5 w-3.5 mr-1" /> : <ChevronsDown className="h-3.5 w-3.5 mr-1" />}
-          {allExpanded ? 'Collapse' : 'Expand'}
-        </Button>
-        <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => exportTasksToCSV(sorted, { statuses, priorities, taskTypes: taskTypes as any, categories: categories as any, users: members as any })}>
-          <Download className="h-3.5 w-3.5 mr-1" /> Export
-        </Button>
-        <Button variant="default" size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600" onClick={() => setShowPOA(true)}>
-          Daily POA
-        </Button>
-        <Button variant="default" size="sm" className="h-8 text-xs bg-green-600 hover:bg-green-700" onClick={() => setShowWorkDone(true)}>
-          Work Done
-        </Button>
-        {/* Column settings */}
-        <div className="relative ml-auto flex items-center gap-1">
-          <select value={freezeCount} onChange={(e) => setFreezeCount(Number(e.target.value))} className="h-8 text-[10px] border rounded px-1.5 bg-background" title="Freeze columns">
-            {COL_NAMES.map((_, i) => <option key={i} value={i}>Freeze {i} col{i !== 1 ? 's' : ''}</option>)}
-          </select>
-          <Button variant="outline" size="sm" className="h-8 text-[10px]" onClick={() => setShowColMenu(!showColMenu)}>
-            Columns
-          </Button>
-          {showColMenu && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setShowColMenu(false)} />
-              <div className="absolute right-0 top-9 z-50 bg-popover border rounded-lg shadow-lg p-2 w-48 max-h-80 overflow-y-auto">
-                <span className="text-[10px] font-semibold text-muted-foreground">Show/Hide Columns</span>
-                {COL_NAMES.map((name, idx) => (idx < 2 ? null : (
-                  <label key={idx} className="flex items-center gap-2 py-0.5 text-[10px] cursor-pointer hover:bg-accent rounded px-1">
-                    <input type="checkbox" checked={!hiddenCols.has(idx)} onChange={() => toggleColVisibility(idx)} className="h-3 w-3 rounded" />
-                    {name}
-                  </label>
-                )))}
-              </div>
-            </>
-          )}
-        </div>
-        <Badge variant="secondary" className="text-[10px]">{totalTasks} tasks</Badge>
-      </div>
-      {/* Bulk actions */}
-      {selectedTasks.size > 0 && canBulk && (
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" className="h-7 text-xs" onClick={() => setShowBulkUpdate(true)}>Bulk Update ({selectedTasks.size})</Button>
-          <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={handleBulkDelete}>Bulk Delete ({selectedTasks.size})</Button>
-        </div>
-      )}
-      {selectedTasks.size > 0 && !canBulk && (
-        <span className="text-[10px] text-muted-foreground">Select: {selectedTasks.size} (bulk actions require Admin/Manager)</span>
-      )}
-
-      {/* Bulk update bar */}
-      {showBulkUpdate && selectedTasks.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 p-2 bg-primary/5 border rounded-lg">
-          <span className="text-xs font-medium">{selectedTasks.size} selected —</span>
-          <select value={bulkField} onChange={(e) => { setBulkField(e.target.value); setBulkValue(''); }} className="h-7 text-xs border rounded px-2 bg-background">
-            <option value="">Field to update</option>
-            <option value="status_id">Status</option>
-            <option value="priority_id">Priority</option>
-            <option value="assignee_id">Assignee</option>
-            <option value="task_type_id">Type</option>
-            <option value="section_id">Section</option>
-            <option value="milestone_id">Milestone</option>
-          </select>
-          {bulkField === 'status_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
-          {bulkField === 'priority_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{priorities.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
-          {bulkField === 'assignee_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}
-          {bulkField === 'task_type_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{taskTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>}
-          {bulkField === 'section_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{taskSections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
-          {bulkField === 'milestone_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{milestones.map((m: any) => <option key={m.id} value={m.id}>{m.description}</option>)}</select>}
-          <Button size="sm" className="h-7 text-xs" onClick={handleBulkUpdate} disabled={!bulkField || !bulkValue}>Apply</Button>
-          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setShowBulkUpdate(false); deselectAll(); }}>Cancel</Button>
-        </div>
-      )}
-
-      {/* Filters panel (toggle) */}
-      {showFilters && <NestedFilterBuilder fields={filterFields} conditions={filterConditions} onChange={(c) => { setFilterConditions(c); setCurrentPage(1); }} />}
-
-      {/* Spreadsheet table */}
-      <div className="border rounded-lg overflow-x-auto bg-white dark:bg-card shadow-sm">
-        {/* Dynamic freeze styles */}
-        <style>{(() => {
-          let css = '';
-          let left = 0;
-          for (let i = 0; i < freezeCount; i++) {
-            if (hiddenCols.has(i)) continue;
-            const n = i + 1;
-            // !important ensures no semi-transparent row-state class overrides the frozen cell background
-            css += `table thead th:nth-child(${n}) { position: sticky; left: ${left}px; top: 0; z-index: 4; background: hsl(var(--muted)) !important; }\n`;
-            css += `table tbody td:nth-child(${n}) { position: sticky; left: ${left}px; z-index: 2; background: hsl(var(--card)) !important; }\n`;
-            // Hover and selected states still work — they just use opaque colours
-            css += `table tbody tr:hover td:nth-child(${n}) { background: hsl(var(--accent)) !important; }\n`;
-            css += `table tbody tr.bg-primary\\/10 td:nth-child(${n}) { background: hsl(var(--primary) / 0.15) !important; }\n`;
-            left += widths[i];
-          }
-          // Google Sheets-style solid vertical divider on the last frozen column
-          if (freezeCount > 0) css += `table thead th:nth-child(${freezeCount}), table tbody td:nth-child(${freezeCount}) { border-right: 2px solid #94a3b8 !important; }\n`;
-          return css;
-        })()}</style>
-        <table className="text-[10px]" style={{ width: widths.reduce((a, b) => a + b, 0) + 'px' }}>
-          <colgroup>
-            {widths.map((w, i) => <col key={i} style={{ width: w + 'px' }} />)}
-          </colgroup>
-          <thead className="sticky top-0 z-10">
-            <tr className="bg-muted/60 border-b font-semibold text-muted-foreground uppercase tracking-wider">
-              <th className="py-2 px-1 relative"><input type="checkbox" checked={selectedTasks.size > 0 && selectedTasks.size >= paginated.length} onChange={(e) => { if (e.target.checked) selectAll(); else deselectAll(); }} className="h-3 w-3 rounded" /><ResizeHandle onMouseDown={(e) => onMouseDown(0, e)} /></th>
-              <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(1, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Project<ResizeHandle onMouseDown={(e) => onMouseDown(2, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Milestone<ResizeHandle onMouseDown={(e) => onMouseDown(3, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Task #<ResizeHandle onMouseDown={(e) => onMouseDown(4, e)} /></th>
-              <th className="py-2 px-1 text-left relative">%<ResizeHandle onMouseDown={(e) => onMouseDown(5, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Title<ResizeHandle onMouseDown={(e) => onMouseDown(6, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Dept<ResizeHandle onMouseDown={(e) => onMouseDown(7, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Status<ResizeHandle onMouseDown={(e) => onMouseDown(8, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Priority<ResizeHandle onMouseDown={(e) => onMouseDown(9, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Assignee<ResizeHandle onMouseDown={(e) => onMouseDown(10, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Assigner<ResizeHandle onMouseDown={(e) => onMouseDown(11, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Type<ResizeHandle onMouseDown={(e) => onMouseDown(12, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Section<ResizeHandle onMouseDown={(e) => onMouseDown(13, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Macro<ResizeHandle onMouseDown={(e) => onMouseDown(14, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Recur<ResizeHandle onMouseDown={(e) => onMouseDown(15, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Start<ResizeHandle onMouseDown={(e) => onMouseDown(16, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Due<ResizeHandle onMouseDown={(e) => onMouseDown(17, e)} /></th>
-              <th className="py-2 px-1 text-left relative">P.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(18, e)} /></th>
-              <th className="py-2 px-1 text-left relative">A.Start<ResizeHandle onMouseDown={(e) => onMouseDown(19, e)} /></th>
-              <th className="py-2 px-1 text-left relative">A.End<ResizeHandle onMouseDown={(e) => onMouseDown(20, e)} /></th>
-              <th className="py-2 px-1 text-left relative">A.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(21, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Overdue<ResizeHandle onMouseDown={(e) => onMouseDown(22, e)} /></th>
-              <th className="py-2 px-1 text-left relative">Remarks<ResizeHandle onMouseDown={(e) => onMouseDown(23, e)} /></th>
-              <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(24, e)} /></th>
-            </tr>
-          </thead>
-          <tbody>
-
-            {/* New task row */}
-            {addingTask && (
-              <NewRow nf={nf} setNf={setNf} projects={visibleProjects} departments={deptOpts} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={visibleMilestones} onSave={() => handleCreate()} onCancel={() => { setAddingTask(false); setNf({}); }} isSubtask={false} currentMemberName={currentMemberName} />
-            )}
-            {/* Task rows */}
-            {paginated.map((task) => (
-              <React.Fragment key={task.id}>
-                <TaskRow task={task} projectMembers={projectMembers} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={visibleMilestones} departments={visibleDepartments} projects={visibleProjects} expanded={expandedTasks.has(task.id)} subtaskCount={getSubtasks(task.id).length} onToggle={() => toggleTask(task.id)} onUpdate={updateField} onAddSubtask={() => { setAddingSubtaskTo(task.id); setNf({ project_id: task.project_id, department_id: task.department_id, category_id: task.category_id || '', milestone_id: (task as any).milestone_id || '' }); setExpandedTasks(new Set([...expandedTasks, task.id])); }} onCancel={() => cancelTask(task.id)} onDelete={() => deleteTask(task.id)} overdue={getOverdue(task)} selected={selectedTasks.has(task.id)} onSelect={toggleSelect} getTaskCompletion={getTaskCompletion} canDelete={canDeleteTask} canCancel={canCancelTask} />
-                {expandedTasks.has(task.id) && addingSubtaskTo === task.id && (
-                  <NewRow nf={nf} setNf={setNf} projects={visibleProjects} departments={deptOpts} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={visibleMilestones} onSave={() => handleCreate(task)} onCancel={() => { setAddingSubtaskTo(null); setNf({}); }} isSubtask={true} currentMemberName={currentMemberName} />
-                )}
-                {expandedTasks.has(task.id) && getSubtasks(task.id).map((sub) => (
-                  <TaskRow key={sub.id} task={sub} projectMembers={projectMembers} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={visibleMilestones} departments={visibleDepartments} projects={visibleProjects} expanded={false} subtaskCount={0} onToggle={() => {}} onUpdate={updateField} onAddSubtask={() => {}} onCancel={() => cancelTask(sub.id)} onDelete={() => deleteTask(sub.id)} overdue={getOverdue(sub)} isSubtask selected={selectedTasks.has(sub.id)} onSelect={toggleSelect} getTaskCompletion={getTaskCompletion} canDelete={canDeleteTask} canCancel={canCancelTask} />
-                ))}
-              </React.Fragment>
-            ))}
-            {paginated.length === 0 && !addingTask && <tr><td colSpan={19} className="text-center py-12 text-muted-foreground">No tasks. Click "Add Task" to create one.</td></tr>}
-          </tbody>
-        </table>
-      </div>
-      {/* Pagination */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <span>Showing {Math.min(((currentPage-1)*PAGE_SIZE)+1, totalTasks)}–{Math.min(currentPage*PAGE_SIZE, totalTasks)} of {totalTasks}</span>
-        {totalPages > 1 && (
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={currentPage===1} onClick={() => setCurrentPage(currentPage-1)}><ChevronLeft className="h-3.5 w-3.5" /></Button>
-            {Array.from({length: totalPages},(_,i)=>i+1).slice(Math.max(0,currentPage-3),currentPage+2).map((p) => (
-              <Button key={p} variant={p===currentPage?'default':'ghost'} size="sm" className="h-7 w-7 p-0 text-xs" onClick={() => setCurrentPage(p)}>{p}</Button>
-            ))}
-            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={currentPage===totalPages} onClick={() => setCurrentPage(currentPage+1)}><ChevronRight className="h-3.5 w-3.5" /></Button>
-            <span className="ml-2">{currentPage}/{totalPages}</span>
+        {filterMacroProjectId && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/40 rounded-md border text-xs mb-1">
+            <span className="text-muted-foreground font-medium">Macro Project View:</span>
+            {(() => {
+              const mp = macroProjects.find((m) => m.id === filterMacroProjectId);
+              return mp ? (
+                <span className="px-2 py-0.5 rounded font-semibold text-xs" style={{ backgroundColor: mp.color + '25', color: mp.color }}>
+                  {mp.name}
+                </span>
+              ) : (
+                <span className="font-semibold">{filterMacroProjectId}</span>
+              );
+            })()}
           </div>
         )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" className="h-8 text-xs font-medium" onClick={() => { setAddingTask(true); setNf({ project_id: filterProjectId || '', department_id: filterDepartmentId || '' }); }}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Task
+          </Button>
+          <Button variant={showFilters ? 'secondary' : 'outline'} size="sm" className="h-8 text-xs" onClick={() => setShowFilters(!showFilters)}>
+            <Plus className="h-3 w-3 mr-1" /> Filter {filterConditions.length > 0 && `(${filterConditions.length})`}
+          </Button>
+          <SortBuilderInline sortLevels={sortLevels} onSortChange={setSortLevels} />
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={toggleAll}>
+            {allExpanded ? <ChevronsUp className="h-3.5 w-3.5 mr-1" /> : <ChevronsDown className="h-3.5 w-3.5 mr-1" />}
+            {allExpanded ? 'Collapse' : 'Expand'}
+          </Button>
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => exportTasksToCSV(sorted, { statuses, priorities, taskTypes: taskTypes as any, categories: categories as any, users: members as any })}>
+            <Download className="h-3.5 w-3.5 mr-1" /> Export
+          </Button>
+          <Button variant="default" size="sm" className="h-8 text-xs bg-orange-500 hover:bg-orange-600" onClick={() => setShowPOA(true)}>
+            Daily POA
+          </Button>
+          <Button variant="default" size="sm" className="h-8 text-xs bg-green-600 hover:bg-green-700" onClick={() => setShowWorkDone(true)}>
+            Work Done
+          </Button>
+          {/* Column settings */}
+          <div className="relative ml-auto flex items-center gap-1">
+            <select value={freezeCount} onChange={(e) => setFreezeCount(Number(e.target.value))} className="h-8 text-[10px] border rounded px-1.5 bg-background" title="Freeze columns">
+              {COL_NAMES.map((_, i) => <option key={i} value={i}>Freeze {i} col{i !== 1 ? 's' : ''}</option>)}
+            </select>
+            <Button variant="outline" size="sm" className="h-8 text-[10px]" onClick={() => setShowColMenu(!showColMenu)}>
+              Columns
+            </Button>
+            {showColMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowColMenu(false)} />
+                <div className="absolute right-0 top-9 z-50 bg-popover border rounded-lg shadow-lg p-2 w-48 max-h-80 overflow-y-auto">
+                  <span className="text-[10px] font-semibold text-muted-foreground">Show/Hide Columns</span>
+                  {COL_NAMES.map((name, idx) => (idx < 2 ? null : (
+                    <label key={idx} className="flex items-center gap-2 py-0.5 text-[10px] cursor-pointer hover:bg-accent rounded px-1">
+                      <input type="checkbox" checked={!hiddenCols.has(idx)} onChange={() => toggleColVisibility(idx)} className="h-3 w-3 rounded" />
+                      {name}
+                    </label>
+                  )))}
+                </div>
+              </>
+            )}
+          </div>
+          <Badge variant="secondary" className="text-[10px]">{totalTasks} tasks</Badge>
+        </div>
+        {/* Bulk actions */}
+        {selectedTasks.size > 0 && canBulk && (
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" className="h-7 text-xs" onClick={() => setShowBulkUpdate(true)}>Bulk Update ({selectedTasks.size})</Button>
+            <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={handleBulkDelete}>Bulk Delete ({selectedTasks.size})</Button>
+          </div>
+        )}
+        {selectedTasks.size > 0 && !canBulk && (
+          <span className="text-[10px] text-muted-foreground">Select: {selectedTasks.size} (bulk actions require Admin/Manager)</span>
+        )}
+
+        {/* Bulk update bar */}
+        {showBulkUpdate && selectedTasks.size > 0 && (
+          <div className="flex flex-wrap items-center gap-2 p-2 bg-primary/5 border rounded-lg">
+            <span className="text-xs font-medium">{selectedTasks.size} selected —</span>
+            <select value={bulkField} onChange={(e) => { setBulkField(e.target.value); setBulkValue(''); }} className="h-7 text-xs border rounded px-2 bg-background">
+              <option value="">Field to update</option>
+              <option value="status_id">Status</option>
+              <option value="priority_id">Priority</option>
+              <option value="assignee_id">Assignee</option>
+              <option value="task_type_id">Type</option>
+              <option value="section_id">Section</option>
+              <option value="milestone_id">Milestone</option>
+            </select>
+            {bulkField === 'status_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
+            {bulkField === 'priority_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{priorities.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>}
+            {bulkField === 'assignee_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{members.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>}
+            {bulkField === 'task_type_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{taskTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select>}
+            {bulkField === 'section_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{taskSections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
+            {bulkField === 'milestone_id' && <select value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} className="h-7 text-xs border rounded px-2 bg-background"><option value="">Select...</option>{milestones.map((m: any) => <option key={m.id} value={m.id}>{m.description}</option>)}</select>}
+            <Button size="sm" className="h-7 text-xs" onClick={handleBulkUpdate} disabled={!bulkField || !bulkValue}>Apply</Button>
+            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setShowBulkUpdate(false); deselectAll(); }}>Cancel</Button>
+          </div>
+        )}
+
+        {/* Filters panel (toggle) */}
+        {showFilters && <NestedFilterBuilder fields={filterFields} conditions={filterConditions} onChange={(c) => { setFilterConditions(c); setCurrentPage(1); }} />}
+
+        {/* Spreadsheet table */}
+        <div className="border rounded-lg overflow-x-auto bg-white dark:bg-card shadow-sm">
+          {/* Dynamic freeze styles */}
+          <style>{(() => {
+            let css = '';
+            let left = 0;
+            for (let i = 0; i < freezeCount; i++) {
+              if (hiddenCols.has(i)) continue;
+              const n = i + 1;
+              // !important ensures no semi-transparent row-state class overrides the frozen cell background
+              css += `table thead th:nth-child(${n}) { position: sticky; left: ${left}px; top: 0; z-index: 4; background: hsl(var(--muted)) !important; }\n`;
+              css += `table tbody td:nth-child(${n}) { position: sticky; left: ${left}px; z-index: 2; background: hsl(var(--card)) !important; }\n`;
+              // Hover and selected states still work — they just use opaque colours
+              css += `table tbody tr:hover td:nth-child(${n}) { background: hsl(var(--accent)) !important; }\n`;
+              css += `table tbody tr.bg-primary\\/10 td:nth-child(${n}) { background: hsl(var(--primary) / 0.15) !important; }\n`;
+              left += widths[i];
+            }
+            // Google Sheets-style solid vertical divider on the last frozen column
+            if (freezeCount > 0) css += `table thead th:nth-child(${freezeCount}), table tbody td:nth-child(${freezeCount}) { border-right: 2px solid #94a3b8 !important; }\n`;
+            return css;
+          })()}</style>
+          <table className="text-[10px]" style={{ width: widths.reduce((a, b) => a + b, 0) + 'px' }}>
+            <colgroup>
+              {widths.map((w, i) => <col key={i} style={{ width: w + 'px' }} />)}
+            </colgroup>
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-muted/60 border-b font-semibold text-muted-foreground uppercase tracking-wider">
+                <th className="py-2 px-1 relative"><input type="checkbox" checked={selectedTasks.size > 0 && selectedTasks.size >= paginated.length} onChange={(e) => { if (e.target.checked) selectAll(); else deselectAll(); }} className="h-3 w-3 rounded" /><ResizeHandle onMouseDown={(e) => onMouseDown(0, e)} /></th>
+                <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(1, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Project<ResizeHandle onMouseDown={(e) => onMouseDown(2, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Milestone<ResizeHandle onMouseDown={(e) => onMouseDown(3, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Task #<ResizeHandle onMouseDown={(e) => onMouseDown(4, e)} /></th>
+                <th className="py-2 px-1 text-left relative">%<ResizeHandle onMouseDown={(e) => onMouseDown(5, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Title<ResizeHandle onMouseDown={(e) => onMouseDown(6, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Dept<ResizeHandle onMouseDown={(e) => onMouseDown(7, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Status<ResizeHandle onMouseDown={(e) => onMouseDown(8, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Priority<ResizeHandle onMouseDown={(e) => onMouseDown(9, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Assignee<ResizeHandle onMouseDown={(e) => onMouseDown(10, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Assigner<ResizeHandle onMouseDown={(e) => onMouseDown(11, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Type<ResizeHandle onMouseDown={(e) => onMouseDown(12, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Section<ResizeHandle onMouseDown={(e) => onMouseDown(13, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Macro<ResizeHandle onMouseDown={(e) => onMouseDown(14, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Recur<ResizeHandle onMouseDown={(e) => onMouseDown(15, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Start<ResizeHandle onMouseDown={(e) => onMouseDown(16, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Due<ResizeHandle onMouseDown={(e) => onMouseDown(17, e)} /></th>
+                <th className="py-2 px-1 text-left relative">P.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(18, e)} /></th>
+                <th className="py-2 px-1 text-left relative">A.Start<ResizeHandle onMouseDown={(e) => onMouseDown(19, e)} /></th>
+                <th className="py-2 px-1 text-left relative">A.End<ResizeHandle onMouseDown={(e) => onMouseDown(20, e)} /></th>
+                <th className="py-2 px-1 text-left relative">A.Mins<ResizeHandle onMouseDown={(e) => onMouseDown(21, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Overdue<ResizeHandle onMouseDown={(e) => onMouseDown(22, e)} /></th>
+                <th className="py-2 px-1 text-left relative">Remarks<ResizeHandle onMouseDown={(e) => onMouseDown(23, e)} /></th>
+                <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(24, e)} /></th>
+              </tr>
+            </thead>
+            <tbody>
+
+              {/* New task row */}
+              {addingTask && (
+                <NewRow nf={nf} setNf={setNf} projects={visibleProjects} departments={deptOpts} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={visibleMilestones} onSave={() => handleCreate()} onCancel={() => { setAddingTask(false); setNf({}); }} isSubtask={false} currentMemberName={currentMemberName} />
+              )}
+              {/* Task rows */}
+              {paginated.map((task) => (
+                <React.Fragment key={task.id}>
+                  <TaskRow task={task} projectMembers={projectMembers} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={visibleMilestones} departments={visibleDepartments} projects={visibleProjects} expanded={expandedTasks.has(task.id)} subtaskCount={getSubtasks(task.id).length} onToggle={() => toggleTask(task.id)} onUpdate={updateField} onAddSubtask={() => { setAddingSubtaskTo(task.id); setNf({ project_id: task.project_id, department_id: task.department_id, category_id: task.category_id || '', milestone_id: (task as any).milestone_id || '' }); setExpandedTasks(new Set([...expandedTasks, task.id])); }} onCancel={() => cancelTask(task.id)} onDelete={() => deleteTask(task.id)} overdue={getOverdue(task)} selected={selectedTasks.has(task.id)} onSelect={toggleSelect} getTaskCompletion={getTaskCompletion} canDelete={canDeleteTask} canCancel={canCancelTask} />
+                  {expandedTasks.has(task.id) && addingSubtaskTo === task.id && (
+                    <NewRow nf={nf} setNf={setNf} projects={visibleProjects} departments={deptOpts} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={visibleMilestones} onSave={() => handleCreate(task)} onCancel={() => { setAddingSubtaskTo(null); setNf({}); }} isSubtask={true} currentMemberName={currentMemberName} />
+                  )}
+                  {expandedTasks.has(task.id) && getSubtasks(task.id).map((sub) => (
+                    <TaskRow key={sub.id} task={sub} projectMembers={projectMembers} statuses={statuses} priorities={priorities} members={visibleMembers} taskTypes={taskTypes} categories={categories} taskSections={taskSections} macroProjects={macroProjects} milestones={visibleMilestones} departments={visibleDepartments} projects={visibleProjects} expanded={false} subtaskCount={0} onToggle={() => { }} onUpdate={updateField} onAddSubtask={() => { }} onCancel={() => cancelTask(sub.id)} onDelete={() => deleteTask(sub.id)} overdue={getOverdue(sub)} isSubtask selected={selectedTasks.has(sub.id)} onSelect={toggleSelect} getTaskCompletion={getTaskCompletion} canDelete={canDeleteTask} canCancel={canCancelTask} />
+                  ))}
+                </React.Fragment>
+              ))}
+              {paginated.length === 0 && !addingTask && <tr><td colSpan={19} className="text-center py-12 text-muted-foreground">No tasks. Click "Add Task" to create one.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+        {/* Pagination */}
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>Showing {Math.min(((currentPage - 1) * PAGE_SIZE) + 1, totalTasks)}–{Math.min(currentPage * PAGE_SIZE, totalTasks)} of {totalTasks}</span>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}><ChevronLeft className="h-3.5 w-3.5" /></Button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).slice(Math.max(0, currentPage - 3), currentPage + 2).map((p) => (
+                <Button key={p} variant={p === currentPage ? 'default' : 'ghost'} size="sm" className="h-7 w-7 p-0 text-xs" onClick={() => setCurrentPage(p)}>{p}</Button>
+              ))}
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)}><ChevronRight className="h-3.5 w-3.5" /></Button>
+              <span className="ml-2">{currentPage}/{totalPages}</span>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-    {/* Daily POA Dialog */}
-    <DailyPOADialog open={showPOA} onOpenChange={setShowPOA} />
-    <DailyWorkDoneDialog open={showWorkDone} onOpenChange={setShowWorkDone} />
+      {/* Daily POA Dialog */}
+      <DailyPOADialog open={showPOA} onOpenChange={setShowPOA} />
+      <DailyWorkDoneDialog open={showWorkDone} onOpenChange={setShowWorkDone} />
     </>
   );
 }
 
 // New Task/Subtask inline row
 function NewRow({ nf, setNf, projects, departments, statuses, priorities, members, taskTypes, categories, taskSections, macroProjects, milestones, onSave, onCancel, isSubtask, currentMemberName }: any) {
-  const macroName = (() => { const proj = projects.find((p:any) => p.id === nf.project_id); if (!proj) return ''; const mp = macroProjects.find((m:any) => m.id === proj.macro_project_id); return mp?.name || ''; })();
-  const projMilestones = nf.project_id ? milestones.filter((m:any) => m.project_id === nf.project_id) : [];
-  const projDepartments = nf.project_id ? departments.filter((d:any) => d.project_id === nf.project_id) : departments;
+  const macroName = (() => { const proj = projects.find((p: any) => p.id === nf.project_id); if (!proj) return ''; const mp = macroProjects.find((m: any) => m.id === proj.macro_project_id); return mp?.name || ''; })();
+  const projMilestones = nf.project_id ? milestones.filter((m: any) => m.project_id === nf.project_id) : [];
   return (
     <tr className={`border-b ${isSubtask ? 'bg-green-50/50 dark:bg-green-950/10' : 'bg-primary/5'}`}>
       <td className="py-1 px-1"></td>
       <td className="py-1 px-1"><Plus className="h-3 w-3 text-primary" /></td>
-      <td className="py-1 px-0.5"><select value={nf.project_id||''} onChange={(e) => setNf({...nf, project_id: e.target.value, department_id: ''})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Project*</option>{projects.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></td>
-      <td className="py-1 px-0.5"><select value={nf.milestone_id||''} onChange={(e) => setNf({...nf, milestone_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Milestone*</option>{projMilestones.map((m:any) => <option key={m.id} value={m.id}>{m.description}</option>)}</select></td>
+      <td className="py-1 px-0.5"><select value={nf.project_id || ''} onChange={(e) => setNf({ ...nf, project_id: e.target.value, department_id: '' })} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Project*</option>{projects.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></td>
+      <td className="py-1 px-0.5"><select value={nf.milestone_id || ''} onChange={(e) => setNf({ ...nf, milestone_id: e.target.value })} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Milestone*</option>{projMilestones.map((m: any) => <option key={m.id} value={m.id}>{m.description}</option>)}</select></td>
       <td className="py-1 px-1 text-[9px] text-muted-foreground italic">{isSubtask ? 'Sub' : 'New'}</td>
       <td className="py-1 px-0.5 text-[8px] text-muted-foreground text-center">-</td>
-      <td className="py-1 px-0.5"><input value={nf.title||''} onChange={(e) => setNf({...nf, title: e.target.value})} onKeyDown={(e) => { if (e.key==='Enter') onSave(); if (e.key==='Escape') onCancel(); }} placeholder="Title *" className="w-full h-5 text-[10px] bg-transparent border-0 outline-none px-1 focus:ring-1 focus:ring-primary/30 rounded" autoFocus /></td>
-      <td className="py-1 px-0.5"><select value={nf.department_id||''} onChange={(e) => setNf({...nf, department_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Dept*</option>{projDepartments.map((d:any) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></td>
-      <td className="py-1 px-0.5"><select value={nf.status_id||''} onChange={(e) => setNf({...nf, status_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Status</option>{statuses.map((s:any) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></td>
-      <td className="py-1 px-0.5"><select value={nf.priority_id||''} onChange={(e) => setNf({...nf, priority_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Priority</option>{priorities.map((p:any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></td>
-      <td className="py-1 px-0.5"><select value={nf.assignee_id||''} onChange={(e) => setNf({...nf, assignee_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Assignee</option>{members.map((m:any) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></td>
-      <td className="py-1 px-0.5"><select value={nf.assigner_id||''} onChange={(e) => setNf({...nf, assigner_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Assigner</option>{members.map((m:any) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></td>
-      <td className="py-1 px-0.5"><select value={nf.task_type_id||''} onChange={(e) => setNf({...nf, task_type_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Type</option>{taskTypes.map((t:any) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></td>
-      <td className="py-1 px-0.5"><select value={nf.section_id||''} onChange={(e) => setNf({...nf, section_id: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Section</option>{taskSections.map((s:any) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></td>
+      <td className="py-1 px-0.5"><input value={nf.title || ''} onChange={(e) => setNf({ ...nf, title: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') onSave(); if (e.key === 'Escape') onCancel(); }} placeholder="Title *" className="w-full h-5 text-[10px] bg-transparent border-0 outline-none px-1 focus:ring-1 focus:ring-primary/30 rounded" autoFocus /></td>
+      <td className="py-1 px-0.5"><select value={nf.department_id || ''} onChange={(e) => setNf({ ...nf, department_id: e.target.value })} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Dept*</option>{departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></td>
+      <td className="py-1 px-0.5"><select value={nf.status_id || ''} onChange={(e) => setNf({ ...nf, status_id: e.target.value })} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Status</option>{statuses.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></td>
+      <td className="py-1 px-0.5"><select value={nf.priority_id || ''} onChange={(e) => setNf({ ...nf, priority_id: e.target.value })} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Priority</option>{priorities.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></td>
+      <td className="py-1 px-0.5"><select value={nf.assignee_id || ''} onChange={(e) => setNf({ ...nf, assignee_id: e.target.value })} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Assignee</option>{members.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></td>
+      <td className="py-1 px-0.5"><select value={nf.assigner_id || ''} onChange={(e) => setNf({ ...nf, assigner_id: e.target.value })} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Assigner</option>{members.map((m: any) => <option key={m.id} value={m.id}>{m.name}</option>)}</select></td>
+      <td className="py-1 px-0.5"><select value={nf.task_type_id || ''} onChange={(e) => setNf({ ...nf, task_type_id: e.target.value })} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Type</option>{taskTypes.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></td>
+      <td className="py-1 px-0.5"><select value={nf.section_id || ''} onChange={(e) => setNf({ ...nf, section_id: e.target.value })} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Section</option>{taskSections.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></td>
       <td className="py-1 px-0.5 text-[9px] text-muted-foreground">{macroName || '-'}</td>
-      <td className="py-1 px-0.5"><select value={nf.recurrence_type||''} onChange={(e) => setNf({...nf, recurrence_type: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Recur</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="days_after">Custom</option></select></td>
-      <td className="py-1 px-0.5"><input type="date" value={nf.planned_start_date||''} onChange={(e) => setNf({...nf, planned_start_date: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
-      <td className="py-1 px-0.5"><input type="date" value={nf.planned_end_date||''} onChange={(e) => setNf({...nf, planned_end_date: e.target.value})} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
-      <td className="py-1 px-0.5"><input type="number" value={nf.planned_mins||''} onChange={(e) => setNf({...nf, planned_mins: e.target.value})} placeholder="mins" className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
+      <td className="py-1 px-0.5"><select value={nf.recurrence_type || ''} onChange={(e) => setNf({ ...nf, recurrence_type: e.target.value })} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none"><option value="">Recur</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="days_after">Custom</option></select></td>
+      <td className="py-1 px-0.5"><input type="date" value={nf.planned_start_date || ''} onChange={(e) => setNf({ ...nf, planned_start_date: e.target.value })} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
+      <td className="py-1 px-0.5"><input type="date" value={nf.planned_end_date || ''} onChange={(e) => setNf({ ...nf, planned_end_date: e.target.value })} className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
+      <td className="py-1 px-0.5"><input type="number" value={nf.planned_mins || ''} onChange={(e) => setNf({ ...nf, planned_mins: e.target.value })} placeholder="mins" className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
       <td className="py-1 px-0.5"><span className="text-[9px] text-muted-foreground italic px-0.5">Auto</span></td>
       <td className="py-1 px-0.5"><span className="text-[9px] text-muted-foreground italic px-0.5">Auto</span></td>
-      <td className="py-1 px-0.5"><input type="number" value={nf.actual_mins||''} onChange={(e) => setNf({...nf, actual_mins: e.target.value})} placeholder="mins" className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
+      <td className="py-1 px-0.5"><input type="number" value={nf.actual_mins || ''} onChange={(e) => setNf({ ...nf, actual_mins: e.target.value })} placeholder="mins" className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
       <td className="py-1 px-1">-</td>
-      <td className="py-1 px-0.5"><input value={nf.remarks||''} onChange={(e) => setNf({...nf, remarks: e.target.value})} placeholder="Remarks" className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
+      <td className="py-1 px-0.5"><input value={nf.remarks || ''} onChange={(e) => setNf({ ...nf, remarks: e.target.value })} placeholder="Remarks" className="h-5 text-[9px] w-full bg-transparent border-0 outline-none" /></td>
       <td className="py-1 px-0.5"><div className="flex gap-0.5"><Button size="sm" className="h-5 text-[8px] px-1.5" onClick={onSave}>Save</Button><Button size="sm" variant="ghost" className="h-5 text-[8px] px-1" onClick={onCancel}>✕</Button></div></td>
     </tr>
   );
@@ -508,33 +507,33 @@ function TaskRow({ task, statuses, priorities, members, taskTypes, categories, t
   const [editing, setEditing] = useState(false);
   const [ef, setEf] = useState<Record<string, any>>({});
   const status = statuses.find((s: any) => s.id === (editing ? ef.status_id : task.status_id));
-  const proj = projects?.find?.((p:any) => p.id === task.project_id);
-  const macroName = proj?.macro_project_id ? macroProjects?.find?.((m:any) => m.id === proj.macro_project_id)?.name || '' : '';
-  const projMilestones = task.project_id ? milestones.filter((m:any) => m.project_id === task.project_id) : milestones;
+  const proj = projects?.find?.((p: any) => p.id === task.project_id);
+  const macroName = proj?.macro_project_id ? macroProjects?.find?.((m: any) => m.id === proj.macro_project_id)?.name || '' : '';
+  const projMilestones = task.project_id ? milestones.filter((m: any) => m.project_id === task.project_id) : milestones;
   const projMemberIds = projectMembers.filter((pm: any) => pm.project_id === task.project_id).map((pm: any) => pm.member_id);
   const filteredMembers = projMemberIds.length > 0 ? members.filter((m: any) => projMemberIds.includes(m.id)) : members;
 
   function startEdit() {
-    setEf({ status_id: task.status_id, priority_id: task.priority_id||'', assignee_id: task.assignee_id||'', assigner_id: (task as any).assigner_id||'', task_type_id: task.task_type_id||'', section_id: (task as any).section_id||'', milestone_id: (task as any).milestone_id||'', department_id: task.department_id||'', title: task.title, planned_start_date: task.planned_start_date||'', planned_end_date: task.planned_end_date||'', planned_mins: task.planned_mins||'', actual_mins: task.actual_mins||'', description: task.description||'', recurrence_type: (task as any).recurrence_type||'' });
+    setEf({ status_id: task.status_id, priority_id: task.priority_id || '', assignee_id: task.assignee_id || '', assigner_id: (task as any).assigner_id || '', task_type_id: task.task_type_id || '', section_id: (task as any).section_id || '', milestone_id: (task as any).milestone_id || '', department_id: task.department_id || '', title: task.title, planned_start_date: task.planned_start_date || '', planned_end_date: task.planned_end_date || '', planned_mins: task.planned_mins || '', actual_mins: task.actual_mins || '', description: task.description || '', recurrence_type: (task as any).recurrence_type || '' });
     setEditing(true);
   }
   async function saveEdit() {
-    const updates: Record<string,any> = {};
+    const updates: Record<string, any> = {};
     if (ef.status_id !== task.status_id) updates.status_id = ef.status_id;
-    if (ef.priority_id !== (task.priority_id||'')) updates.priority_id = ef.priority_id || null;
-    if (ef.assignee_id !== (task.assignee_id||'')) updates.assignee_id = ef.assignee_id || null;
-    if (ef.assigner_id !== ((task as any).assigner_id||'')) updates.assigner_id = ef.assigner_id || null;
-    if (ef.task_type_id !== (task.task_type_id||'')) updates.task_type_id = ef.task_type_id || null;
-    if (ef.section_id !== ((task as any).section_id||'')) updates.section_id = ef.section_id || null;
-    if (ef.milestone_id !== ((task as any).milestone_id||'')) updates.milestone_id = ef.milestone_id || null;
-    if (ef.department_id !== (task.department_id||'')) updates.department_id = ef.department_id || null;
+    if (ef.priority_id !== (task.priority_id || '')) updates.priority_id = ef.priority_id || null;
+    if (ef.assignee_id !== (task.assignee_id || '')) updates.assignee_id = ef.assignee_id || null;
+    if (ef.assigner_id !== ((task as any).assigner_id || '')) updates.assigner_id = ef.assigner_id || null;
+    if (ef.task_type_id !== (task.task_type_id || '')) updates.task_type_id = ef.task_type_id || null;
+    if (ef.section_id !== ((task as any).section_id || '')) updates.section_id = ef.section_id || null;
+    if (ef.milestone_id !== ((task as any).milestone_id || '')) updates.milestone_id = ef.milestone_id || null;
+    if (ef.department_id !== (task.department_id || '')) updates.department_id = ef.department_id || null;
     if (ef.title !== task.title) updates.title = ef.title;
-    if (ef.planned_start_date !== (task.planned_start_date||'')) updates.planned_start_date = ef.planned_start_date || null;
-    if (ef.planned_end_date !== (task.planned_end_date||'')) updates.planned_end_date = ef.planned_end_date || null;
-    if (String(ef.planned_mins) !== String(task.planned_mins||'')) updates.planned_mins = ef.planned_mins ? Number(ef.planned_mins) : null;
-    if (String(ef.actual_mins) !== String(task.actual_mins||'')) updates.actual_mins = ef.actual_mins ? Number(ef.actual_mins) : null;
-    if (ef.description !== (task.description||'')) updates.description = ef.description || null;
-    if (ef.recurrence_type !== ((task as any).recurrence_type||'')) { updates.recurrence_type = ef.recurrence_type || null; updates.is_recurring = !!ef.recurrence_type; updates.recurrence_trigger = ef.recurrence_type ? 'on_status_closed' : null; updates.recur_forever = !!ef.recurrence_type; }
+    if (ef.planned_start_date !== (task.planned_start_date || '')) updates.planned_start_date = ef.planned_start_date || null;
+    if (ef.planned_end_date !== (task.planned_end_date || '')) updates.planned_end_date = ef.planned_end_date || null;
+    if (String(ef.planned_mins) !== String(task.planned_mins || '')) updates.planned_mins = ef.planned_mins ? Number(ef.planned_mins) : null;
+    if (String(ef.actual_mins) !== String(task.actual_mins || '')) updates.actual_mins = ef.actual_mins ? Number(ef.actual_mins) : null;
+    if (ef.description !== (task.description || '')) updates.description = ef.description || null;
+    if (ef.recurrence_type !== ((task as any).recurrence_type || '')) { updates.recurrence_type = ef.recurrence_type || null; updates.is_recurring = !!ef.recurrence_type; updates.recurrence_trigger = ef.recurrence_type ? 'on_status_closed' : null; updates.recur_forever = !!ef.recurrence_type; }
     // Validate actual_mins mandatory for Done/Dropped/Hold
     const newStatusId = updates.status_id ?? task.status_id;
     const newActualMins = updates.actual_mins ?? task.actual_mins;
@@ -551,30 +550,30 @@ function TaskRow({ task, statuses, priorities, members, taskTypes, categories, t
       <td className="py-1 px-1"><input type="checkbox" checked={selected} onChange={() => onSelect(task.id)} className="h-3 w-3 rounded" /></td>
       <td className="py-1 px-1">
         {!isSubtask && subtaskCount > 0 ? <button onClick={onToggle} className="p-0.5 hover:bg-accent rounded">{expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}</button>
-        : isSubtask ? <span className="ml-2 text-muted-foreground/40">↳</span> : <span className="text-muted-foreground/20">·</span>}
+          : isSubtask ? <span className="ml-2 text-muted-foreground/40">↳</span> : <span className="text-muted-foreground/20">·</span>}
       </td>
-      <td className="py-1 px-0.5 text-[9px] text-muted-foreground truncate">{(() => { const p = projects?.find?.((pr:any)=>pr.id===task.project_id); return p ? <span title={p.name} className="px-1.5 py-0.5 rounded text-[9px] font-medium text-white" style={{backgroundColor: p.color || '#6b7280'}}>{p.name}</span> : ''; })()}</td>
-      <td className="py-1 px-0.5"><select value={editing ? ef.milestone_id||'' : (task as any).milestone_id||''} onChange={(e) => editing ? setEf({...ef, milestone_id: e.target.value}) : onUpdate(task.id,'milestone_id',e.target.value)} title={projMilestones.find((m:any)=>m.id===(task as any).milestone_id)?.description || ''} className={`text-[9px] border-0 outline-none w-full hover:bg-muted/50 rounded ${editing?'bg-blue-50 ring-1 ring-blue-200':'bg-transparent'}`}><option value="">-</option>{projMilestones.map((m:any)=><option key={m.id} value={m.id}>{m.description}</option>)}</select></td>
-      <td className={`py-1 px-1 font-mono text-[9px] text-muted-foreground ${isSubtask?'pl-4':''}`}>{task.task_no}{!isSubtask && subtaskCount>0 && <span className="text-primary ml-0.5">({subtaskCount})</span>}</td>
-      <td className="py-1 px-0.5 text-center">{(() => { const pct = getTaskCompletion(task); const color = pct >= 100 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#6b7280'; return <span className="text-[8px] font-bold px-1 py-0.5 rounded" style={{backgroundColor: color+'20', color}}>{Math.round(pct)}%</span>; })()}</td>
-      <td className="py-1 px-0.5 align-top">{editing ? <input value={ef.title||''} onChange={(e) => setEf({...ef, title: e.target.value})} className={`w-full text-[10px] bg-blue-50 ring-1 ring-blue-200 outline-none px-1 py-0.5 rounded ${isSubtask?'text-[10px]':'font-medium'}`} /> : <textarea defaultValue={task.title} title={task.title} onBlur={(e) => { if (e.target.value!==task.title) onUpdate(task.id,'title',e.target.value); }} rows={1} ref={(el) => { if (el) { el.style.height='auto'; el.style.height=el.scrollHeight+'px'; } }} onInput={(e) => { const t = e.target as HTMLTextAreaElement; t.style.height='auto'; t.style.height=t.scrollHeight+'px'; }} className={`w-full bg-transparent outline-none border-0 px-0.5 py-0.5 rounded hover:bg-muted/50 focus:ring-1 focus:ring-primary/20 resize-none overflow-hidden whitespace-pre-wrap ${isSubtask?'text-[10px]':'text-[11px] font-medium'}`} />}</td>
-      <td className="py-1 px-0.5">{(() => { const d = departments.find((dp:any)=>dp.id===(editing?ef.department_id:task.department_id)); const val = editing?ef.department_id:task.department_id; return <select value={val||''} onChange={(e) => editing ? setEf({...ef, department_id: e.target.value}) : onUpdate(task.id,'department_id',e.target.value)} className={`text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium ${d?'text-white':''}  ${editing?'ring-1 ring-blue-200':''}`} style={{backgroundColor: d ? ((d as any).color||'#6b7280') : 'transparent'}}>{departments.map((dp:any)=><option key={dp.id} value={dp.id}>{dp.name}</option>)}</select>; })()}</td>
-      <td className="py-1 px-0.5">{(() => { const s = statuses.find((st:any)=>st.id===(editing?ef.status_id:task.status_id)); return <select value={editing?ef.status_id:task.status_id} onChange={(e) => editing ? setEf({...ef, status_id: e.target.value}) : onUpdate(task.id,'status_id',e.target.value)} className={`text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium text-white ${editing?'ring-1 ring-blue-200':''}`} style={{backgroundColor: s?.color||'#6b7280'}}>{statuses.map((st:any)=><option key={st.id} value={st.id}>{st.name}</option>)}</select>; })()}</td>
-      <td className="py-1 px-0.5">{(() => { const p = priorities.find((pr:any)=>pr.id===(editing?ef.priority_id:task.priority_id)); return <select value={editing?ef.priority_id||'':task.priority_id||''} onChange={(e) => editing ? setEf({...ef, priority_id: e.target.value}) : onUpdate(task.id,'priority_id',e.target.value)} className={`text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium ${editing?'ring-1 ring-blue-200':''}`} style={{backgroundColor: p ? p.color+'20' : 'transparent', color: p?.color||'inherit'}}><option value="">-</option>{priorities.map((pr:any)=><option key={pr.id} value={pr.id}>{pr.name}</option>)}</select>; })()}</td>
-      <td className="py-1 px-0.5">{(() => { const m = filteredMembers.find((mb:any)=>mb.id===(editing?ef.assignee_id:task.assignee_id)); return <select value={editing?ef.assignee_id||'':task.assignee_id||''} onChange={(e) => editing ? setEf({...ef, assignee_id: e.target.value}) : onUpdate(task.id,'assignee_id',e.target.value)} className={`text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium ${editing?'ring-1 ring-blue-200':''}`} style={{backgroundColor: m ? m.color+'20' : 'transparent', color: m?.color||'inherit'}}><option value="">-</option>{filteredMembers.map((mb:any)=><option key={mb.id} value={mb.id}>{mb.name}</option>)}</select>; })()}</td>
-      <td className="py-1 px-0.5">{(() => { const m = filteredMembers.find((mb:any)=>mb.id===(editing?ef.assigner_id:(task as any).assigner_id)); return <select value={editing?ef.assigner_id||'':(task as any).assigner_id||''} onChange={(e) => editing ? setEf({...ef, assigner_id: e.target.value}) : onUpdate(task.id,'assigner_id',e.target.value)} className={`text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium ${editing?'ring-1 ring-blue-200':''}`} style={{backgroundColor: m ? m.color+'20' : 'transparent', color: m?.color||'inherit'}}><option value="">-</option>{filteredMembers.map((mb:any)=><option key={mb.id} value={mb.id}>{mb.name}</option>)}</select>; })()}</td>
-      <td className="py-1 px-0.5">{(() => { const t = taskTypes.find((tt:any)=>tt.id===(editing?ef.task_type_id:task.task_type_id)); return <select value={editing?ef.task_type_id||'':task.task_type_id||''} onChange={(e) => editing ? setEf({...ef, task_type_id: e.target.value}) : onUpdate(task.id,'task_type_id',e.target.value)} className={`text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium ${editing?'ring-1 ring-blue-200':''}`} style={{backgroundColor: t?.color ? t.color+'20' : 'transparent', color: t?.color||'inherit'}}><option value="">-</option>{taskTypes.map((tt:any)=><option key={tt.id} value={tt.id}>{tt.name}</option>)}</select>; })()}</td>
-      <td className="py-1 px-0.5">{(() => { const s = taskSections.find((sc:any)=>sc.id===(editing?ef.section_id:(task as any).section_id)); return <select value={editing?ef.section_id||'':(task as any).section_id||''} onChange={(e) => editing ? setEf({...ef, section_id: e.target.value}) : onUpdate(task.id,'section_id',e.target.value)} className={`text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium ${editing?'ring-1 ring-blue-200':''}`} style={{backgroundColor: s?.color ? s.color+'20' : 'transparent', color: s?.color||'inherit'}}><option value="">-</option>{taskSections.map((sc:any)=><option key={sc.id} value={sc.id}>{sc.name}</option>)}</select>; })()}</td>
-      <td className="py-1 px-0.5 text-[9px]">{(() => { const mp = macroProjects?.find?.((m:any)=>m.id===proj?.macro_project_id); return mp ? <span className="px-1.5 py-0.5 rounded text-[8px] font-medium" style={{backgroundColor: mp.color+'25', color: mp.color}}>{mp.name}</span> : <span className="text-muted-foreground">-</span>; })()}</td>
-      <td className="py-1 px-0.5"><select value={editing ? ef.recurrence_type||'' : (task as any).recurrence_type||''} onChange={(e) => { if (editing) { setEf({...ef, recurrence_type: e.target.value}); } else { if (e.target.value) { onUpdate(task.id,'is_recurring',true); onUpdate(task.id,'recurrence_type',e.target.value); onUpdate(task.id,'recurrence_trigger','on_status_closed'); onUpdate(task.id,'recur_forever',true); } else { onUpdate(task.id,'is_recurring',false); onUpdate(task.id,'recurrence_type',null); } } }} className={`text-[9px] border-0 outline-none w-full rounded px-0.5 py-0.5 ${editing?'bg-blue-50 ring-1 ring-blue-200':'hover:bg-muted/50'}`} style={{backgroundColor: !editing && (task as any).is_recurring ? '#8b5cf620' : undefined, color: !editing && (task as any).is_recurring ? '#8b5cf6' : 'inherit'}}><option value="">-</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="days_after">Custom</option></select></td>
-      <td className="py-1 px-0.5">{editing ? <input type="date" value={ef.planned_start_date||''} onChange={(e) => setEf({...ef, planned_start_date: e.target.value})} className="text-[9px] bg-blue-50 ring-1 ring-blue-200 outline-none w-full rounded" /> : <input type="date" defaultValue={task.planned_start_date||''} onBlur={(e) => { if (e.target.value!==(task.planned_start_date||'')) onUpdate(task.id,'planned_start_date',e.target.value); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" />}</td>
-      <td className="py-1 px-0.5">{editing ? <input type="date" value={ef.planned_end_date||''} onChange={(e) => setEf({...ef, planned_end_date: e.target.value})} className="text-[9px] bg-blue-50 ring-1 ring-blue-200 outline-none w-full rounded" /> : <input type="date" defaultValue={task.planned_end_date||''} onBlur={(e) => { if (e.target.value!==(task.planned_end_date||'')) onUpdate(task.id,'planned_end_date',e.target.value); }} className={`text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded ${overdue>0?'text-red-600 font-bold':''}`} />}</td>
-      <td className="py-1 px-0.5">{editing ? <input type="number" value={ef.planned_mins||''} onChange={(e) => setEf({...ef, planned_mins: e.target.value})} className="text-[9px] bg-blue-50 ring-1 ring-blue-200 outline-none w-full rounded" /> : <input type="number" defaultValue={task.planned_mins||''} onBlur={(e) => { const v=e.target.value?Number(e.target.value):null; if (v!==task.planned_mins) onUpdate(task.id,'planned_mins',v); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" />}</td>
+      <td className="py-1 px-0.5 text-[9px] text-muted-foreground truncate">{(() => { const p = projects?.find?.((pr: any) => pr.id === task.project_id); return p ? <span title={p.name} className="px-1.5 py-0.5 rounded text-[9px] font-medium text-white" style={{ backgroundColor: p.color || '#6b7280' }}>{p.name}</span> : ''; })()}</td>
+      <td className="py-1 px-0.5"><select value={editing ? ef.milestone_id || '' : (task as any).milestone_id || ''} onChange={(e) => editing ? setEf({ ...ef, milestone_id: e.target.value }) : onUpdate(task.id, 'milestone_id', e.target.value)} title={projMilestones.find((m: any) => m.id === (task as any).milestone_id)?.description || ''} className={`text-[9px] border-0 outline-none w-full hover:bg-muted/50 rounded ${editing ? 'bg-blue-50 ring-1 ring-blue-200' : 'bg-transparent'}`}><option value="">-</option>{projMilestones.map((m: any) => <option key={m.id} value={m.id}>{m.description}</option>)}</select></td>
+      <td className={`py-1 px-1 font-mono text-[9px] text-muted-foreground ${isSubtask ? 'pl-4' : ''}`}>{task.task_no}{!isSubtask && subtaskCount > 0 && <span className="text-primary ml-0.5">({subtaskCount})</span>}</td>
+      <td className="py-1 px-0.5 text-center">{(() => { const pct = getTaskCompletion(task); const color = pct >= 100 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#6b7280'; return <span className="text-[8px] font-bold px-1 py-0.5 rounded" style={{ backgroundColor: color + '20', color }}>{Math.round(pct)}%</span>; })()}</td>
+      <td className="py-1 px-0.5 align-top">{editing ? <input value={ef.title || ''} onChange={(e) => setEf({ ...ef, title: e.target.value })} className={`w-full text-[10px] bg-blue-50 ring-1 ring-blue-200 outline-none px-1 py-0.5 rounded ${isSubtask ? 'text-[10px]' : 'font-medium'}`} /> : <textarea defaultValue={task.title} title={task.title} onBlur={(e) => { if (e.target.value !== task.title) onUpdate(task.id, 'title', e.target.value); }} rows={1} ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }} onInput={(e) => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }} className={`w-full bg-transparent outline-none border-0 px-0.5 py-0.5 rounded hover:bg-muted/50 focus:ring-1 focus:ring-primary/20 resize-none overflow-hidden whitespace-pre-wrap ${isSubtask ? 'text-[10px]' : 'text-[11px] font-medium'}`} />}</td>
+      <td className="py-1 px-0.5">{(() => { const d = departments.find((dp: any) => dp.id === (editing ? ef.department_id : task.department_id)); const val = editing ? ef.department_id : task.department_id; return <select value={val || ''} onChange={(e) => editing ? setEf({ ...ef, department_id: e.target.value }) : onUpdate(task.id, 'department_id', e.target.value)} className={`text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium ${d ? 'text-white' : ''}  ${editing ? 'ring-1 ring-blue-200' : ''}`} style={{ backgroundColor: d ? ((d as any).color || '#6b7280') : 'transparent' }}>{departments.map((dp: any) => <option key={dp.id} value={dp.id}>{dp.name}</option>)}</select>; })()}</td>
+      <td className="py-1 px-0.5">{(() => { const s = statuses.find((st: any) => st.id === (editing ? ef.status_id : task.status_id)); return <select value={editing ? ef.status_id : task.status_id} onChange={(e) => editing ? setEf({ ...ef, status_id: e.target.value }) : onUpdate(task.id, 'status_id', e.target.value)} className={`text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium text-white ${editing ? 'ring-1 ring-blue-200' : ''}`} style={{ backgroundColor: s?.color || '#6b7280' }}>{statuses.map((st: any) => <option key={st.id} value={st.id}>{st.name}</option>)}</select>; })()}</td>
+      <td className="py-1 px-0.5">{(() => { const p = priorities.find((pr: any) => pr.id === (editing ? ef.priority_id : task.priority_id)); return <select value={editing ? ef.priority_id || '' : task.priority_id || ''} onChange={(e) => editing ? setEf({ ...ef, priority_id: e.target.value }) : onUpdate(task.id, 'priority_id', e.target.value)} className={`text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium ${editing ? 'ring-1 ring-blue-200' : ''}`} style={{ backgroundColor: p ? p.color + '20' : 'transparent', color: p?.color || 'inherit' }}><option value="">-</option>{priorities.map((pr: any) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}</select>; })()}</td>
+      <td className="py-1 px-0.5">{(() => { const m = filteredMembers.find((mb: any) => mb.id === (editing ? ef.assignee_id : task.assignee_id)); return <select value={editing ? ef.assignee_id || '' : task.assignee_id || ''} onChange={(e) => editing ? setEf({ ...ef, assignee_id: e.target.value }) : onUpdate(task.id, 'assignee_id', e.target.value)} className={`text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium ${editing ? 'ring-1 ring-blue-200' : ''}`} style={{ backgroundColor: m ? m.color + '20' : 'transparent', color: m?.color || 'inherit' }}><option value="">-</option>{filteredMembers.map((mb: any) => <option key={mb.id} value={mb.id}>{mb.name}</option>)}</select>; })()}</td>
+      <td className="py-1 px-0.5">{(() => { const m = filteredMembers.find((mb: any) => mb.id === (editing ? ef.assigner_id : (task as any).assigner_id)); return <select value={editing ? ef.assigner_id || '' : (task as any).assigner_id || ''} onChange={(e) => editing ? setEf({ ...ef, assigner_id: e.target.value }) : onUpdate(task.id, 'assigner_id', e.target.value)} className={`text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium ${editing ? 'ring-1 ring-blue-200' : ''}`} style={{ backgroundColor: m ? m.color + '20' : 'transparent', color: m?.color || 'inherit' }}><option value="">-</option>{filteredMembers.map((mb: any) => <option key={mb.id} value={mb.id}>{mb.name}</option>)}</select>; })()}</td>
+      <td className="py-1 px-0.5">{(() => { const t = taskTypes.find((tt: any) => tt.id === (editing ? ef.task_type_id : task.task_type_id)); return <select value={editing ? ef.task_type_id || '' : task.task_type_id || ''} onChange={(e) => editing ? setEf({ ...ef, task_type_id: e.target.value }) : onUpdate(task.id, 'task_type_id', e.target.value)} className={`text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium ${editing ? 'ring-1 ring-blue-200' : ''}`} style={{ backgroundColor: t?.color ? t.color + '20' : 'transparent', color: t?.color || 'inherit' }}><option value="">-</option>{taskTypes.map((tt: any) => <option key={tt.id} value={tt.id}>{tt.name}</option>)}</select>; })()}</td>
+      <td className="py-1 px-0.5">{(() => { const s = taskSections.find((sc: any) => sc.id === (editing ? ef.section_id : (task as any).section_id)); return <select value={editing ? ef.section_id || '' : (task as any).section_id || ''} onChange={(e) => editing ? setEf({ ...ef, section_id: e.target.value }) : onUpdate(task.id, 'section_id', e.target.value)} className={`text-[9px] border-0 outline-none w-full rounded px-1 py-0.5 font-medium ${editing ? 'ring-1 ring-blue-200' : ''}`} style={{ backgroundColor: s?.color ? s.color + '20' : 'transparent', color: s?.color || 'inherit' }}><option value="">-</option>{taskSections.map((sc: any) => <option key={sc.id} value={sc.id}>{sc.name}</option>)}</select>; })()}</td>
+      <td className="py-1 px-0.5 text-[9px]">{(() => { const mp = macroProjects?.find?.((m: any) => m.id === proj?.macro_project_id); return mp ? <span className="px-1.5 py-0.5 rounded text-[8px] font-medium" style={{ backgroundColor: mp.color + '25', color: mp.color }}>{mp.name}</span> : <span className="text-muted-foreground">-</span>; })()}</td>
+      <td className="py-1 px-0.5"><select value={editing ? ef.recurrence_type || '' : (task as any).recurrence_type || ''} onChange={(e) => { if (editing) { setEf({ ...ef, recurrence_type: e.target.value }); } else { if (e.target.value) { onUpdate(task.id, 'is_recurring', true); onUpdate(task.id, 'recurrence_type', e.target.value); onUpdate(task.id, 'recurrence_trigger', 'on_status_closed'); onUpdate(task.id, 'recur_forever', true); } else { onUpdate(task.id, 'is_recurring', false); onUpdate(task.id, 'recurrence_type', null); } } }} className={`text-[9px] border-0 outline-none w-full rounded px-0.5 py-0.5 ${editing ? 'bg-blue-50 ring-1 ring-blue-200' : 'hover:bg-muted/50'}`} style={{ backgroundColor: !editing && (task as any).is_recurring ? '#8b5cf620' : undefined, color: !editing && (task as any).is_recurring ? '#8b5cf6' : 'inherit' }}><option value="">-</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="days_after">Custom</option></select></td>
+      <td className="py-1 px-0.5">{editing ? <input type="date" value={ef.planned_start_date || ''} onChange={(e) => setEf({ ...ef, planned_start_date: e.target.value })} className="text-[9px] bg-blue-50 ring-1 ring-blue-200 outline-none w-full rounded" /> : <input type="date" defaultValue={task.planned_start_date || ''} onBlur={(e) => { if (e.target.value !== (task.planned_start_date || '')) onUpdate(task.id, 'planned_start_date', e.target.value); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" />}</td>
+      <td className="py-1 px-0.5">{editing ? <input type="date" value={ef.planned_end_date || ''} onChange={(e) => setEf({ ...ef, planned_end_date: e.target.value })} className="text-[9px] bg-blue-50 ring-1 ring-blue-200 outline-none w-full rounded" /> : <input type="date" defaultValue={task.planned_end_date || ''} onBlur={(e) => { if (e.target.value !== (task.planned_end_date || '')) onUpdate(task.id, 'planned_end_date', e.target.value); }} className={`text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded ${overdue > 0 ? 'text-red-600 font-bold' : ''}`} />}</td>
+      <td className="py-1 px-0.5">{editing ? <input type="number" value={ef.planned_mins || ''} onChange={(e) => setEf({ ...ef, planned_mins: e.target.value })} className="text-[9px] bg-blue-50 ring-1 ring-blue-200 outline-none w-full rounded" /> : <input type="number" defaultValue={task.planned_mins || ''} onBlur={(e) => { const v = e.target.value ? Number(e.target.value) : null; if (v !== task.planned_mins) onUpdate(task.id, 'planned_mins', v); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" />}</td>
       <td className="py-1 px-0.5"><span className="text-[9px] text-muted-foreground px-0.5">{task.actual_start_date ? formatDate(task.actual_start_date) : '-'}</span></td>
       <td className="py-1 px-0.5"><span className="text-[9px] text-muted-foreground px-0.5">{task.actual_end_date ? formatDate(task.actual_end_date) : '-'}</span></td>
-      <td className="py-1 px-0.5">{editing ? <input type="number" value={ef.actual_mins||''} onChange={(e) => setEf({...ef, actual_mins: e.target.value})} className="text-[9px] bg-blue-50 ring-1 ring-blue-200 outline-none w-full rounded" /> : <input type="number" defaultValue={task.actual_mins||''} onBlur={(e) => { const v=e.target.value?Number(e.target.value):null; if (v!==task.actual_mins) onUpdate(task.id,'actual_mins',v); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" />}</td>
-      <td className="py-1 px-1 text-[9px] text-center">{overdue>0 ? <span className="px-1.5 py-0.5 rounded bg-red-500 text-white font-bold">{overdue}d</span> : <span className="text-muted-foreground">-</span>}</td>
-      <td className="py-1 px-0.5 align-top">{editing ? <input value={ef.description||''} onChange={(e) => setEf({...ef, description: e.target.value})} className="text-[9px] bg-blue-50 ring-1 ring-blue-200 outline-none w-full rounded px-1" placeholder="Remarks" /> : <textarea defaultValue={task.description||''} title={task.description || ''} onBlur={(e) => { if (e.target.value!==(task.description||'')) onUpdate(task.id,'description',e.target.value); }} rows={1} ref={(el) => { if (el) { el.style.height='auto'; el.style.height=el.scrollHeight+'px'; } }} onInput={(e) => { const t = e.target as HTMLTextAreaElement; t.style.height='auto'; t.style.height=t.scrollHeight+'px'; }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded resize-none overflow-hidden whitespace-pre-wrap" />}</td>
+      <td className="py-1 px-0.5">{editing ? <input type="number" value={ef.actual_mins || ''} onChange={(e) => setEf({ ...ef, actual_mins: e.target.value })} className="text-[9px] bg-blue-50 ring-1 ring-blue-200 outline-none w-full rounded" /> : <input type="number" defaultValue={task.actual_mins || ''} onBlur={(e) => { const v = e.target.value ? Number(e.target.value) : null; if (v !== task.actual_mins) onUpdate(task.id, 'actual_mins', v); }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded" />}</td>
+      <td className="py-1 px-1 text-[9px] text-center">{overdue > 0 ? <span className="px-1.5 py-0.5 rounded bg-red-500 text-white font-bold">{overdue}d</span> : <span className="text-muted-foreground">-</span>}</td>
+      <td className="py-1 px-0.5 align-top">{editing ? <input value={ef.description || ''} onChange={(e) => setEf({ ...ef, description: e.target.value })} className="text-[9px] bg-blue-50 ring-1 ring-blue-200 outline-none w-full rounded px-1" placeholder="Remarks" /> : <textarea defaultValue={task.description || ''} title={task.description || ''} onBlur={(e) => { if (e.target.value !== (task.description || '')) onUpdate(task.id, 'description', e.target.value); }} rows={1} ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }} onInput={(e) => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }} className="text-[9px] bg-transparent border-0 outline-none w-full hover:bg-muted/50 rounded resize-none overflow-hidden whitespace-pre-wrap" />}</td>
       <td className="py-1 px-0.5">
         <div className="flex items-center gap-0.5">
           {!editing && <button onClick={startEdit} className="h-4 w-4 flex items-center justify-center rounded hover:bg-blue-100 text-muted-foreground hover:text-blue-600" title="Edit all fields"><Pencil className="h-2.5 w-2.5" /></button>}
