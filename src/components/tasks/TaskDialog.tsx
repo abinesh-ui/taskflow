@@ -172,7 +172,9 @@ export default function TaskDialog({ open, onOpenChange, task, departmentId, pro
     }
   }
 
-  const deptOptions = departments;
+  const deptOptions = formData.project_id
+    ? departments.filter((d: any) => d.project_id === formData.project_id)
+    : departments;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
