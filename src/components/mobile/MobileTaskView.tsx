@@ -283,7 +283,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId, fi
             return userProjectIds;
           })();
           const ctxProjects = ctxProjectIds ? projects.filter((p) => ctxProjectIds.includes(p.id)) : projects;
-          const ctxDepts = ctxProjectIds ? departments.filter((d: any) => ctxProjectIds.includes(d.project_id)) : departments;
+          const ctxDepts = departments; // all master departments (no project scoping)
           const ctxMemberIds = ctxProjectIds
             ? [...new Set(projectMembers.filter((pm) => ctxProjectIds.includes(pm.project_id)).map((pm) => pm.member_id))]
             : null;

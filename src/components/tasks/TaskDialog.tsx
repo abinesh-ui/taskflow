@@ -172,10 +172,8 @@ export default function TaskDialog({ open, onOpenChange, task, departmentId, pro
     }
   }
 
-  // BUG FIX: Only show departments belonging to the selected project
-  const deptOptions = formData.project_id
-    ? departments.filter((d: any) => d.project_id === formData.project_id)
-    : departments;
+  // All master departments (no project scoping)
+  const deptOptions = departments;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

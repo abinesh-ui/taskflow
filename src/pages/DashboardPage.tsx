@@ -213,10 +213,8 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
   })();
 
   const visibleProjects = contextProjectIds ? projects.filter((p) => contextProjectIds.includes(p.id)) : projects;
-  // Departments: scoped to context project(s)
-  const visibleDepartments = contextProjectIds
-    ? departments.filter((d: any) => contextProjectIds.includes(d.project_id))
-    : departments;
+  // Departments: all master departments (no project scoping)
+  const visibleDepartments = departments;
   // Members: scoped to project members of context project(s)
   const contextMemberIds = contextProjectIds
     ? [...new Set(projectMembers.filter((pm: any) => contextProjectIds.includes(pm.project_id)).map((pm: any) => pm.member_id))]
@@ -472,7 +470,7 @@ function NewRow({ nf, setNf, projects, departments, statuses, priorities, member
   const macroName = (() => { const proj = projects.find((p: any) => p.id === nf.project_id); if (!proj) return ''; const mp = macroProjects.find((m: any) => m.id === proj.macro_project_id); return mp?.name || ''; })();
   const projMilestones = nf.project_id ? milestones.filter((m: any) => m.project_id === nf.project_id) : [];
   // BUG FIX: Only show departments that belong to the selected project
-  const projDepartments = nf.project_id ? departments.filter((d: any) => d.project_id === nf.project_id) : departments;
+  const projDepartments = departments; // all master departments
   return (
     <tr className={`border-b ${isSubtask ? 'bg-green-50/50 dark:bg-green-950/10' : 'bg-primary/5'}`}>
       <td className="py-1 px-1"></td>
@@ -516,7 +514,7 @@ function TaskRow({ task, statuses, priorities, members, taskTypes, categories, t
   const projMemberIds = projectMembers.filter((pm: any) => pm.project_id === task.project_id).map((pm: any) => pm.member_id);
   const filteredMembers = projMemberIds.length > 0 ? members.filter((m: any) => projMemberIds.includes(m.id)) : members;
   // BUG FIX: Only show departments that belong to this task's project
-  const projDepartments = task.project_id ? departments.filter((dp: any) => dp.project_id === task.project_id) : departments;
+  const projDepartments = departments; // all master departments
 
   function startEdit() {
     setEf({ status_id: task.status_id, priority_id: task.priority_id || '', assignee_id: task.assignee_id || '', assigner_id: (task as any).assigner_id || '', task_type_id: task.task_type_id || '', section_id: (task as any).section_id || '', milestone_id: (task as any).milestone_id || '', department_id: task.department_id || '', title: task.title, planned_start_date: task.planned_start_date || '', planned_end_date: task.planned_end_date || '', planned_mins: task.planned_mins || '', actual_mins: task.actual_mins || '', description: task.description || '', recurrence_type: (task as any).recurrence_type || '' });

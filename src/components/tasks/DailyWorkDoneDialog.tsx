@@ -131,7 +131,7 @@ export default function DailyWorkDoneDialog({ open, onOpenChange }: Props) {
   // Filtered options for non-admin
   const visibleProjects = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
   // BUG FIX: Filter departments by selected project so only relevant depts show
-  const visibleDepartments = newProject ? departments.filter((d: any) => d.project_id === newProject) : departments;
+  const visibleDepartments = departments; // all master departments (no project scoping)
   const visibleMembers = userProjectIds ? members.filter((m) => projectMembers.some((pm: any) => userProjectIds.includes(pm.project_id) && pm.member_id === m.id)) : members;
 
   if (!todayPoa) {
