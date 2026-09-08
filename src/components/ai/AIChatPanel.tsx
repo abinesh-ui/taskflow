@@ -20,24 +20,30 @@ export default function AIChatPanel() {
   // Test the key as soon as the panel opens
   async function testKey() {
     const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-    if (!apiKey) { setKeyStatus('error'); return; }
+    if (!apiKey) { setKeyStatus('error'); setMessages((prev) => [prev[0], { role: 'ai', content: '⚠️ No API key found. Add VITE_GROQ_API_KEY in Vercel → Settings → Environment Variables, then redeploy.', timestamp: new Date() }]); return; }
     try {
-      const res = await fetch('https://api.groq.com/openai/v1/models', {
-        headers: { 'Authorization': `Bearer ${apiKey}` },
+      // Use a real chat completion to verify the key works end-to-end
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model: 'openai/gpt-oss-20b',
+          messages: [{ role: 'user', content: 'Reply with exactly: CONNECTED' }],
+          max_tokens: 10,
+        }),
       });
+      const data = await res.json();
       if (res.ok) {
-        const data = await res.json();
-        const modelIds = (data?.data || []).map((m: any) => m.id);
-        setMessages((prev) => [prev[0], { role: 'ai', content: `✅ API key is valid! Available models: ${modelIds.slice(0, 5).join(', ')}${modelIds.length > 5 ? '...' : ''}. You can now ask me anything.`, timestamp: new Date() }]);
         setKeyStatus('ok');
+        setMessages((prev) => [prev[0], { role: 'ai', content: "Hi! I'm your TaskFlow AI assistant powered by Groq. Ask me about your tasks, projects, team workload, overdue items, or anything about your work. I can analyze patterns and give recommendations.", timestamp: new Date() }]);
       } else {
-        const err = await res.json();
-        setMessages((prev) => [prev[0], { role: 'ai', content: `❌ API key error (${res.status}): ${err?.error?.message || 'Invalid key'}. Please update VITE_GROQ_API_KEY in Vercel and redeploy.`, timestamp: new Date() }]);
+        const msg = data?.error?.message || 'Unknown error';
         setKeyStatus('error');
+        setMessages((prev) => [prev[0], { role: 'ai', content: `❌ API Error: ${msg}\n\nPlease update VITE_GROQ_API_KEY in Vercel and redeploy.`, timestamp: new Date() }]);
       }
     } catch (e: any) {
-      setMessages((prev) => [prev[0], { role: 'ai', content: `❌ Cannot reach Groq API: ${e?.message || 'Network error'}`, timestamp: new Date() }]);
       setKeyStatus('error');
+      setMessages((prev) => [prev[0], { role: 'ai', content: `❌ Cannot reach Groq: ${e?.message || 'Network error'}`, timestamp: new Date() }]);
     }
   }
 
@@ -92,14 +98,13 @@ Answer the user's question based on this data. Be concise, actionable, and highl
       }
       const context = buildContext();
 
-      // Try models in order of preference
+      // Try models in order of preference (updated July 2026)
       const modelsToTry = [
-        'llama-3.3-70b-versatile',
-        'llama-3.1-8b-instant',
+        'openai/gpt-oss-20b',
+        'openai/gpt-oss-120b',
+        'qwen/qwen3.6-27b',
         'llama3-70b-8192',
         'llama3-8b-8192',
-        'gemma2-9b-it',
-        'mixtral-8x7b-32768',
       ];
 
       let lastError = '';
