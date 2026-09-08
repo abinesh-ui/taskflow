@@ -14,7 +14,34 @@ export default function AIChatPanel() {
   const [messages, setMessages] = useState<Message[]>([{ role: 'ai', content: "Hi! I'm your TaskFlow AI assistant. Ask me about your tasks, projects, team workload, overdue items, or anything about your work. I can analyze patterns and give recommendations.", timestamp: new Date() }]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [keyStatus, setKeyStatus] = useState<'unchecked' | 'ok' | 'error'>('unchecked');
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Test the key as soon as the panel opens
+  async function testKey() {
+    const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+    if (!apiKey) { setKeyStatus('error'); return; }
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/models', {
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const modelIds = (data?.data || []).map((m: any) => m.id);
+        setMessages((prev) => [prev[0], { role: 'ai', content: `✅ API key is valid! Available models: ${modelIds.slice(0, 5).join(', ')}${modelIds.length > 5 ? '...' : ''}. You can now ask me anything.`, timestamp: new Date() }]);
+        setKeyStatus('ok');
+      } else {
+        const err = await res.json();
+        setMessages((prev) => [prev[0], { role: 'ai', content: `❌ API key error (${res.status}): ${err?.error?.message || 'Invalid key'}. Please update VITE_GROQ_API_KEY in Vercel and redeploy.`, timestamp: new Date() }]);
+        setKeyStatus('error');
+      }
+    } catch (e: any) {
+      setMessages((prev) => [prev[0], { role: 'ai', content: `❌ Cannot reach Groq API: ${e?.message || 'Network error'}`, timestamp: new Date() }]);
+      setKeyStatus('error');
+    }
+  }
+
+  function handleOpen() { setOpen(true); if (keyStatus === 'unchecked') testKey(); }
 
   const { data: allTasks = [] } = useQuery({ queryKey: ['all-tasks'], queryFn: async () => { const { data } = await supabase.from('tasks').select('*'); return (data || []) as Task[]; } });
   const { data: statuses = [] } = useQuery({ queryKey: ['master_statuses'], queryFn: async () => { const { data } = await supabase.from('master_statuses').select('*').order('position'); return (data || []) as MasterStatus[]; } });
@@ -71,6 +98,7 @@ Answer the user's question based on this data. Be concise, actionable, and highl
         'llama-3.1-8b-instant',
         'llama3-70b-8192',
         'llama3-8b-8192',
+        'gemma2-9b-it',
         'mixtral-8x7b-32768',
       ];
 
@@ -127,7 +155,7 @@ Answer the user's question based on this data. Be concise, actionable, and highl
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="fixed bottom-4 right-4 h-12 w-12 rounded-full bg-primary text-white shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors z-50" title="AI Assistant">
+      <button onClick={handleOpen} className="fixed bottom-4 right-4 h-12 w-12 rounded-full bg-primary text-white shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors z-50" title="AI Assistant">
         <MessageCircle className="h-5 w-5" />
       </button>
     );
@@ -141,6 +169,8 @@ Answer the user's question based on this data. Be concise, actionable, and highl
           <MessageCircle className="h-4 w-4 text-primary" />
           <span className="text-xs font-semibold">TaskFlow AI</span>
           {loading && <span className="text-[9px] text-muted-foreground animate-pulse">Thinking...</span>}
+          {!loading && keyStatus === 'ok' && <span className="text-[9px] text-green-600 font-medium">● Connected</span>}
+          {!loading && keyStatus === 'error' && <span className="text-[9px] text-red-500 font-medium">● Key Error</span>}
         </div>
         <div className="flex items-center gap-1">
           <button onClick={() => setMinimized(!minimized)} className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted">{minimized ? <Maximize2 className="h-3 w-3" /> : <Minimize2 className="h-3 w-3" />}</button>
