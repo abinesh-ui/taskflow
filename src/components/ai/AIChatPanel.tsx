@@ -59,34 +59,68 @@ Answer the user's question based on this data. Be concise, actionable, and highl
 
     try {
       const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-      if (!apiKey) { setMessages((prev) => [...prev, { role: 'ai', content: 'API key not configured. Add VITE_GROQ_API_KEY in Vercel environment variables.', timestamp: new Date() }]); setLoading(false); return; }
+      if (!apiKey) {
+        setMessages((prev) => [...prev, { role: 'ai', content: '⚠️ AI not configured. Ask your admin to add VITE_GROQ_API_KEY to Vercel environment variables, then redeploy.', timestamp: new Date() }]);
+        setLoading(false); return;
+      }
       const context = buildContext();
 
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: context },
-            ...messages.slice(-6).map((m) => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content })),
-            { role: 'user', content: input.trim() },
-          ],
-          temperature: 0.7,
-          max_tokens: 1024,
-        }),
-      });
+      // Try models in order of preference
+      const modelsToTry = [
+        'llama-3.3-70b-versatile',
+        'llama-3.1-8b-instant',
+        'llama3-70b-8192',
+        'llama3-8b-8192',
+        'mixtral-8x7b-32768',
+      ];
 
-      const data = await response.json();
+      let lastError = '';
+      for (const model of modelsToTry) {
+        const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: context },
+              ...messages.slice(-6).map((m) => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content })),
+              { role: 'user', content: userMsg.content },
+            ],
+            temperature: 0.7,
+            max_tokens: 1024,
+          }),
+        });
 
-      if (!response.ok) {
-        setMessages((prev) => [...prev, { role: 'ai', content: `Error (${response.status}): ${data?.error?.message || JSON.stringify(data)}`, timestamp: new Date() }]);
-      } else {
-        const aiText = data?.choices?.[0]?.message?.content || 'No response.';
-        setMessages((prev) => [...prev, { role: 'ai', content: aiText, timestamp: new Date() }]);
+        const data = await response.json();
+
+        if (response.ok) {
+          const aiText = data?.choices?.[0]?.message?.content || 'No response.';
+          setMessages((prev) => [...prev, { role: 'ai', content: aiText, timestamp: new Date() }]);
+          setLoading(false); return;
+        }
+
+        // If model not found, try next
+        const errMsg = data?.error?.message || '';
+        lastError = errMsg;
+        if (response.status === 404 || errMsg.toLowerCase().includes('model') || errMsg.toLowerCase().includes('not found') || errMsg.toLowerCase().includes('deprecated')) {
+          continue; // try next model
+        }
+
+        // Other error (auth, rate limit etc) — show and stop
+        if (response.status === 401) {
+          setMessages((prev) => [...prev, { role: 'ai', content: '🔑 Invalid API key. Please check your VITE_GROQ_API_KEY in Vercel settings and redeploy.', timestamp: new Date() }]);
+        } else if (response.status === 429) {
+          setMessages((prev) => [...prev, { role: 'ai', content: '⏳ Rate limit reached. Please wait a moment and try again.', timestamp: new Date() }]);
+        } else {
+          setMessages((prev) => [...prev, { role: 'ai', content: `Error (${response.status}): ${errMsg}`, timestamp: new Date() }]);
+        }
+        setLoading(false); return;
       }
+
+      // All models failed
+      setMessages((prev) => [...prev, { role: 'ai', content: `Could not connect to AI. Last error: ${lastError || 'All models unavailable'}. Please check your Groq API key at console.groq.com and update VITE_GROQ_API_KEY in Vercel.`, timestamp: new Date() }]);
     } catch (err: any) {
-      setMessages((prev) => [...prev, { role: 'ai', content: `Connection error: ${err?.message || 'Network issue'}`, timestamp: new Date() }]);
+      setMessages((prev) => [...prev, { role: 'ai', content: `Connection error: ${err?.message || 'Network issue. Check your internet connection.'}`, timestamp: new Date() }]);
     }
     setLoading(false);
   }
