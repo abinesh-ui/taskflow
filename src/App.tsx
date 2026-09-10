@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import LoginPage from '@/pages/LoginPage';
 import SignupPage from '@/pages/SignupPage';
 import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
+import ResetPasswordPage from '@/pages/ResetPasswordPage';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import AnalyticsDashboard from '@/pages/AnalyticsDashboard';
 import DashboardPage from '@/pages/DashboardPage';
@@ -77,6 +78,7 @@ function App() {
         <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
         <Route path="/signup" element={<PublicRoute><SignupPage /></PublicRoute>} />
         <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
           <Route index element={<AnalyticsDashboard />} />
           <Route path="tasks" element={<AllTasksPage />} />
