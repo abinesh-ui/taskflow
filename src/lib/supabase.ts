@@ -1,23 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Supabase public credentials — these are intentionally public (anon key).
+// They are safe to commit: Supabase Row Level Security (RLS) protects all data.
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://nyiclppnfayvbkxbaspw.supabase.co';
+const supabaseAnonKey =
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aWNscHBuZmF5dmJreGJhc3B3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyOTM4MjcsImV4cCI6MjA5OTg2OTgyN30.CarSr0Sv8b37fk4Qq9ZdY1KSDp6T0wpMOyoNtCVD_TI';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error(
-    '[TaskFlow] Missing Supabase environment variables.\n' +
-    'VITE_SUPABASE_URL:', supabaseUrl ? 'set' : 'MISSING',
-    '\nVITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'set' : 'MISSING',
-    '\nMake sure these are configured in your Vercel project settings under Settings → Environment Variables.'
-  );
-}
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder'
-);
-
-export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
+// isSupabaseConfigured is always true now since we have fallback values
+export const isSupabaseConfigured = true;
 
 // Keep-alive ping every 4 days to prevent Supabase free tier from pausing
 // Only runs in the browser (not during SSR/build)
