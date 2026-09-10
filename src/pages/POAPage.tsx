@@ -81,10 +81,10 @@ export default function POAPage() {
       </div>
 
       {/* POA History */}
-      <div className="border rounded-lg overflow-hidden bg-white dark:bg-card shadow-sm">
+      <div className="border rounded-lg overflow-hidden bg-white dark:bg-card shadow-sm" style={{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}>
         <table className="w-full text-[10px]">
           <thead className="sticky top-0 z-10">
-            <tr className="bg-muted/60 border-b font-semibold text-muted-foreground uppercase">
+            <tr className="bg-muted border-b font-semibold text-muted-foreground uppercase">
               <th className="py-2 px-3 text-left">Date</th>
               <th className="py-2 px-3 text-left">Tasks</th>
               <th className="py-2 px-3 text-left">Planned Mins</th>

@@ -368,7 +368,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
         {showFilters && <NestedFilterBuilder fields={filterFields} conditions={filterConditions} onChange={(c) => { setFilterConditions(c); setCurrentPage(1); }} />}
 
         {/* Spreadsheet table */}
-        <div className="border rounded-lg overflow-x-auto bg-white dark:bg-card shadow-sm">
+        <div className="border rounded-lg overflow-x-auto bg-white dark:bg-card shadow-sm" style={{ maxHeight: 'calc(100vh - 260px)', overflowY: 'auto' }}>
           {/* Dynamic freeze styles */}
           <style>{(() => {
             let css = '';
@@ -393,7 +393,7 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
               {widths.map((w, i) => <col key={i} style={{ width: w + 'px' }} />)}
             </colgroup>
             <thead className="sticky top-0 z-10">
-              <tr className="bg-muted/60 border-b font-semibold text-muted-foreground uppercase tracking-wider">
+              <tr className="bg-muted border-b font-semibold text-muted-foreground uppercase tracking-wider">
                 <th className="py-2 px-1 relative"><input type="checkbox" checked={selectedTasks.size > 0 && selectedTasks.size >= paginated.length} onChange={(e) => { if (e.target.checked) selectAll(); else deselectAll(); }} className="h-3 w-3 rounded" /><ResizeHandle onMouseDown={(e) => onMouseDown(0, e)} /></th>
                 <th className="py-2 px-1 relative"><ResizeHandle onMouseDown={(e) => onMouseDown(1, e)} /></th>
                 <th className="py-2 px-1 text-left relative">Project<ResizeHandle onMouseDown={(e) => onMouseDown(2, e)} /></th>

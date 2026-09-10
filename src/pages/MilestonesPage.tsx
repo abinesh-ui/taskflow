@@ -221,10 +221,10 @@ export default function MilestonesPage() {
       {/* Nested filters */}
       {showFilters && <NestedFilterBuilder fields={msFilterFields} conditions={filterConditions} onChange={setFilterConditions} />}
 
-      <div className="border rounded-lg overflow-x-auto bg-white dark:bg-card shadow-sm">
+      <div className="border rounded-lg overflow-x-auto bg-white dark:bg-card shadow-sm" style={{ maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}>
         <table className="w-full text-[10px] min-w-[900px]">
-          <thead className="sticky top-0 z-10">
-            <tr className="bg-muted/60 border-b font-semibold text-muted-foreground uppercase tracking-wider">
+          <thead className="sticky top-0 z-20 bg-muted">
+            <tr className="bg-muted border-b font-semibold text-muted-foreground uppercase tracking-wider sticky top-0">
               <th className="py-2 px-2 text-left w-20">MS #</th>
               <th className="py-2 px-2 text-left w-24">Project</th>
               <th className="py-2 px-2 text-left min-w-[200px]">Description</th>
