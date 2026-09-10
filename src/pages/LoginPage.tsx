@@ -21,7 +21,11 @@ export default function LoginPage() {
     const { error } = await signIn(email, password);
     setLoading(false);
     if (error) {
-      toast({ variant: 'destructive', title: 'Login failed', description: error.message });
+      let msg = error.message;
+      if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('networkerror') || msg.toLowerCase().includes('fetch')) {
+        msg = 'Cannot connect to server. The database may be temporarily unavailable. Please try again in a minute, or contact your admin.';
+      }
+      toast({ variant: 'destructive', title: 'Login failed', description: msg });
     } else {
       navigate('/');
     }
