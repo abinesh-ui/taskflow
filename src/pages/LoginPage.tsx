@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { isSupabaseConfigured } from '@/lib/supabase';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -17,13 +18,39 @@ export default function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!isSupabaseConfigured) {
+      toast({
+        variant: 'destructive',
+        title: 'Configuration Error',
+        description:
+          'The app is not properly configured. Please contact your admin — the Supabase environment variables are missing from the deployment.',
+      });
+      return;
+    }
+
     setLoading(true);
     const { error } = await signIn(email, password);
     setLoading(false);
+
     if (error) {
       let msg = error.message;
-      if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('networkerror') || msg.toLowerCase().includes('fetch')) {
-        msg = 'Cannot connect to server. The database may be temporarily unavailable. Please try again in a minute, or contact your admin.';
+      if (
+        msg.toLowerCase().includes('failed to fetch') ||
+        msg.toLowerCase().includes('networkerror') ||
+        msg.toLowerCase().includes('fetch') ||
+        msg.toLowerCase().includes('load failed')
+      ) {
+        msg =
+          'Cannot connect to the server. This is usually a temporary issue — please wait a moment and try again. If the problem persists, contact your admin.';
+      } else if (
+        msg.toLowerCase().includes('invalid login credentials') ||
+        msg.toLowerCase().includes('invalid credentials')
+      ) {
+        msg = 'Incorrect email or password. Please check your credentials and try again.';
+      } else if (msg.toLowerCase().includes('email not confirmed')) {
+        msg =
+          'Please verify your email address before signing in. Check your inbox for a confirmation link.';
       }
       toast({ variant: 'destructive', title: 'Login failed', description: msg });
     } else {
@@ -38,7 +65,7 @@ export default function LoginPage() {
           <div className="flex items-center justify-center mb-4">
             <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" className="h-6 w-6">
-                <path d="M8 16l5 5 11-11" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M8 16l5 5 11-11" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
           </div>
