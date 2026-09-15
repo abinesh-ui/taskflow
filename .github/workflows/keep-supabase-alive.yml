@@ -1,0 +1,25 @@
+name: Keep Supabase Alive
+
+# Runs every 3 days to prevent the Supabase free-tier project from pausing.
+# Free-tier projects pause after ~7 days of inactivity; a periodic ping keeps it awake.
+on:
+  schedule:
+    - cron: '0 6 */3 * *' # every 3 days at 06:00 UTC
+  workflow_dispatch: {} # allows manual trigger from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST endpoint
+        run: |
+          echo "Pinging Supabase to keep the project active..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://nyiclppnfayvbkxbaspw.supabase.co/rest/v1/master_statuses?select=id&limit=1" \
+            -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aWNscHBuZmF5dmJreGJhc3B3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyOTM4MjcsImV4cCI6MjA5OTg2OTgyN30.CarSr0Sv8b37fk4Qq9ZdY1KSDp6T0wpMOyoNtCVD_TI")
+          echo "HTTP status: $HTTP_CODE"
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 500 ]; then
+            echo "Supabase is reachable. Keep-alive succeeded."
+          else
+            echo "Warning: unexpected status $HTTP_CODE"
+          fi

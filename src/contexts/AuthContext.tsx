@@ -67,8 +67,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signIn(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error as Error | null };
+    // Retry on transient network errors (e.g. Supabase project waking from pause)
+    const isNetworkError = (e: any) => {
+      const m = (e?.message || '').toLowerCase();
+      return m.includes('failed to fetch') || m.includes('networkerror') || m.includes('load failed') || m.includes('fetch');
+    };
+    let lastError: any = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (!error) return { error: null };
+      lastError = error;
+      // Only retry on network errors, not on wrong credentials
+      if (!isNetworkError(error)) return { error: error as Error };
+      // Wait before retrying (project may be waking up)
+      await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+    }
+    return { error: lastError as Error };
   }
 
   async function signOut() {
