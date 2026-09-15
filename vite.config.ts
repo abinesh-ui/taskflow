@@ -43,7 +43,7 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        navigateFallbackDenylist: [/^\/auth/, /supabase/],
+        navigateFallbackDenylist: [/^\/auth/, /supabase/, /^\/sb\//],
       },
     }),
   ],
