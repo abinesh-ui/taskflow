@@ -247,7 +247,8 @@ CREATE TABLE saved_views (
 -- ============================================================
 -- REPORTING VIEW (Section 12)
 -- ============================================================
-CREATE OR REPLACE VIEW v_tasks_report AS
+CREATE OR REPLACE VIEW v_tasks_report
+WITH (security_invoker = true) AS
 SELECT
   t.id,
   t.task_no,
@@ -292,6 +293,10 @@ LEFT JOIN master_task_categories tc ON t.category_id = tc.id
 LEFT JOIN master_priorities mp ON t.priority_id = mp.id
 LEFT JOIN master_statuses ms ON t.status_id = ms.id
 LEFT JOIN profiles prof ON t.assignee_id = prof.id;
+
+-- Restrict view access: authenticated users only (respects RLS via security_invoker)
+REVOKE ALL ON v_tasks_report FROM anon;
+GRANT SELECT ON v_tasks_report TO authenticated;
 
 -- ============================================================
 -- ROW LEVEL SECURITY
