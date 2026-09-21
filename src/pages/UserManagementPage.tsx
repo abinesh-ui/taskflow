@@ -37,6 +37,7 @@ export default function UserManagementPage() {
   const [newEmail, setNewEmail] = useState('');
   const [newRole, setNewRole] = useState<string>('team_member');
   const [showPermissions, setShowPermissions] = useState(false);
+  const [newCredentials, setNewCredentials] = useState<{ email: string; password: string } | null>(null);
 
   const { data: users = [] } = useQuery({
     queryKey: ['master_members'],
@@ -59,7 +60,21 @@ export default function UserManagementPage() {
   const inviteUser = useMutation({
     mutationFn: async () => {
       const email = newEmail.trim().toLowerCase();
-      // Create member entry
+      // Generate a temporary password (admin shares it with the user - no email needed)
+      const tempPassword = 'Task@' + Math.random().toString(36).slice(-6) + Math.floor(10 + Math.random() * 89);
+
+      // Create the auth user directly WITH a password via signUp.
+      // This avoids the magic-link/reset-email flow entirely (which fails when the
+      // ISP blocks the Supabase email link domain). The user can log in immediately.
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password: tempPassword,
+        options: { data: { full_name: newName.trim() } },
+      });
+      const alreadyExists = signUpError && signUpError.message.toLowerCase().includes('already');
+      if (signUpError && !alreadyExists) throw signUpError;
+
+      // Create/ensure member entry
       const { data: member, error } = await supabase.from('master_members').insert({
         name: newName.trim(),
         email,
@@ -71,29 +86,16 @@ export default function UserManagementPage() {
       }).select().single();
       if (error) throw error;
 
-      // Send magic link invite via Supabase Auth OTP (works with anon key)
-      const siteUrl = window.location.origin;
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: siteUrl,
-          shouldCreateUser: true,
-          data: { full_name: newName.trim() },
-        },
-      });
-      if (otpError) {
-        console.warn('Magic link send failed:', otpError.message);
-        // Still save the member - user can sign up manually
-      }
-      return { member, emailSent: !otpError };
+      return { member, tempPassword: alreadyExists ? null : tempPassword, email, alreadyExists };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['master_members'] });
       setAdding(false); setNewName(''); setNewEmail(''); setNewRole('team_member');
-      if (result.emailSent) {
-        toast({ title: 'Invite sent!', description: 'A magic link email has been sent. User can click it to login.' });
+      if (result.tempPassword) {
+        setNewCredentials({ email: result.email, password: result.tempPassword });
+        toast({ title: 'User created!', description: 'Share the login credentials shown below with the user.' });
       } else {
-        toast({ title: 'User added', description: 'Email could not be sent. Share the app URL and ask them to sign up manually.' });
+        toast({ title: 'User added', description: 'This email already has an account. They can log in with their existing password.' });
       }
     },
     onError: (err: Error) => { toast({ variant: 'destructive', title: 'Error', description: err.message }); },
@@ -142,6 +144,22 @@ export default function UserManagementPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
+            {newCredentials && (
+              <div className="p-3 border-2 border-green-300 rounded-lg bg-green-50">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-green-800">✓ User created — share these login credentials:</p>
+                    <p className="text-xs"><strong>Email:</strong> <span className="font-mono bg-white px-1.5 py-0.5 rounded border">{newCredentials.email}</span></p>
+                    <p className="text-xs"><strong>Temp Password:</strong> <span className="font-mono bg-white px-1.5 py-0.5 rounded border">{newCredentials.password}</span></p>
+                    <p className="text-[10px] text-green-700 mt-1">The user can log in immediately with these. They can change the password later from the app. No email needed.</p>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => { navigator.clipboard.writeText(`Email: ${newCredentials.email}\nPassword: ${newCredentials.password}\nLogin at: ${window.location.origin}/login`); toast({ title: 'Copied to clipboard' }); }}>Copy</Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => setNewCredentials(null)}>Dismiss</Button>
+                  </div>
+                </div>
+              </div>
+            )}
             {adding && (
               <div className="flex flex-wrap items-center gap-2 p-3 border rounded bg-muted/50">
                 <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Full Name *" className="h-8 text-sm w-40" autoFocus />
@@ -149,8 +167,8 @@ export default function UserManagementPage() {
                 <select value={newRole} onChange={(e) => setNewRole(e.target.value)} className="h-8 text-sm border rounded px-2 bg-background">
                   {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                 </select>
-                <Button size="sm" className="h-8" onClick={() => inviteUser.mutate()} disabled={!newName.trim() || !newEmail.trim()}>
-                  <Mail className="h-3.5 w-3.5 mr-1" /> Send Invite
+                <Button size="sm" className="h-8" onClick={() => inviteUser.mutate()} disabled={!newName.trim() || !newEmail.trim() || inviteUser.isPending}>
+                  <Mail className="h-3.5 w-3.5 mr-1" /> {inviteUser.isPending ? 'Creating...' : 'Create User'}
                 </Button>
                 <Button size="sm" variant="ghost" className="h-8" onClick={() => setAdding(false)}>
                   <X className="h-3.5 w-3.5" />
