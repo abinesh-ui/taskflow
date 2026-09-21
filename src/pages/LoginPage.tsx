@@ -50,7 +50,7 @@ export default function LoginPage() {
         msg = 'Incorrect email or password. Please check your credentials and try again.';
       } else if (msg.toLowerCase().includes('email not confirmed')) {
         msg =
-          'Please verify your email address before signing in. Check your inbox for a confirmation link.';
+          'Your account needs email confirmation, which is unexpected — contact your admin to disable email confirmation in Supabase or confirm your account manually.';
       }
       toast({ variant: 'destructive', title: 'Login failed', description: msg });
     } else {
