@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { useAccessControl } from '@/hooks/use-access-control';
 import { Toaster } from '@/components/ui/toaster';
 import LoginPage from '@/pages/LoginPage';
 import SignupPage from '@/pages/SignupPage';
@@ -59,15 +60,18 @@ function PublicRoute({ children }: { children: ReactNode }) {
 }
 
 function AdminRoute({ children }: { children: ReactNode }) {
-  const { profile, loading } = useAuth();
-  if (loading) {
+  const { loading } = useAuth();
+  // Source of truth for admin status is master_members.role (managed in
+  // Settings > User Management), NOT profiles.role which is stale/unsynced.
+  const { isAdmin, ready } = useAccessControl();
+  if (loading || !ready) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
-  if (profile?.role !== 'admin') return <Navigate to="/" replace />;
+  if (!isAdmin) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 

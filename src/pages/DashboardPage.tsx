@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAccessControl } from '@/hooks/use-access-control';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -67,16 +68,14 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
   const { data: macroProjects = [] } = useQuery({ queryKey: ['master_macro_projects'], queryFn: async () => { const { data } = await supabase.from('master_macro_projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
   const { data: milestones = [] } = useQuery({ queryKey: ['milestones'], queryFn: async () => { const { data } = await supabase.from('milestones').select('*').order('created_at'); return (data || []) as Array<{ id: string; milestone_no: string; project_id: string; description: string }>; } });
   const { data: projectMembers = [] } = useQuery({ queryKey: ['project_members'], queryFn: async () => { const { data } = await supabase.from('project_members').select('*'); return (data || []) as Array<{ id: string; project_id: string; member_id: string }>; } });
-  const { data: currentMember } = useQuery({ queryKey: ['current-member', user?.id], queryFn: async () => { const { data: profile } = await supabase.from('profiles').select('email').eq('id', user!.id).single(); if (!profile) return null; const { data } = await supabase.from('master_members').select('id, role').ilike('email', profile.email.toLowerCase()).single(); return data as { id?: string; role?: string } | null; }, enabled: !!user });
-  const isAdmin = currentMember?.role === 'admin';
+  // Fail-closed access control from the central hook (never "see all" while loading)
+  const { currentMember, isAdmin, userProjectIds } = useAccessControl();
   const canBulk = (currentMember?.role === 'admin' || currentMember?.role === 'manager');
   const { data: rolePermissions = [] } = useQuery({ queryKey: ['role_permissions'], queryFn: async () => { const { data } = await supabase.from('role_permissions').select('*'); return (data || []) as Array<{ role: string; permission: string; allowed: boolean }>; } });
   const userRole = currentMember?.role || 'team_member';
   const canDeleteTask = userRole === 'admin' || (rolePermissions.find((p) => p.role === userRole && p.permission === 'delete_task')?.allowed ?? false);
   const canCancelTask = userRole === 'admin' || (rolePermissions.find((p) => p.role === userRole && p.permission === 'cancel_task')?.allowed ?? false);
   const currentMemberName = members.find((m: any) => m.id === currentMember?.id)?.name || user?.email || '';
-  // Get user's assigned project IDs (admin sees all, null = still loading/admin)
-  const userProjectIds = !currentMember ? null : isAdmin ? null : projectMembers.filter((pm: any) => pm.member_id === currentMember?.id).map((pm: any) => pm.project_id);
 
   function getOverdue(task: Task) { const s = statuses.find((st) => st.id === task.status_id); return getOverdueDays(task.planned_end_date, s?.is_closed ?? false); }
 

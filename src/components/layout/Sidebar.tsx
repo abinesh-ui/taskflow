@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAccessControl } from '@/hooks/use-access-control';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, ChevronDown, FolderOpen, Briefcase, Settings, Home, Layers } from 'lucide-react';
@@ -11,21 +11,19 @@ import type { Project, Department } from '@/types/database';
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { profile } = useAuth();
-  const isAdmin = profile?.role === 'admin';
+  // Fail-closed access control: never shows all projects while loading or for an
+  // unresolved user. isAdmin is only true once confirmed via master_members.role.
+  const { isAdmin, userProjectIds } = useAccessControl();
   const [expandedMacros, setExpandedMacros] = useState<Set<string>>(new Set());
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
   const { data: macroProjects = [] } = useQuery({ queryKey: ['master_macro_projects'], queryFn: async () => { const { data } = await supabase.from('master_macro_projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<Project & { macro_project_id?: string }>; } });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
-  const { data: projectMembersData = [] } = useQuery({ queryKey: ['project_members'], queryFn: async () => { const { data } = await supabase.from('project_members').select('*'); return (data || []) as Array<{ project_id: string; member_id: string }>; } });
-  const { data: currentMemberSidebar } = useQuery({ queryKey: ['current-member-sidebar', profile?.email], queryFn: async () => { if (!profile?.email) return null; const { data } = await supabase.from('master_members').select('id, role').ilike('email', profile.email.toLowerCase()).single(); return data as { id?: string; role?: string } | null; }, enabled: !!profile?.email });
 
-  // Filter projects for non-admin users
-  const visibleProjects = (currentMemberSidebar?.role === 'admin' || !currentMemberSidebar?.id)
-    ? projects
-    : projects.filter((p) => projectMembersData.some((pm) => pm.project_id === p.id && pm.member_id === currentMemberSidebar?.id));
+  // Filter projects for non-admin users. userProjectIds is null only for confirmed
+  // admins; otherwise it's an explicit (possibly empty) list, so this is fail-closed.
+  const visibleProjects = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
 
   function toggle(set: Set<string>, setFn: (s: Set<string>) => void, id: string) { const n = new Set(set); if (n.has(id)) n.delete(id); else n.add(id); setFn(n); }
   function isActive(path: string) { return location.pathname === path; }
