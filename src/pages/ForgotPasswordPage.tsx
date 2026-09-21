@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
   async function handleVerifyAndReset(e: React.FormEvent) {
     e.preventDefault();
     if (password.length < 6) { toast({ variant: 'destructive', title: 'Weak password', description: 'Use at least 6 characters.' }); return; }
-    if (password !== confirm) { toast({ variant: 'destructive', title: 'Mismatch', description: 'Passwords do not match.' }); return; }
+    if (password !== confirm) { return; } // inline error shown below the field; block submit
     setLoading(true);
     const { error: otpError } = await verifyResetOtp(email.trim().toLowerCase(), code.trim());
     if (otpError) {
@@ -54,9 +54,11 @@ export default function ForgotPasswordPage() {
       toast({ variant: 'destructive', title: 'Could not update password', description: updateError.message });
       return;
     }
-    toast({ title: 'Password updated', description: 'You can now sign in with your new password.' });
-    await supabase.auth.signOut();
-    navigate('/login');
+    // verifyResetOtp already established a valid session, and the password is
+    // now updated — take the user straight into the app instead of making them
+    // log in a second time.
+    toast({ title: 'Password updated', description: 'Signing you in...' });
+    navigate('/');
   }
 
   return (
@@ -119,10 +121,13 @@ export default function ForgotPasswordPage() {
               <div className="space-y-2">
                 <Label htmlFor="confirm">Confirm Password</Label>
                 <Input id="confirm" type="password" placeholder="Re-enter password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+                {confirm.length > 0 && password !== confirm && (
+                  <p className="text-xs text-destructive">New password and confirm password must be the same.</p>
+                )}
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-3">
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full" disabled={loading || (confirm.length > 0 && password !== confirm)}>
                 {loading ? 'Updating...' : 'Update Password'}
               </Button>
               <div className="flex justify-between w-full text-sm">
