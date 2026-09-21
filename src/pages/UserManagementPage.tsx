@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { useAccessControl } from '@/hooks/use-access-control';
+import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +28,7 @@ const PERMISSIONS = [
   { key: 'delete_poa', label: 'Delete Submitted POA' },
   { key: 'manage_masters', label: 'Manage Masters/Settings' },
   { key: 'manage_users', label: 'Manage Users' },
+  { key: 'delete_user', label: 'Delete Users' },
   { key: 'export_data', label: 'Export Data' },
 ];
 
@@ -38,6 +41,7 @@ export default function UserManagementPage() {
   const [newRole, setNewRole] = useState<string>('team_member');
   const [showPermissions, setShowPermissions] = useState(false);
   const [newCredentials, setNewCredentials] = useState<{ email: string; password: string } | null>(null);
+  const { currentMember } = useAccessControl();
 
   const { data: users = [] } = useQuery({
     queryKey: ['master_members'],
@@ -115,6 +119,17 @@ export default function UserManagementPage() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['master_members'] }); },
   });
 
+  const deleteUser = useMutation({
+    mutationFn: async (id: string) => {
+      // Remove the member's project mappings first, then the member record
+      await supabase.from('project_members').delete().eq('member_id', id);
+      const { error } = await supabase.from('master_members').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['master_members'] }); queryClient.invalidateQueries({ queryKey: ['project_members'] }); toast({ title: 'User deleted' }); },
+    onError: (err: Error) => { toast({ variant: 'destructive', title: 'Cannot delete', description: err.message }); },
+  });
+
   const updatePermission = useMutation({
     mutationFn: async ({ role, permission, allowed }: { role: string; permission: string; allowed: boolean }) => {
       const { error } = await supabase.from('role_permissions').upsert({ role, permission, allowed }, { onConflict: 'role,permission' });
@@ -128,6 +143,10 @@ export default function UserManagementPage() {
     const p = permissions.find((x) => x.role === role && x.permission === perm);
     return p?.allowed ?? false;
   }
+
+  // Whether the current logged-in user may delete users (admin always; others per role_permissions)
+  const myRole = currentMember?.role || 'team_member';
+  const canDeleteUser = getPermission(myRole, 'delete_user');
 
   return (
     <div className="space-y-6">
@@ -220,6 +239,11 @@ export default function UserManagementPage() {
                   <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => toggleActive.mutate({ id: user.id, active: !user.is_live })}>
                     {user.is_live ? 'Deactivate' : 'Activate'}
                   </Button>
+                  {canDeleteUser && (
+                    <Button size="sm" variant="ghost" className="h-7 text-[10px] text-destructive hover:bg-red-50 hover:text-red-600" onClick={() => { if (confirm(`Permanently delete user "${user.name}"? This removes them from the app and all their project assignments. This cannot be undone.`)) deleteUser.mutate(user.id); }}>
+                      <Trash2 className="h-3 w-3 mr-1" /> Delete
+                    </Button>
+                  )}
                 </div>
               );
             })}
