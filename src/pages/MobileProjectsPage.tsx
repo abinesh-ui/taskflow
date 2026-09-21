@@ -1,11 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { useAccessControl } from '@/hooks/use-access-control';
 import { FolderOpen, ChevronRight, Briefcase, Layers } from 'lucide-react';
 import type { Project, Department } from '@/types/database';
 
 export default function MobileProjectsPage() {
   const navigate = useNavigate();
+  // Fail-closed: userProjectIds is null only for a confirmed admin, otherwise an
+  // explicit (possibly empty) list of the projects this user is assigned to.
+  const { userProjectIds, ready } = useAccessControl();
 
   const { data: macroProjects = [] } = useQuery({
     queryKey: ['master_macro_projects'],
@@ -15,7 +19,7 @@ export default function MobileProjectsPage() {
     },
   });
 
-  const { data: projects = [] } = useQuery({
+  const { data: allProjects = [] } = useQuery({
     queryKey: ['projects'],
     queryFn: async () => {
       const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position');
@@ -31,14 +35,18 @@ export default function MobileProjectsPage() {
     },
   });
 
+  // Only show projects this user is actually assigned to (or all, if confirmed admin)
+  const projects = userProjectIds ? allProjects.filter((p) => userProjectIds.includes(p.id)) : allProjects;
   const unassignedProjects = projects.filter((p) => !p.macro_project_id);
 
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-bold">Projects</h2>
 
-      {macroProjects.length === 0 && projects.length === 0 && (
-        <p className="text-sm text-muted-foreground py-4">No projects yet.</p>
+      {!ready ? (
+        <p className="text-sm text-muted-foreground py-4">Loading your projects...</p>
+      ) : macroProjects.length === 0 && projects.length === 0 && (
+        <p className="text-sm text-muted-foreground py-4">No projects assigned to you yet.</p>
       )}
 
       <div className="space-y-4">
