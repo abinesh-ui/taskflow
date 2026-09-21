@@ -12,6 +12,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
+  verifyResetOtp: (email: string, token: string) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -92,15 +93,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   }
 
+  // Sends a 6-digit OTP code by email (not a clickable link). This avoids the
+  // "cannot connect to server" failure some ISPs cause on Supabase's raw
+  // verify-link URLs — the OTP is entered in-app and verified through our
+  // own Supabase client (which already routes through the safe /sb proxy).
   async function resetPassword(email: string) {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
     });
     return { error: error as Error | null };
   }
 
+  // Verifies the OTP code and establishes a session, then lets the caller set
+  // a new password via updateUser.
+  async function verifyResetOtp(email: string, token: string) {
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+    return { error: error as Error | null };
+  }
+
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signUp, signIn, signOut, resetPassword }}>
+    <AuthContext.Provider value={{ user, session, profile, loading, signUp, signIn, signOut, resetPassword, verifyResetOtp }}>
       {children}
     </AuthContext.Provider>
   );

@@ -155,7 +155,7 @@ export default function UserManagementPage() {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
           <div>
             <CardTitle className="text-base">Users ({users.length})</CardTitle>
-            <p className="text-[10px] text-muted-foreground mt-1">Invite sends a magic link email. Free tier: max 4 emails/hour.</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Creating a user sets a temporary password you share directly — no email required. If they forget it, they can use "Forgot password" on the login page.</p>
           </div>
           <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
             <Plus className="h-4 w-4 mr-1" /> Invite User
@@ -220,22 +220,9 @@ export default function UserManagementPage() {
                   <select value={user.role || 'team_member'} onChange={(e) => updateRole.mutate({ id: user.id, role: e.target.value })} className="h-7 text-xs border rounded px-2 bg-background">
                     {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
                   </select>
-                  {/* Send invite button (only if has email and not yet accepted) */}
-                  {user.email && user.email !== 'email@example.com' && !user.accepted_at && (
-                    <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={async () => {
-                      const siteUrl = window.location.origin;
-                      const { error } = await supabase.auth.signInWithOtp({
-                        email: user.email!,
-                        options: { emailRedirectTo: siteUrl, shouldCreateUser: true, data: { full_name: user.name } },
-                      });
-                      await supabase.from('master_members').update({ invited_at: new Date().toISOString() }).eq('id', user.id);
-                      if (error) toast({ variant: 'destructive', title: 'Failed to send', description: error.message });
-                      else toast({ title: 'Magic link sent!', description: `Login email sent to ${user.email}` });
-                      queryClient.invalidateQueries({ queryKey: ['master_members'] });
-                    }}>
-                      <Mail className="h-3 w-3 mr-1" /> {user.invited_at ? 'Resend' : 'Send'} Invite
-                    </Button>
-                  )}
+                  {/* If a user forgets their temp password, they self-serve via the
+                      in-app "Forgot password" OTP-code flow on the login page — no
+                      admin action or email link needed, so no resend button here. */}
                   <Button size="sm" variant="ghost" className="h-7 text-[10px]" onClick={() => toggleActive.mutate({ id: user.id, active: !user.is_live })}>
                     {user.is_live ? 'Deactivate' : 'Activate'}
                   </Button>
