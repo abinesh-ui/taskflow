@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDate, getOverdueDays } from '@/lib/utils';
 import { AlertTriangle, CheckCircle, Target, Zap, Filter, X, FolderOpen, Users, Clock, TrendingUp } from 'lucide-react';
 import { NestedFilterBuilder, applyFilters, type FilterCondition } from '@/components/tasks/NestedFilter';
-import type { Task, MasterStatus, Project } from '@/types/database';
+import PendingOverdueReport from '@/components/dashboard/PendingOverdueReport';
+import type { Task, MasterStatus, MasterPriority, Project } from '@/types/database';
 
 export default function AnalyticsDashboard() {
   const { user } = useAuth();
@@ -21,6 +22,7 @@ export default function AnalyticsDashboard() {
   const { data: allTasks = [] } = useQuery({ queryKey: ['all-tasks'], queryFn: async () => { const { data } = await supabase.from('tasks').select('*'); return (data || []) as Task[]; } });
   const { data: statuses = [] } = useQuery({ queryKey: ['master_statuses'], queryFn: async () => { const { data } = await supabase.from('master_statuses').select('*').eq('is_active', true).order('position'); return (data || []) as Array<MasterStatus & { completion_weight?: number }>; } });
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).order('position'); return (data || []) as Project[]; } });
+  const { data: priorities = [] } = useQuery({ queryKey: ['master_priorities'], queryFn: async () => { const { data } = await supabase.from('master_priorities').select('*').eq('is_active', true).order('position'); return (data || []) as MasterPriority[]; } });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; project_id: string; color?: string }>; } });
   const { data: members = [] } = useQuery({ queryKey: ['master_members'], queryFn: async () => { const { data } = await supabase.from('master_members').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
   const { data: macroProjects = [] } = useQuery({ queryKey: ['master_macro_projects'], queryFn: async () => { const { data } = await supabase.from('master_macro_projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
@@ -327,6 +329,15 @@ export default function AnalyticsDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Daily Pending & Overdue Tasks report — full-width, scrollable pivot table */}
+      <PendingOverdueReport
+        tasks={allVisibleTasks}
+        statuses={statuses}
+        priorities={priorities}
+        members={members}
+        projects={visibleProjects}
+      />
     </div>
   );
 }
