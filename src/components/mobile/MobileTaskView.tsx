@@ -14,9 +14,9 @@ import { formatDate, getOverdueDays } from '@/lib/utils';
 import { Plus, ChevronDown, ChevronRight, Filter, SlidersHorizontal, X, Search, Save, ChevronsDown, ChevronsUp } from 'lucide-react';
 import type { Task, MasterStatus, MasterPriority, Project, Department } from '@/types/database';
 
-interface MobileProps { filterProjectId?: string; filterDepartmentId?: string; filterMacroProjectId?: string; }
+interface MobileProps { filterProjectId?: string; filterDepartmentId?: string; filterMacroProjectId?: string; fixedStatusNames?: string[]; pageTitle?: string; }
 
-export default function MobileTaskView({ filterProjectId, filterDepartmentId, filterMacroProjectId }: MobileProps = {}) {
+export default function MobileTaskView({ filterProjectId, filterDepartmentId, filterMacroProjectId, fixedStatusNames, pageTitle }: MobileProps = {}) {
   const { user } = useAuth();
   const { userProjectIds, memberId } = useAccessControl();
   const queryClient = useQueryClient();
@@ -52,6 +52,11 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId, fi
   let topTasks = allTasks.filter((t) => !t.parent_id);
   // Access control: non-admin only sees assigned projects
   if (userProjectIds) topTasks = topTasks.filter((t) => userProjectIds.includes(t.project_id));
+  // Fixed status filter (e.g. the "Pending Tasks" screen locks to a specific set of statuses)
+  if (fixedStatusNames) {
+    const fixedStatusIds = statuses.filter((s) => fixedStatusNames.includes(s.name)).map((s) => s.id);
+    topTasks = topTasks.filter((t) => fixedStatusIds.includes(t.status_id));
+  }
   if (filterMacroProjectId) {
     const macroProjIds = new Set(projects.filter((p: any) => p.macro_project_id === filterMacroProjectId).map((p: any) => p.id));
     topTasks = topTasks.filter((t) => macroProjIds.has(t.project_id));
@@ -258,6 +263,12 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId, fi
     <div className="md:hidden flex flex-col h-full">
       {/* Search + Filter + Sort bar */}
       <div className="p-3 border-b bg-gradient-to-r from-card to-card/95 space-y-2 flex-shrink-0 shadow-sm">
+        {pageTitle && (
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-bold">{pageTitle}</h2>
+            <Badge variant="secondary" className="text-[10px]">{topTasks.length}</Badge>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <div className="flex-1 relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-primary/60" />

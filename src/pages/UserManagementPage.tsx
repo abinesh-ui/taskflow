@@ -30,6 +30,7 @@ const PERMISSIONS = [
   { key: 'manage_users', label: 'Manage Users' },
   { key: 'delete_user', label: 'Delete Users' },
   { key: 'export_data', label: 'Export Data' },
+  { key: 'view_pending_tasks', label: 'View Pending Tasks Screen' },
 ];
 
 export default function UserManagementPage() {

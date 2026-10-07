@@ -19,9 +19,9 @@ import DailyPOADialog from '@/components/tasks/DailyPOADialog';
 import DailyWorkDoneDialog from '@/components/tasks/DailyWorkDoneDialog';
 import type { Task, MasterStatus, MasterPriority, Project, Department } from '@/types/database';
 
-interface DashboardProps { filterProjectId?: string; filterDepartmentId?: string; filterMacroProjectId?: string; }
+interface DashboardProps { filterProjectId?: string; filterDepartmentId?: string; filterMacroProjectId?: string; fixedStatusNames?: string[]; pageTitle?: string; }
 
-export default function DashboardPage({ filterProjectId, filterDepartmentId, filterMacroProjectId }: DashboardProps = {}) {
+export default function DashboardPage({ filterProjectId, filterDepartmentId, filterMacroProjectId, fixedStatusNames, pageTitle }: DashboardProps = {}) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const createTask = useCreateTask();
@@ -99,6 +99,11 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
   let contextFiltered = allTasks.filter((t) => !t.parent_id);
   // Access control: non-admin only sees their assigned projects
   if (userProjectIds) contextFiltered = contextFiltered.filter((t) => userProjectIds.includes(t.project_id));
+  // Fixed status filter (e.g. the "Pending Tasks" screen locks to a specific set of statuses)
+  if (fixedStatusNames) {
+    const fixedStatusIds = statuses.filter((s) => fixedStatusNames.includes(s.name)).map((s) => s.id);
+    contextFiltered = contextFiltered.filter((t) => fixedStatusIds.includes(t.status_id));
+  }
   if (filterMacroProjectId) {
     const macroProjIds = new Set(projects.filter((p: any) => p.macro_project_id === filterMacroProjectId).map((p: any) => p.id));
     contextFiltered = contextFiltered.filter((t) => macroProjIds.has(t.project_id));
@@ -264,9 +269,15 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
   return (
     <>
       {/* Mobile View */}
-      <MobileTaskView filterProjectId={filterProjectId} filterDepartmentId={filterDepartmentId} filterMacroProjectId={filterMacroProjectId} />
+      <MobileTaskView filterProjectId={filterProjectId} filterDepartmentId={filterDepartmentId} filterMacroProjectId={filterMacroProjectId} fixedStatusNames={fixedStatusNames} pageTitle={pageTitle} />
       {/* Desktop View */}
       <div className="space-y-2 hidden md:block">
+        {pageTitle && (
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className="text-lg font-bold">{pageTitle}</h2>
+            <Badge variant="secondary" className="text-[10px]">{sorted.length}</Badge>
+          </div>
+        )}
         {filterMacroProjectId && (
           <div className="flex items-center gap-2 px-3 py-1.5 bg-accent/40 rounded-md border text-xs mb-1">
             <span className="text-muted-foreground font-medium">Macro Project View:</span>

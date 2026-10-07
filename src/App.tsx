@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { useAccessControl } from '@/hooks/use-access-control';
+import { useAccessControl, usePermission } from '@/hooks/use-access-control';
 import { Toaster } from '@/components/ui/toaster';
 import LoginPage from '@/pages/LoginPage';
 import SignupPage from '@/pages/SignupPage';
@@ -31,6 +31,13 @@ function ProjectPage() {
 function DeptPage() {
   const { projectId, departmentId } = useParams();
   return <DashboardPage filterProjectId={projectId} filterDepartmentId={departmentId} />;
+}
+
+// Statuses considered "pending" for the dedicated Pending Tasks screen.
+// Matched by exact master_statuses.name (same convention used elsewhere in the app).
+const PENDING_STATUS_NAMES = ['YTI', 'WIP', 'Dropped', 'Hold', 'Client Pending', 'ERP Pending'];
+function PendingTasksPage() {
+  return <DashboardPage fixedStatusNames={PENDING_STATUS_NAMES} pageTitle="Pending Tasks" />;
 }
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -75,6 +82,24 @@ function AdminRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+// Gates a route behind a specific role_permissions entry (configured in
+// Settings > User Management > Role Permissions). Admins always pass.
+// Fail-closed: shows a spinner (never the page) until the permission is
+// definitively resolved, and redirects home if denied.
+function PermissionRoute({ permission, children }: { permission: string; children: ReactNode }) {
+  const { loading } = useAuth();
+  const { allowed, ready } = usePermission(permission);
+  if (loading || !ready) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  if (!allowed) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -86,6 +111,7 @@ function App() {
         <Route path="/" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
           <Route index element={<AnalyticsDashboard />} />
           <Route path="tasks" element={<AllTasksPage />} />
+          <Route path="pending-tasks" element={<PermissionRoute permission="view_pending_tasks"><PendingTasksPage /></PermissionRoute>} />
           <Route path="settings" element={<AdminRoute><MastersPage /></AdminRoute>} />
           <Route path="my-tasks" element={<MyTasksPage />} />
           <Route path="milestones" element={<MilestonesPage />} />

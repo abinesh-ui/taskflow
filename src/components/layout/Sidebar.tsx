@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { useAccessControl } from '@/hooks/use-access-control';
+import { useAccessControl, usePermission } from '@/hooks/use-access-control';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, ChevronDown, FolderOpen, Briefcase, Settings, Home, Layers } from 'lucide-react';
+import { ChevronRight, ChevronDown, FolderOpen, Briefcase, Settings, Home, Layers, ListTodo } from 'lucide-react';
 import type { Project, Department } from '@/types/database';
 
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
@@ -14,6 +14,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   // Fail-closed access control: never shows all projects while loading or for an
   // unresolved user. isAdmin is only true once confirmed via master_members.role.
   const { isAdmin, userProjectIds } = useAccessControl();
+  const { allowed: canViewPendingTasks } = usePermission('view_pending_tasks');
   const [expandedMacros, setExpandedMacros] = useState<Set<string>>(new Set());
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
@@ -43,6 +44,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="px-2 py-2 space-y-0.5">
         <Button variant={isActive('/') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/'); onNavigate?.(); }}><Home className="h-3.5 w-3.5 mr-2" />Dashboard</Button>
         <Button variant={isActive('/tasks') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/tasks'); onNavigate?.(); }}><Layers className="h-3.5 w-3.5 mr-2" />All Tasks</Button>
+        {canViewPendingTasks && <Button variant={isActive('/pending-tasks') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/pending-tasks'); onNavigate?.(); }}><ListTodo className="h-3.5 w-3.5 mr-2" />Pending Tasks</Button>}
         <Button variant={isActive('/milestones') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/milestones'); onNavigate?.(); }}><Layers className="h-3.5 w-3.5 mr-2" />Milestones</Button>
         <Button variant={isActive('/poa') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/poa'); onNavigate?.(); }}><Layers className="h-3.5 w-3.5 mr-2" />POA</Button>
         {isAdmin && <Button variant={isActive('/settings') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/settings'); onNavigate?.(); }}><Settings className="h-3.5 w-3.5 mr-2" />Settings</Button>}

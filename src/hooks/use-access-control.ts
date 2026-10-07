@@ -74,3 +74,30 @@ export function useAccessControl() {
 
   return { currentMember, isAdmin, memberId, userProjectIds, projectMembers, isLoading, ready };
 }
+
+/**
+ * Role-based permission check, backed by the `role_permissions` table
+ * (configured in Settings > User Management > Role Permissions).
+ *
+ * Admins always return true. For everyone else, `ready` stays false until
+ * both the member/role lookup and the permissions table have loaded, so
+ * callers can show a loading state instead of flashing "denied" or "allowed"
+ * before the real answer is known.
+ */
+export function usePermission(permission: string) {
+  const { currentMember, isAdmin, ready: accessReady } = useAccessControl();
+
+  const { data: rolePermissions = [], isFetched: permsFetched } = useQuery({
+    queryKey: ['role_permissions'],
+    queryFn: async () => {
+      const { data } = await supabase.from('role_permissions').select('*');
+      return (data || []) as Array<{ role: string; permission: string; allowed: boolean }>;
+    },
+  });
+
+  const ready = accessReady && permsFetched;
+  const role = currentMember?.role || 'team_member';
+  const allowed = isAdmin || (rolePermissions.find((p) => p.role === role && p.permission === permission)?.allowed ?? false);
+
+  return { allowed: ready ? allowed : false, ready };
+}
