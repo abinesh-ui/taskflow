@@ -35,7 +35,7 @@ function DeptPage() {
 
 // Statuses considered "pending" for the dedicated Pending Tasks screen.
 // Matched by exact master_statuses.name (same convention used elsewhere in the app).
-const PENDING_STATUS_NAMES = ['YTI', 'WIP', 'Dropped', 'Hold', 'Client Pending', 'ERP Pending'];
+const PENDING_STATUS_NAMES = ['YTI', 'WIP', 'Hold', 'Client Pending', 'ERP Pending'];
 function PendingTasksPage() {
   return <DashboardPage fixedStatusNames={PENDING_STATUS_NAMES} pageTitle="Pending Tasks" />;
 }
