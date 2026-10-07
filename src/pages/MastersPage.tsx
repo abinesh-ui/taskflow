@@ -141,7 +141,7 @@ function MasterSection({
     '#14b8a6', '#e11d48', '#0ea5e9', '#a855f7', '#22c55e',
   ];
 
-  function handleSaveNew() {
+  async function handleSaveNew() {
     if (!formData.name?.trim()) return;
     // For projects, macro_project_id is required
     if (table === 'projects' && !formData.macro_project_id) {
@@ -163,10 +163,15 @@ function MasterSection({
     if (fields.includes('is_closed')) newItem.is_closed = formData.is_closed === 'true';
     if (fields.includes('is_done')) newItem.is_done = formData.is_done === 'true';
     if (fields.includes('is_live')) newItem.is_live = formData.is_live !== 'false';
+    // A brand-new project created as "not live" goes straight into Closed Projects.
+    if (table === 'projects' && fields.includes('is_live') && newItem.is_live === false) {
+      const { data: closedMacro } = await supabase.from('master_macro_projects').select('id').eq('name', 'Closed Projects').maybeSingle();
+      if (closedMacro?.id) newItem.macro_project_id = closedMacro.id;
+    }
     addMutation.mutate(newItem);
   }
 
-  function handleSaveEdit() {
+  async function handleSaveEdit() {
     if (!editingId || !formData.name?.trim()) return;
     const data: Record<string, unknown> = { name: formData.name.trim() };
     if (table === 'projects' && formData.macro_project_id) {
@@ -177,6 +182,15 @@ function MasterSection({
     if (fields.includes('is_closed')) data.is_closed = formData.is_closed === 'true';
     if (fields.includes('is_done')) data.is_done = formData.is_done === 'true';
     if (fields.includes('is_live')) data.is_live = formData.is_live !== 'false';
+    // When a project is marked "not live", automatically move it under the
+    // dedicated "Closed Projects" macro project so it's archived out of daily
+    // views (sidebar, dashboards, All Tasks) but stays browsable there.
+    // Re-activating a project does NOT auto-restore its original macro — the
+    // admin can reassign it manually, since the original mapping isn't recalled.
+    if (table === 'projects' && fields.includes('is_live') && data.is_live === false) {
+      const { data: closedMacro } = await supabase.from('master_macro_projects').select('id').eq('name', 'Closed Projects').maybeSingle();
+      if (closedMacro?.id) data.macro_project_id = closedMacro.id;
+    }
     updateMutation.mutate({ id: editingId, data });
   }
 

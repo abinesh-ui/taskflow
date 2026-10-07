@@ -57,6 +57,11 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
   function getStickyLeft(idx: number) { let left = 0; for (let i = 0; i < idx; i++) { if (!hiddenCols.has(i)) left += widths[i]; } return left; }
 
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Project[]; } });
+  // Separate, unfiltered-by-is_live project list used ONLY to resolve a macro
+  // project's member projects when deliberately browsing into it (e.g. the
+  // "Closed Projects" macro, whose child projects are all archived/not-live).
+  // Dropdowns/Add Task continue to use the live-only `projects` list above.
+  const { data: allProjectsForMacro = [] } = useQuery({ queryKey: ['projects-all-for-macro'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).order('position'); return (data || []) as Project[]; }, enabled: !!filterMacroProjectId });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
   const { data: allTasks = [] } = useQuery({ queryKey: ['all-tasks'], queryFn: async () => { const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: false }); return (data || []) as Task[]; } });
   const { data: statuses = [] } = useQuery({ queryKey: ['master_statuses'], queryFn: async () => { const { data } = await supabase.from('master_statuses').select('*').eq('is_active', true).order('position'); return (data || []) as MasterStatus[]; } });
@@ -105,7 +110,9 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
     contextFiltered = contextFiltered.filter((t) => fixedStatusIds.includes(t.status_id));
   }
   if (filterMacroProjectId) {
-    const macroProjIds = new Set(projects.filter((p: any) => p.macro_project_id === filterMacroProjectId).map((p: any) => p.id));
+    // Use the unfiltered-by-is_live list here so browsing into a macro whose
+    // projects are all archived (e.g. "Closed Projects") still resolves them.
+    const macroProjIds = new Set(allProjectsForMacro.filter((p: any) => p.macro_project_id === filterMacroProjectId).map((p: any) => p.id));
     contextFiltered = contextFiltered.filter((t) => macroProjIds.has(t.project_id));
   }
   if (filterProjectId) contextFiltered = contextFiltered.filter((t) => t.project_id === filterProjectId);
@@ -210,13 +217,21 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
     if (filterProjectId) return [filterProjectId];
     if (filterDepartmentId && filterProjectId) return [filterProjectId];
     if (filterMacroProjectId) {
-      const ids = projects.filter((p: any) => p.macro_project_id === filterMacroProjectId).map((p: any) => p.id);
+      // Resolve against the unfiltered-by-is_live list so archived macros
+      // (e.g. "Closed Projects") still resolve their member projects.
+      const ids = allProjectsForMacro.filter((p: any) => p.macro_project_id === filterMacroProjectId).map((p: any) => p.id);
       return ids.length > 0 ? ids : null;
     }
     return userProjectIds; // fall back to access-control scoping
   })();
 
-  const visibleProjects = contextProjectIds ? projects.filter((p) => contextProjectIds.includes(p.id)) : projects;
+  // When browsing a macro project whose members may be archived (not-live),
+  // include those archived projects in the dropdown/options for this view only.
+  const macroScopedProjects = filterMacroProjectId
+    ? allProjectsForMacro.filter((p: any) => p.macro_project_id === filterMacroProjectId)
+    : projects;
+
+  const visibleProjects = contextProjectIds ? macroScopedProjects.filter((p) => contextProjectIds.includes(p.id)) : macroScopedProjects;
   // Departments: all master departments (no project scoping)
   const visibleDepartments = departments;
   // Members: scoped to project members of context project(s)

@@ -41,6 +41,10 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId, fi
   const { data: priorities = [] } = useQuery({ queryKey: ['master_priorities'], queryFn: async () => { const { data } = await supabase.from('master_priorities').select('*').eq('is_active', true).order('position'); return (data || []) as MasterPriority[]; } });
   const { data: members = [] } = useQuery({ queryKey: ['master_members'], queryFn: async () => { const { data } = await supabase.from('master_members').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
   const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Array<Project & { color?: string; macro_project_id?: string }>; } });
+  // Separate, unfiltered-by-is_live project list used ONLY to resolve a macro
+  // project's member projects when deliberately browsing into it (e.g. the
+  // "Closed Projects" macro, whose child projects are all archived/not-live).
+  const { data: allProjectsForMacro = [] } = useQuery({ queryKey: ['projects-all-for-macro'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<Project & { color?: string; macro_project_id?: string }>; }, enabled: !!filterMacroProjectId });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Array<Department & { color?: string }>; } });
   const { data: taskTypes = [] } = useQuery({ queryKey: ['master_task_types'], queryFn: async () => { const { data } = await supabase.from('master_task_types').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color?: string }>; } });
   const { data: taskSections = [] } = useQuery({ queryKey: ['master_task_sections'], queryFn: async () => { const { data } = await supabase.from('master_task_sections').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color?: string }>; } });
@@ -58,14 +62,20 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId, fi
     topTasks = topTasks.filter((t) => fixedStatusIds.includes(t.status_id));
   }
   if (filterMacroProjectId) {
-    const macroProjIds = new Set(projects.filter((p: any) => p.macro_project_id === filterMacroProjectId).map((p: any) => p.id));
+    // Resolve against the unfiltered-by-is_live list so archived macros
+    // (e.g. "Closed Projects") still resolve their member projects.
+    const macroProjIds = new Set(allProjectsForMacro.filter((p: any) => p.macro_project_id === filterMacroProjectId).map((p: any) => p.id));
     topTasks = topTasks.filter((t) => macroProjIds.has(t.project_id));
   }
   if (filterProjectId) topTasks = topTasks.filter((t) => t.project_id === filterProjectId);
   if (filterDepartmentId) topTasks = topTasks.filter((t) => t.department_id === filterDepartmentId);
   if (searchQuery) { const q = searchQuery.toLowerCase(); topTasks = topTasks.filter((t) => t.title.toLowerCase().includes(q) || t.task_no.toLowerCase().includes(q)); }
 
-  const projectMap = new Map(projects.map((p: any) => [p.id, p]));
+  // When browsing a macro project whose members may be archived (not-live),
+  // use that unfiltered list so dropdowns (e.g. Add Task's project picker)
+  // still resolve correctly inside that view.
+  const effectiveProjects = filterMacroProjectId ? allProjectsForMacro.filter((p: any) => p.macro_project_id === filterMacroProjectId) : projects;
+  const projectMap = new Map(effectiveProjects.map((p: any) => [p.id, p]));
   const topTasksWithMacro = topTasks.map((t) => ({
     ...t,
     macro_project_id: (projectMap.get(t.project_id) as any)?.macro_project_id || null,
@@ -156,7 +166,7 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId, fi
   }
 
   const deptOpts = departments; // Departments are open - visible to all users
-  const projectOpts = userProjectIds ? projects.filter((p) => userProjectIds.includes(p.id)) : projects;
+  const projectOpts = userProjectIds ? effectiveProjects.filter((p) => userProjectIds.includes(p.id)) : effectiveProjects;
 
   function renderEditableCard(task: Task, isSubtask: boolean) {
     const status = getStatus(task.status_id);
@@ -288,12 +298,14 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId, fi
           const ctxProjectIds: string[] | null = (() => {
             if (filterProjectId) return [filterProjectId];
             if (filterMacroProjectId) {
-              const ids = projects.filter((p: any) => p.macro_project_id === filterMacroProjectId).map((p: any) => p.id);
+              // Resolve against the unfiltered-by-is_live list so archived
+              // macros (e.g. "Closed Projects") still resolve their projects.
+              const ids = allProjectsForMacro.filter((p: any) => p.macro_project_id === filterMacroProjectId).map((p: any) => p.id);
               return ids.length > 0 ? ids : null;
             }
             return userProjectIds;
           })();
-          const ctxProjects = ctxProjectIds ? projects.filter((p) => ctxProjectIds.includes(p.id)) : projects;
+          const ctxProjects = ctxProjectIds ? effectiveProjects.filter((p) => ctxProjectIds.includes(p.id)) : effectiveProjects;
           const ctxDepts = departments; // all master departments (no project scoping)
           const ctxMemberIds = ctxProjectIds
             ? [...new Set(projectMembers.filter((pm) => ctxProjectIds.includes(pm.project_id)).map((pm) => pm.member_id))]
