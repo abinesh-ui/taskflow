@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MessageCircle, Send, X, Minimize2, Maximize2 } from 'lucide-react';
+import { useLiveProjects } from '@/hooks/use-access-control';
 import type { Task, MasterStatus } from '@/types/database';
 
 interface Message { role: 'user' | 'ai'; content: string; timestamp: Date; }
@@ -49,10 +50,13 @@ export default function AIChatPanel() {
 
   function handleOpen() { setOpen(true); if (keyStatus === 'unchecked') testKey(); }
 
-  const { data: allTasks = [] } = useQuery({ queryKey: ['all-tasks'], queryFn: async () => { const { data } = await supabase.from('tasks').select('*'); return (data || []) as Task[]; } });
+  const { data: allTasksRaw = [] } = useQuery({ queryKey: ['all-tasks'], queryFn: async () => { const { data } = await supabase.from('tasks').select('*'); return (data || []) as Task[]; } });
   const { data: statuses = [] } = useQuery({ queryKey: ['master_statuses'], queryFn: async () => { const { data } = await supabase.from('master_statuses').select('*').order('position'); return (data || []) as MasterStatus[]; } });
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true); return (data || []) as Array<{ id: string; name: string }>; } });
+  const { liveProjects: projects, liveProjectIds } = useLiveProjects();
   const { data: members = [] } = useQuery({ queryKey: ['master_members'], queryFn: async () => { const { data } = await supabase.from('master_members').select('*').eq('is_active', true); return (data || []) as Array<{ id: string; name: string }>; } });
+  // Keep archived-project tasks out of the AI's context too, so it never
+  // references work that's supposed to be hidden from daily views.
+  const allTasks = allTasksRaw.filter((t) => liveProjectIds.has(t.project_id));
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages]);
 

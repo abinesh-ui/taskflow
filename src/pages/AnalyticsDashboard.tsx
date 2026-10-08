@@ -10,24 +10,32 @@ import { formatDate, getOverdueDays } from '@/lib/utils';
 import { AlertTriangle, CheckCircle, Target, Zap, Filter, X, FolderOpen, Users, Clock, TrendingUp } from 'lucide-react';
 import { NestedFilterBuilder, applyFilters, type FilterCondition } from '@/components/tasks/NestedFilter';
 import PendingOverdueReport from '@/components/dashboard/PendingOverdueReport';
+import { useLiveProjects } from '@/hooks/use-access-control';
 import type { Task, MasterStatus, MasterPriority, Project } from '@/types/database';
 
 export default function AnalyticsDashboard() {
   const { user } = useAuth();
   const { isAdmin, userProjectIds } = useAccessControl();
+  const { liveProjectIds } = useLiveProjects();
   const [dateRange, setDateRange] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
   const [filterConditions, setFilterConditions] = useState<FilterCondition[]>([]);
 
-  const { data: allTasks = [] } = useQuery({ queryKey: ['all-tasks'], queryFn: async () => { const { data } = await supabase.from('tasks').select('*'); return (data || []) as Task[]; } });
+  const { data: allTasksRaw = [] } = useQuery({ queryKey: ['all-tasks'], queryFn: async () => { const { data } = await supabase.from('tasks').select('*'); return (data || []) as Task[]; } });
   const { data: statuses = [] } = useQuery({ queryKey: ['master_statuses'], queryFn: async () => { const { data } = await supabase.from('master_statuses').select('*').eq('is_active', true).order('position'); return (data || []) as Array<MasterStatus & { completion_weight?: number }>; } });
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).order('position'); return (data || []) as Project[]; } });
+  const { data: projectsRaw = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).order('position'); return (data || []) as Project[]; } });
   const { data: priorities = [] } = useQuery({ queryKey: ['master_priorities'], queryFn: async () => { const { data } = await supabase.from('master_priorities').select('*').eq('is_active', true).order('position'); return (data || []) as MasterPriority[]; } });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; project_id: string; color?: string }>; } });
   const { data: members = [] } = useQuery({ queryKey: ['master_members'], queryFn: async () => { const { data } = await supabase.from('master_members').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
   const { data: macroProjects = [] } = useQuery({ queryKey: ['master_macro_projects'], queryFn: async () => { const { data } = await supabase.from('master_macro_projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
-  const { data: milestones = [] } = useQuery({ queryKey: ['milestones'], queryFn: async () => { const { data } = await supabase.from('milestones').select('*'); return (data || []) as Array<{ id: string; description: string; project_id: string }>; } });
+  const { data: milestonesRaw = [] } = useQuery({ queryKey: ['milestones'], queryFn: async () => { const { data } = await supabase.from('milestones').select('*'); return (data || []) as Array<{ id: string; description: string; project_id: string }>; } });
   const { data: poaSubmissions = [] } = useQuery({ queryKey: ['poa_submissions', user?.id], queryFn: async () => { const { data } = await supabase.from('poa_submissions').select('*').eq('user_id', user!.id).order('submitted_date', { ascending: false }).limit(30); return (data || []) as Array<{ id: string; submitted_date: string; total_planned_mins: number; total_actual_mins: number }>; }, enabled: !!user });
+
+  // Exclude archived (not-live) projects' tasks and milestones from every
+  // metric on this dashboard — they're only visible via Closed Projects.
+  const projects = projectsRaw.filter((p) => liveProjectIds.has(p.id));
+  const allTasks = allTasksRaw.filter((t) => liveProjectIds.has(t.project_id));
+  const milestones = milestonesRaw.filter((m) => liveProjectIds.has(m.project_id));
 
   const today = new Date().toISOString().split('T')[0];
   const closedStatusIds = statuses.filter((s) => s.is_closed).map((s) => s.id);

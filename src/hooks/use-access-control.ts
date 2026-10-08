@@ -101,3 +101,31 @@ export function usePermission(permission: string) {
 
   return { allowed: ready ? allowed : false, ready };
 }
+
+/**
+ * Returns the set of currently LIVE project ids, plus the live project rows
+ * themselves. This is the single source of truth every day-to-day screen
+ * should use to exclude archived ("not live") projects' tasks/subtasks/
+ * milestones — instead of each screen re-filtering `projects` by `is_live`
+ * independently (which was previously inconsistent across the app).
+ *
+ * Dedicated archive screens (e.g. "Closed Projects") should query projects
+ * directly instead of using this hook, since they intentionally need the
+ * non-live rows.
+ */
+export function useLiveProjects() {
+  const { data: liveProjects = [], isFetched } = useQuery({
+    queryKey: ['projects-live'],
+    queryFn: async () => {
+      const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position');
+      return (data || []) as Array<{ id: string; name: string; color?: string; macro_project_id?: string | null }>;
+    },
+  });
+  const liveProjectIds = new Set(liveProjects.map((p) => p.id));
+  return { liveProjects, liveProjectIds, isFetched };
+}
+
+/** Filters any array of rows with a `project_id` field down to only those whose project is live. */
+export function filterToLiveProjects<T extends { project_id: string }>(rows: T[], liveProjectIds: Set<string>): T[] {
+  return rows.filter((r) => liveProjectIds.has(r.project_id));
+}

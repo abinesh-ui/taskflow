@@ -10,6 +10,7 @@ import { NestedFilterBuilder, type FilterCondition } from '@/components/tasks/Ne
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
 import { Plus, Filter } from 'lucide-react';
+import { useLiveProjects } from '@/hooks/use-access-control';
 import type { Project, Task } from '@/types/database';
 
 const STATUS_LABELS: Record<string, string> = { yet_to_initiate: 'Yet to Initiate', wip: 'WIP', done: 'Done', closed: 'Closed' };
@@ -18,6 +19,7 @@ const STATUS_COLORS: Record<string, string> = { yet_to_initiate: '#6b7280', wip:
 export default function MilestonesPage() {
   const { user } = useAuth();
   const { userProjectIds, isAdmin } = useAccessControl();
+  const { liveProjectIds } = useLiveProjects();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [adding, setAdding] = useState(false);
@@ -51,13 +53,16 @@ export default function MilestonesPage() {
   const canDelete = hasPerm('delete_milestone');
   const canClose = hasPerm('close_milestone');
 
-  const { data: milestones = [] } = useQuery({
+  const { data: milestonesRaw = [] } = useQuery({
     queryKey: ['milestones'],
     queryFn: async () => {
       const { data } = await supabase.from('milestones').select('*').order('created_at', { ascending: false });
       return (data || []) as Array<{ id: string; milestone_no: string; project_id: string; description: string; planned_start_date: string | null; planned_end_date: string | null; actual_start_date: string | null; actual_end_date: string | null; status: string; created_at: string }>;
     },
   });
+  // Exclude milestones belonging to archived (not-live) projects — those are
+  // only reachable via the dedicated Closed Projects screen.
+  const milestones = milestonesRaw.filter((m) => liveProjectIds.has(m.project_id));
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
@@ -75,13 +80,14 @@ export default function MilestonesPage() {
     },
   });
 
-  const { data: allTasks = [] } = useQuery({
+  const { data: allTasksRaw = [] } = useQuery({
     queryKey: ['all-tasks'],
     queryFn: async () => {
       const { data } = await supabase.from('tasks').select('*');
       return (data || []) as Task[];
     },
   });
+  const allTasks = allTasksRaw.filter((t) => liveProjectIds.has(t.project_id));
 
   const { data: statuses = [] } = useQuery({
     queryKey: ['master_statuses'],

@@ -25,6 +25,7 @@ interface MasterItem {
   is_done?: boolean;
   is_live?: boolean;
   macro_project_id?: string;
+  pre_archive_macro_project_id?: string | null;
 }
 
 function MasterSection({
@@ -185,11 +186,21 @@ function MasterSection({
     // When a project is marked "not live", automatically move it under the
     // dedicated "Closed Projects" macro project so it's archived out of daily
     // views (sidebar, dashboards, All Tasks) but stays browsable there.
-    // Re-activating a project does NOT auto-restore its original macro — the
-    // admin can reassign it manually, since the original mapping isn't recalled.
     if (table === 'projects' && fields.includes('is_live') && data.is_live === false) {
+      // Remember its current macro so re-activating can restore it later.
+      const current = items.find((it) => it.id === editingId) as any;
+      if (current?.macro_project_id) data.pre_archive_macro_project_id = current.macro_project_id;
       const { data: closedMacro } = await supabase.from('master_macro_projects').select('id').eq('name', 'Closed Projects').maybeSingle();
       if (closedMacro?.id) data.macro_project_id = closedMacro.id;
+    }
+    // Re-activating a project: restore its original macro project if we have
+    // one on record, so it doesn't stay nested under "Closed Projects" once live.
+    if (table === 'projects' && fields.includes('is_live') && data.is_live === true) {
+      const current = items.find((it) => it.id === editingId) as any;
+      if (current?.pre_archive_macro_project_id) {
+        data.macro_project_id = current.pre_archive_macro_project_id;
+        data.pre_archive_macro_project_id = null;
+      }
     }
     updateMutation.mutate({ id: editingId, data });
   }

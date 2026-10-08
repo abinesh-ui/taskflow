@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAccessControl, usePermission } from '@/hooks/use-access-control';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, ChevronDown, FolderOpen, Briefcase, Settings, Home, Layers, ListTodo } from 'lucide-react';
+import { ChevronRight, ChevronDown, FolderOpen, Briefcase, Settings, Home, Layers, ListTodo, Archive } from 'lucide-react';
 import type { Project, Department } from '@/types/database';
 
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
@@ -19,7 +19,9 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
 
   const { data: macroProjects = [] } = useQuery({ queryKey: ['master_macro_projects'], queryFn: async () => { const { data } = await supabase.from('master_macro_projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<{ id: string; name: string; color: string }>; } });
-  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).order('position'); return (data || []) as Array<Project & { macro_project_id?: string }>; } });
+  // Live-only: archived projects are reachable exclusively via the dedicated
+  // "Closed Projects" screen, not through this everyday nav tree.
+  const { data: projects = [] } = useQuery({ queryKey: ['projects'], queryFn: async () => { const { data } = await supabase.from('projects').select('*').eq('is_active', true).eq('is_live', true).order('position'); return (data || []) as Array<Project & { macro_project_id?: string }>; } });
   const { data: departments = [] } = useQuery({ queryKey: ['departments'], queryFn: async () => { const { data } = await supabase.from('departments').select('*').eq('is_active', true).order('position'); return (data || []) as Department[]; } });
 
   // Filter projects for non-admin users. userProjectIds is null only for confirmed
@@ -47,6 +49,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         {canViewPendingTasks && <Button variant={isActive('/pending-tasks') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/pending-tasks'); onNavigate?.(); }}><ListTodo className="h-3.5 w-3.5 mr-2" />Pending Tasks</Button>}
         <Button variant={isActive('/milestones') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/milestones'); onNavigate?.(); }}><Layers className="h-3.5 w-3.5 mr-2" />Milestones</Button>
         <Button variant={isActive('/poa') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/poa'); onNavigate?.(); }}><Layers className="h-3.5 w-3.5 mr-2" />POA</Button>
+        <Button variant={isActive('/closed-projects') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/closed-projects'); onNavigate?.(); }}><Archive className="h-3.5 w-3.5 mr-2" />Closed Projects</Button>
         {isAdmin && <Button variant={isActive('/settings') ? 'secondary' : 'ghost'} className="w-full justify-start text-xs h-8" onClick={() => { navigate('/settings'); onNavigate?.(); }}><Settings className="h-3.5 w-3.5 mr-2" />Settings</Button>}
       </div>
       <div className="px-3 pt-2 pb-1 border-t"><span className="text-[10px] font-semibold text-muted-foreground uppercase">Projects</span></div>

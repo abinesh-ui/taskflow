@@ -3,12 +3,14 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { getPlannedMonthWeek, getOverdueDays, formatDate } from '@/lib/utils';
+import { useLiveProjects } from '@/hooks/use-access-control';
 import type { Task, MasterStatus, MasterPriority } from '@/types/database';
 
 export default function MyTasksPage() {
   const { user } = useAuth();
+  const { liveProjectIds } = useLiveProjects();
 
-  const { data: tasks = [] } = useQuery({
+  const { data: tasksRaw = [] } = useQuery({
     queryKey: ['my-tasks', user?.id],
     queryFn: async () => {
       const { data } = await supabase
@@ -20,6 +22,9 @@ export default function MyTasksPage() {
     },
     enabled: !!user,
   });
+  // Exclude tasks belonging to archived (not-live) projects — only visible
+  // via the dedicated Closed Projects screen.
+  const tasks = tasksRaw.filter((t) => liveProjectIds.has(t.project_id));
 
   const { data: statuses = [] } = useQuery({
     queryKey: ['master_statuses'],
