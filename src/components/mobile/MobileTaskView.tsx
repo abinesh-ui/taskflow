@@ -60,6 +60,11 @@ export default function MobileTaskView({ filterProjectId, filterDepartmentId, fi
 
   // Filter + sort
   let topTasks = allTasks.filter((t) => !t.parent_id);
+  // Exclude tasks belonging to archived (not-live) projects, except when
+  // deliberately browsing the Closed Projects macro — otherwise a task whose
+  // project got archived would still show here while its Project/Milestone
+  // lookups (which ARE live-only) resolve to nothing, rendering blank cells.
+  if (!filterMacroProjectId) topTasks = topTasks.filter((t) => liveProjectIds.has(t.project_id));
   // Access control: non-admin only sees assigned projects
   if (userProjectIds) topTasks = topTasks.filter((t) => userProjectIds.includes(t.project_id));
   // Fixed status filter (e.g. the "Pending Tasks" screen locks to a specific set of statuses)

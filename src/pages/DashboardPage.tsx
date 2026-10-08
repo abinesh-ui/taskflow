@@ -109,6 +109,11 @@ export default function DashboardPage({ filterProjectId, filterDepartmentId, fil
   }
 
   let contextFiltered = allTasks.filter((t) => !t.parent_id);
+  // Exclude tasks belonging to archived (not-live) projects, EXCEPT when
+  // deliberately browsing the Closed Projects macro — otherwise a task whose
+  // project got archived would still show here while its Project/Milestone
+  // lookups (which ARE live-only) resolve to nothing, rendering blank cells.
+  if (!filterMacroProjectId) contextFiltered = contextFiltered.filter((t) => liveProjectIds.has(t.project_id));
   // Access control: non-admin only sees their assigned projects
   if (userProjectIds) contextFiltered = contextFiltered.filter((t) => userProjectIds.includes(t.project_id));
   // Fixed status filter (e.g. the "Pending Tasks" screen locks to a specific set of statuses)
